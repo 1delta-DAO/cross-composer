@@ -1,0 +1,17 @@
+{
+    "name": "moonbeamer",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "tsx script/permit-batch.ts"
+    },
+    "dependencies": {
+        "viem": "^2.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "dotenv": "^17.2.3",
+        "tsx": "^4.0.0",
+        "typescript": "^5.0.0"
+    },
+    "type": "module"
+}
