@@ -25,6 +25,8 @@ contract PermitBatchTestTest is Test {
     Vm.Wallet user3;
 
     function setUp() public {
+        vm.createSelectFork("wss://moonbeam-rpc.publicnode.com");
+
         batch = Batch(BATCH_PRECOMPILE);
         permit = CallPermit(CALL_PERMIT_PRECOMPILE);
         token = IERC20(xcUSDC);
@@ -132,5 +134,17 @@ contract PermitBatchTestTest is Test {
             r,
             s
         );
+    }
+
+    function test_fork_call() public {
+        bytes
+            memory cd = hex"12d2d1e00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002462653166666362612d316431312d343164322d393238642d33356132353163653936316300000000000000000000000000000000000000000000000000000000";
+        address target = 0x4a64d5f6B461A9E5116a8757Bb4993126044268f;
+        uint256 value = 0xde0b6b3a7640000;
+
+        address caller = 0x2E8752F0fA59C59Be790190dd65c646f9674Fa53;
+
+        vm.prank(caller);
+        target.call{value: value}(cd);
     }
 }
