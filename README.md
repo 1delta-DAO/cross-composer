@@ -1,12 +1,24 @@
 # Moonbeamer
 
+## UI
+
+The ui is in [/ui](ui/) directory, you need to set the related environment vars for ui first, the example `.env` is [.env.example](ui/env.example)
+Then install the required packages and start the web app
+
+```bash
+cd ./ui
+pnpm i && pnpm dev
+```
+
+> If npm packages for ui are installed, then it can be started from root directory using `pnpm web`
+
 ## Solidity test
 
 The solidity test does not work, because the anvil fork cannot use the precompiles
 
 ## Ts Script
 
-Set `.env` file according to the `.env.example` file
+Set `.env` file according to the [.env.example](.env.example) file
 Execute with
 
 ### Use direct EOA Caller
