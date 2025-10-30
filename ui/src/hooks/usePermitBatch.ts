@@ -1,36 +1,44 @@
 import { useState, useCallback } from "react"
-import { useAccount, useSignTypedData, useWriteContract } from "wagmi"
+import { useAccount, useSignTypedData, useWriteContract, useChainId } from "wagmi"
 import { encodeFunctionData, parseUnits, type Address, type Hex } from "viem"
 import { moonbeam } from "viem/chains"
 import { BATCH_PRECOMPILE, CALL_PERMIT_PRECOMPILE, DOMAIN_SEPARATOR } from "../lib/consts"
-import { BatchCall, PermitBatchParams, PermitBatchResult } from "../lib/types"
+import { BatchCall, PermitBatchParams } from "../lib/types"
 import { BATCH_ABI, CALL_PERMIT_ABI, ERC20_ABI } from "../lib/abi"
-import { getPublicClient } from "../lib/clients"
+import { getPublicClientForChain } from "../lib/rpc/clientHelper"
 import { fetchDecimals as fetchDecimalsUtil } from "../utils/tokenUtils"
 
 export function usePermitBatch() {
     const { address } = useAccount()
+    const chainId = useChainId()
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [decimalsCache, setDecimalsCache] = useState<Record<Address, number>>({})
     const [loadingDecimals, setLoadingDecimals] = useState<Set<Address>>(new Set())
 
-    const fetchNonce = useCallback(async (userAddress: Address): Promise<bigint | null> => {
-        try {
-            const publicClient = getPublicClient()
-            const nonce = await publicClient.readContract({
-                address: CALL_PERMIT_PRECOMPILE,
-                abi: CALL_PERMIT_ABI,
-                functionName: "nonces",
-                args: [userAddress],
-            })
-            console.log("nonce fetch result:", nonce)
-            return nonce
-        } catch (error) {
-            console.error("Error fetching nonce:", error)
-            return null
-        }
-    }, [])
+    const fetchNonce = useCallback(
+        async (userAddress: Address): Promise<bigint | null> => {
+            try {
+                const publicClient = await getPublicClientForChain(String(chainId))
+                if (!publicClient) {
+                    console.error("Could not get public client for fetching nonce")
+                    return null
+                }
+                const nonce = await publicClient.readContract({
+                    address: CALL_PERMIT_PRECOMPILE,
+                    abi: CALL_PERMIT_ABI,
+                    functionName: "nonces",
+                    args: [userAddress],
+                })
+                console.log("nonce fetch result:", nonce)
+                return nonce
+            } catch (error) {
+                console.error("Error fetching nonce:", error)
+                return null
+            }
+        },
+        [chainId]
+    )
 
     const { signTypedDataAsync } = useSignTypedData()
     const { writeContractAsync } = useWriteContract()
@@ -50,97 +58,9 @@ export function usePermitBatch() {
 
     const fetchDecimals = useCallback(
         async (tokenAddress: Address): Promise<number | null> => {
-            return fetchDecimalsUtil(tokenAddress, decimalsCache, loadingDecimals, setDecimalsCache, setLoadingDecimals)
+            return fetchDecimalsUtil(tokenAddress, String(chainId), decimalsCache, loadingDecimals, setDecimalsCache, setLoadingDecimals)
         },
-        [decimalsCache, loadingDecimals]
-    )
-
-    const createPermitSignature = useCallback(
-        async (params: PermitBatchParams): Promise<PermitBatchResult> => {
-            if (!address || !DOMAIN_SEPARATOR) {
-                console.log({ address, DOMAIN_SEPARATOR })
-                return {
-                    signature: null,
-                    batchData: "0x",
-                    nonce: 0n,
-                    error: "Missing required data for permit signature",
-                }
-            }
-
-            console.log("Fetching nonce for address:", address)
-            const currentNonce = await fetchNonce(address)
-            if (currentNonce === null) {
-                return {
-                    signature: null,
-                    batchData: "0x",
-                    nonce: 0n,
-                    error: "Failed to fetch nonce",
-                }
-            }
-
-            try {
-                setIsLoading(true)
-                setError(null)
-
-                const batchData = createBatchData(params.calls)
-                const gasLimit = BigInt(800000)
-
-                const typedData = {
-                    domain: {
-                        name: "Call Permit Precompile",
-                        version: "1",
-                        chainId: moonbeam.id,
-                        verifyingContract: CALL_PERMIT_PRECOMPILE,
-                    },
-                    types: {
-                        CallPermit: [
-                            { name: "from", type: "address" },
-                            { name: "to", type: "address" },
-                            { name: "value", type: "uint256" },
-                            { name: "data", type: "bytes" },
-                            { name: "gaslimit", type: "uint64" },
-                            { name: "nonce", type: "uint256" },
-                            { name: "deadline", type: "uint256" },
-                        ],
-                    },
-                    primaryType: "CallPermit" as const,
-                    message: {
-                        from: params.from,
-                        to: BATCH_PRECOMPILE,
-                        value: BigInt(0),
-                        data: batchData,
-                        gaslimit: gasLimit,
-                        nonce: currentNonce,
-                        deadline: params.deadline,
-                    },
-                }
-
-                const signature = await signTypedDataAsync(typedData)
-                const sig = signature.slice(2)
-                const r = `0x${sig.slice(0, 64)}` as Hex
-                const s = `0x${sig.slice(64, 128)}` as Hex
-                const v = parseInt(sig.slice(128, 130), 16)
-
-                return {
-                    signature: { v, r, s },
-                    batchData,
-                    nonce: currentNonce,
-                    error: null,
-                }
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : "Failed to create permit signature"
-                setError(errorMessage)
-                return {
-                    signature: null,
-                    batchData: "0x",
-                    nonce: 0n,
-                    error: errorMessage,
-                }
-            } finally {
-                setIsLoading(false)
-            }
-        },
-        [address, DOMAIN_SEPARATOR, fetchNonce, createBatchData, signTypedDataAsync]
+        [chainId, decimalsCache, loadingDecimals]
     )
 
     const executeSelfTransmit = useCallback(
@@ -300,7 +220,6 @@ export function usePermitBatch() {
     )
 
     return {
-        createPermitSignature,
         executeSelfTransmit,
         createERC20Calls,
         createArbitraryCalls,

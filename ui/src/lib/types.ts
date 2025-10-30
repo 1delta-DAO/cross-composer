@@ -13,13 +13,6 @@ export interface PermitBatchParams {
     deadline: bigint
 }
 
-export interface PermitBatchResult {
-    signature: { v: number; r: Hex; s: Hex } | null
-    batchData: Hex
-    nonce: bigint
-    error: string | null
-}
-
 export interface ERC20Operation {
     id: string
     operationType: "erc20"
@@ -41,7 +34,5 @@ export interface ArbitraryCallOperation {
 export type Operation = ERC20Operation | ArbitraryCallOperation
 
 export interface BatchTransactionFormProps {
-    onSignatureCreated?: (signature: { v: number; r: Hex; s: Hex }, batchData: Hex, nonce: bigint) => void
     onTransactionExecuted?: (hash: Hex) => void
-    variant: "relayer" | "self-transmit"
 }

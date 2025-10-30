@@ -1,0 +1,13 @@
+export enum ChainEnum {
+    ETHEREUM_MAINNET = "1",
+    OP_MAINNET = "10",
+    MOONBEAM = "1284",
+    MOONRIVER = "1285",
+    POLYGON_MAINNET = "137",
+    ARBITRUM_ONE = "42161",
+    AVALANCHE_C_CHAIN = "43114",
+    BASE = "8453",
+    MANTLE = "5000",
+    BNB_SMART_CHAIN_MAINNET = "56",
+    PLASMA_MAINNET = "9745",
+}

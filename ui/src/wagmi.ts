@@ -1,9 +1,9 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit"
-import { moonbeam } from "wagmi/chains"
+import { arbitrum, avalanche, base, mainnet, mantle, moonbeam, plasma, polygon } from "wagmi/chains"
 
 export const config = getDefaultConfig({
     appName: "Moonbeamer",
-    projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ?? "id",
-    chains: [moonbeam],
-    ssr: true,
+    projectId: "id",
+    chains: [arbitrum, avalanche, base, mainnet, mantle, moonbeam, plasma, polygon],
+    ssr: false,
 })

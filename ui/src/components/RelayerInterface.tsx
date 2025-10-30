@@ -3,7 +3,6 @@ import { type Address, createWalletClient, type Hex, http, parseEther } from "vi
 import { BATCH_PRECOMPILE } from "../lib/consts"
 import { privateKeyToAccount } from "viem/accounts"
 import { moonbeam } from "viem/chains"
-import { getRpcUrl } from "../lib/clients"
 
 interface RelayerInterfaceProps {
     signature: { v: number; r: Hex; s: Hex } | null
@@ -34,9 +33,15 @@ export default function RelayerInterface({ signature, batchData, nonce, from, on
 
         try {
             const relayerAccount = privateKeyToAccount(relayerPrivateKey as Hex)
+            // Get RPC URL from moonbeam chain configuration
+            const rpcUrl = moonbeam.rpcUrls?.default?.http?.[0]
+            if (!rpcUrl) {
+                setResult({ success: false, message: "No RPC URL found for Moonbeam" })
+                return
+            }
             const client = createWalletClient({
                 chain: moonbeam,
-                transport: http(getRpcUrl()),
+                transport: http(rpcUrl),
                 account: relayerAccount,
             })
             const tx = await client.sendTransaction({

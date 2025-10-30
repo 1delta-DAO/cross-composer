@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react"
-import { useAccount } from "wagmi"
+import { useAccount, useChainId, useSwitchChain } from "wagmi"
 import { type Address, type Hex } from "viem"
+import { moonbeam } from "viem/chains"
 import { usePermitBatch } from "../hooks/usePermitBatch"
 import { useDebounce } from "../hooks/useDebounce"
 import { isValidAddress, isEmptyAddress } from "../utils/addressValidation"
@@ -9,9 +10,13 @@ import { fetchDecimals } from "../utils/tokenUtils"
 import { DEFAULT_DECIMALS, XCUSDT_ADDRESS, XCUSDC_ADDRESS, GLMR_ADDRESS } from "../lib/consts"
 import { BatchTransactionFormProps, Operation, ERC20Operation, ArbitraryCallOperation } from "../lib/types"
 
-export default function BatchTransactionForm({ onSignatureCreated, onTransactionExecuted, variant }: BatchTransactionFormProps) {
+const MOONBEAM_CHAIN_ID = 1284
+
+export default function BatchTransactionForm({ onTransactionExecuted }: BatchTransactionFormProps) {
     const { address } = useAccount()
-    const { createPermitSignature, executeSelfTransmit, createBatchCalls, isLoading, error } = usePermitBatch()
+    const chainId = useChainId()
+    const { switchChain } = useSwitchChain()
+    const { executeSelfTransmit, createBatchCalls, isLoading, error } = usePermitBatch()
 
     const [operations, setOperations] = useState<Operation[]>([])
 
@@ -31,9 +36,9 @@ export default function BatchTransactionForm({ onSignatureCreated, onTransaction
 
     const fetchDecimalsWrapper = useCallback(
         async (tokenAddress: Address): Promise<number | null> => {
-            return fetchDecimals(tokenAddress, localDecimalsCache, localLoadingDecimals, setLocalDecimalsCache, setLocalLoadingDecimals)
+            return fetchDecimals(tokenAddress, String(chainId), localDecimalsCache, localLoadingDecimals, setLocalDecimalsCache, setLocalLoadingDecimals)
         },
-        [localDecimalsCache, localLoadingDecimals]
+        [chainId, localDecimalsCache, localLoadingDecimals]
     )
 
     const addERC20Operation = useCallback(() => {
@@ -208,35 +213,19 @@ export default function BatchTransactionForm({ onSignatureCreated, onTransaction
                 const calls = createBatchCalls(operations)
                 const deadlineBigInt = BigInt(Math.floor(Date.now() / 1000) + deadline)
 
-                if (variant === "relayer") {
-                    const result = await createPermitSignature({
-                        from: address,
-                        calls,
-                        deadline: deadlineBigInt,
-                    })
+                const result = await executeSelfTransmit({
+                    from: address,
+                    calls,
+                    deadline: deadlineBigInt,
+                })
 
-                    if (result.error) {
-                        return
-                    }
+                if (result.error) {
+                    console.error("Self-transmit error:", result.error)
+                    return
+                }
 
-                    if (result.signature && onSignatureCreated) {
-                        onSignatureCreated(result.signature, result.batchData, result.nonce)
-                    }
-                } else {
-                    const result = await executeSelfTransmit({
-                        from: address,
-                        calls,
-                        deadline: deadlineBigInt,
-                    })
-
-                    if (result.error) {
-                        console.error("Self-transmit error:", result.error)
-                        return
-                    }
-
-                    if (result.hash && onTransactionExecuted) {
-                        onTransactionExecuted(result.hash)
-                    }
+                if (result.hash && onTransactionExecuted) {
+                    onTransactionExecuted(result.hash)
                 }
             } catch (err) {
                 console.error("Transaction failed:", err)
@@ -244,21 +233,30 @@ export default function BatchTransactionForm({ onSignatureCreated, onTransaction
                 setIsSubmitting(false)
             }
         },
-        [
-            address,
-            operations,
-            deadline,
-            variant,
-            createBatchCalls,
-            createPermitSignature,
-            executeSelfTransmit,
-            onSignatureCreated,
-            onTransactionExecuted,
-        ]
+        [address, operations, deadline, createBatchCalls, executeSelfTransmit, onTransactionExecuted]
     )
+
+    const isMoonbeam = chainId === MOONBEAM_CHAIN_ID
 
     return (
         <>
+            {!isMoonbeam && (
+                <div className="alert alert-warning mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                        <h3 className="font-bold">Wrong Network</h3>
+                        <div className="text-sm">The transaction tab is specifically designed for Moonbeam network. Please switch to Moonbeam to continue.</div>
+                    </div>
+                    <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => switchChain({ chainId: MOONBEAM_CHAIN_ID })}
+                    >
+                        Switch to Moonbeam
+                    </button>
+                </div>
+            )}
             <div className="card bg-base-100 shadow-2xl">
                 <div className="card-body">
                     <div className="flex items-center justify-between mb-6">
@@ -273,7 +271,7 @@ export default function BatchTransactionForm({ onSignatureCreated, onTransaction
                             </svg>
                             Batch Transaction
                         </h2>
-                        <div className="badge badge-primary badge-lg">{variant === "relayer" ? "Relayer Mode" : "Self-Transmit Mode"}</div>
+                        <div className="badge badge-primary badge-lg">Self-Transmit Mode</div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -584,23 +582,13 @@ export default function BatchTransactionForm({ onSignatureCreated, onTransaction
                             <div className="card-actions justify-end">
                                 <button
                                     type="submit"
-                                    disabled={isLoading || isSubmitting || !address || operations.length === 0}
+                                    disabled={isLoading || isSubmitting || !address || operations.length === 0 || !isMoonbeam}
                                     className={`btn btn-primary btn-lg w-full min-h-[3rem] ${isLoading || isSubmitting ? "loading" : ""}`}
                                 >
-                                    {operations.length === 0 ? (
+                                    {!isMoonbeam ? (
+                                        "Please switch to Moonbeam network"
+                                    ) : operations.length === 0 ? (
                                         "Add operations to continue"
-                                    ) : variant === "relayer" ? (
-                                        <>
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                                />
-                                            </svg>
-                                            Create Signature
-                                        </>
                                     ) : (
                                         <>
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
