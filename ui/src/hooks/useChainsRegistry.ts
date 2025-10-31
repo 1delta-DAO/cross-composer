@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { CHAIN_DATA } from "../../lib/data/chainData"
+import { CHAIN_DATA } from "../lib/data/chainData"
 
 export type ExplorerInfo = {
     name?: string

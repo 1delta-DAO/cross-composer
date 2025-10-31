@@ -1,5 +1,5 @@
 import React from "react"
-import { useChainsRegistry } from "../../hooks/query/useChainsRegistry"
+import { useChainsRegistry } from "../../hooks/useChainsRegistry"
 import { SUPPORTED_CHAIN_IDS } from "../../lib/data/chainIds"
 import { Logo } from "../common/Logo"
 import { ChainEnum } from "../../lib/data/chains"

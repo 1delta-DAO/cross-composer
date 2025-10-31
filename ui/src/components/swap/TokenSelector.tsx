@@ -1,10 +1,10 @@
 import React from "react"
 import type { Address } from "viem"
 import { zeroAddress } from "viem"
-import { useTokenLists } from "../../hooks/query/useTokenLists"
+import { useTokenLists } from "../../hooks/useTokenLists"
 import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
 import { useDexscreenerPrices } from "../../hooks/prices/useDexscreenerPrices"
-import { useChainsRegistry } from "../../hooks/query/useChainsRegistry"
+import { useChainsRegistry } from "../../hooks/useChainsRegistry"
 import { getWNative } from "../../lib/data/wrappednatives"
 import { Logo } from "../common/Logo"
 

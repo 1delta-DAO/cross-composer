@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react"
-import { loadTokenLists, getTokenListsCache } from "../../lib/data/tokenListsCache"
+import { loadTokenLists, getTokenListsCache } from "../lib/data/tokenListsCache"
 
 export type TokenListsRecord = Record<string, Record<string, any>>
 
@@ -46,3 +46,4 @@ export function useTokenLists() {
         [data, isLoading]
     )
 }
+
