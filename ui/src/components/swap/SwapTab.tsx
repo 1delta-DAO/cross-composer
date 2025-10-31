@@ -192,104 +192,115 @@ export function SwapTab({ userAddress }: Props) {
 
     return (
         <div className="space-y-4">
-            <div className="space-y-2">
-                <div className="font-medium">Source</div>
-                <ChainSelector
-                    value={srcChainId}
-                    onChange={(cid) => {
-                        setSrcChainId(cid)
-                        // if dst matches src after change, clear dstToken to enforce difference
-                        if (cid === dstChainId && srcToken && dstToken && srcToken.toLowerCase() === dstToken.toLowerCase()) {
-                            setDstToken(undefined)
-                        }
-                    }}
-                />
-                {srcChainId && <TokenSelector chainId={srcChainId} userAddress={userAddress} value={srcToken} onChange={setSrcToken} />}
-                {srcChainId && srcToken && (
-                    <SelectedTokenInfo
-                        chains={chains}
-                        chainId={srcChainId || ""}
-                        tokenAddress={srcToken}
-                        balance={srcTokenBalance?.value || (srcToken ? srcBalances?.[srcChainId || ""]?.[srcToken.toLowerCase()]?.value : undefined)}
-                        price={srcToken && srcChainId ? getTokenPrice(srcChainId, srcToken, srcPrices?.[srcChainId || ""]) : undefined}
-                        balanceLoading={srcTokenBalanceLoading || srcBalancesLoading}
-                        priceLoading={srcPricesLoading}
-                    />
-                )}
-            </div>
-            <div className="flex justify-center">
-                <button
-                    type="button"
-                    className="btn btn-circle"
-                    onClick={() => {
-                        const sc = srcChainId
-                        const st = srcToken
-                        setSrcChainId(dstChainId)
-                        setSrcToken(dstToken)
-                        setDstChainId(sc)
-                        setDstToken(st)
-                    }}
-                    aria-label="Swap direction"
-                >
-                    ↕
-                </button>
-            </div>
-            <div className="space-y-2">
-                <div className="font-medium">Destination</div>
-                <ChainSelector
-                    value={dstChainId}
-                    onChange={(cid) => {
-                        setDstChainId(cid)
-                        if (cid === srcChainId && srcToken && dstToken && srcToken.toLowerCase() === dstToken.toLowerCase()) {
-                            setDstToken(undefined)
-                        }
-                    }}
-                />
-                {dstChainId && (
-                    <TokenSelector
-                        chainId={dstChainId}
-                        userAddress={userAddress}
-                        value={dstToken}
-                        onChange={(addr) => {
-                            if (srcChainId === dstChainId && srcToken && addr.toLowerCase() === srcToken.toLowerCase()) return
-                            setDstToken(addr)
-                        }}
-                        excludeAddresses={srcChainId === dstChainId && srcToken ? [srcToken] : []}
-                    />
-                )}
-                {dstChainId && dstToken && (
-                    <SelectedTokenInfo
-                        chains={chains}
-                        chainId={dstChainId}
-                        tokenAddress={dstToken}
-                        balance={dstTokenBalance?.value || (dstToken ? dstBalances?.[dstChainId]?.[dstToken.toLowerCase()]?.value : undefined)}
-                        price={dstToken && dstChainId ? getTokenPrice(dstChainId, dstToken, dstPrices?.[dstChainId]) : undefined}
-                        balanceLoading={dstTokenBalanceLoading || dstBalancesLoading}
-                        priceLoading={dstPricesLoading}
-                    />
-                )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-control">
-                    <label className="label">
-                        <span className="label-text">Amount</span>
-                    </label>
-                    <input
-                        className="input input-bordered w-full"
-                        inputMode="decimal"
-                        value={amount}
-                        onChange={(e) => setAmount(filterNumeric(e.target.value))}
-                        placeholder="0.0"
-                    />
+            <div className="card bg-base-200 shadow-md border border-primary/30">
+                <div className="card-body space-y-4">
+                    <div className="space-y-2">
+                        <div className="font-medium">Source</div>
+                        <ChainSelector
+                            value={srcChainId}
+                            onChange={(cid) => {
+                                setSrcChainId(cid)
+                                // if dst matches src after change, clear dstToken to enforce difference
+                                if (cid === dstChainId && srcToken && dstToken && srcToken.toLowerCase() === dstToken.toLowerCase()) {
+                                    setDstToken(undefined)
+                                }
+                            }}
+                        />
+                        {srcChainId && <TokenSelector chainId={srcChainId} userAddress={userAddress} value={srcToken} onChange={setSrcToken} />}
+                        {srcChainId && srcToken && (
+                            <SelectedTokenInfo
+                                chains={chains}
+                                chainId={srcChainId || ""}
+                                tokenAddress={srcToken}
+                                balance={
+                                    srcTokenBalance?.value ||
+                                    (srcToken ? srcBalances?.[srcChainId || ""]?.[srcToken.toLowerCase()]?.value : undefined)
+                                }
+                                price={srcToken && srcChainId ? getTokenPrice(srcChainId, srcToken, srcPrices?.[srcChainId || ""]) : undefined}
+                                balanceLoading={srcTokenBalanceLoading || srcBalancesLoading}
+                                priceLoading={srcPricesLoading}
+                            />
+                        )}
+                    </div>
+                    <div className="flex justify-center">
+                        <button
+                            type="button"
+                            className="btn btn-circle"
+                            onClick={() => {
+                                const sc = srcChainId
+                                const st = srcToken
+                                setSrcChainId(dstChainId)
+                                setSrcToken(dstToken)
+                                setDstChainId(sc)
+                                setDstToken(st)
+                            }}
+                            aria-label="Swap direction"
+                        >
+                            ↕
+                        </button>
+                    </div>
+                    <div className="space-y-2">
+                        <div className="font-medium">Destination</div>
+                        <ChainSelector
+                            value={dstChainId}
+                            onChange={(cid) => {
+                                setDstChainId(cid)
+                                if (cid === srcChainId && srcToken && dstToken && srcToken.toLowerCase() === dstToken.toLowerCase()) {
+                                    setDstToken(undefined)
+                                }
+                            }}
+                        />
+                        {dstChainId && (
+                            <TokenSelector
+                                chainId={dstChainId}
+                                userAddress={userAddress}
+                                value={dstToken}
+                                onChange={(addr) => {
+                                    if (srcChainId === dstChainId && srcToken && addr.toLowerCase() === srcToken.toLowerCase()) return
+                                    setDstToken(addr)
+                                }}
+                                excludeAddresses={srcChainId === dstChainId && srcToken ? [srcToken] : []}
+                            />
+                        )}
+                        {dstChainId && dstToken && (
+                            <SelectedTokenInfo
+                                chains={chains}
+                                chainId={dstChainId}
+                                tokenAddress={dstToken}
+                                balance={
+                                    dstTokenBalance?.value || (dstToken ? dstBalances?.[dstChainId]?.[dstToken.toLowerCase()]?.value : undefined)
+                                }
+                                price={dstToken && dstChainId ? getTokenPrice(dstChainId, dstToken, dstPrices?.[dstChainId]) : undefined}
+                                balanceLoading={dstTokenBalanceLoading || dstBalancesLoading}
+                                priceLoading={dstPricesLoading}
+                            />
+                        )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="form-control">
+                            <label className="label">
+                                <span className="label-text">Amount</span>
+                            </label>
+                            <input
+                                className="input input-bordered w-full"
+                                inputMode="decimal"
+                                value={amount}
+                                onChange={(e) => setAmount(filterNumeric(e.target.value))}
+                                placeholder="0.0"
+                            />
+                        </div>
+                        <SlippageAndAmount
+                            balance={
+                                srcTokenBalance?.value || (srcToken ? srcBalances?.[srcChainId || ""]?.[srcToken.toLowerCase()]?.value : undefined)
+                            }
+                            amount={amount}
+                            onAmount={setAmount}
+                        />
+                    </div>
                 </div>
-                <SlippageAndAmount
-                    balance={srcTokenBalance?.value || (srcToken ? srcBalances?.[srcChainId || ""]?.[srcToken.toLowerCase()]?.value : undefined)}
-                    amount={amount}
-                    onAmount={setAmount}
-                />
             </div>
             {quoteOut && (
-                <div className="card bg-base-100 shadow">
+                <div className="card bg-base-200 shadow-lg border border-primary/30 mt-4">
                     <div className="card-body">
                         <div className="flex items-center justify-between">
                             <div className="font-medium">Quote</div>
@@ -304,7 +315,7 @@ export function SwapTab({ userAddress }: Props) {
                 </div>
             )}
             {dstChainId === "1284" && quoteOut && (
-                <div className="card bg-base-100 shadow">
+                <div className="card bg-base-200 shadow-lg border border-primary/30 mt-4">
                     <div className="card-body">
                         <div className="font-medium mb-3">Moonbeam Actions</div>
                         <DestinationActionSelector
@@ -354,27 +365,29 @@ export function SwapTab({ userAddress }: Props) {
                 </div>
             )}
             {quoteOut && (
-                <ExecuteButton
-                    onDone={(hashes) => {
-                        // Invalidate all balance queries for src/dst chains and tokens
-                        if (srcChainId && userAddress) {
-                            queryClient.invalidateQueries({
-                                queryKey: ["balances", srcChainId, userAddress],
-                            })
-                            queryClient.invalidateQueries({
-                                queryKey: ["tokenBalance", srcChainId, userAddress],
-                            })
-                        }
-                        if (dstChainId && userAddress) {
-                            queryClient.invalidateQueries({
-                                queryKey: ["balances", dstChainId, userAddress],
-                            })
-                            queryClient.invalidateQueries({
-                                queryKey: ["tokenBalance", dstChainId, userAddress],
-                            })
-                        }
-                    }}
-                />
+                <div className="mt-4">
+                    <ExecuteButton
+                        onDone={(hashes) => {
+                            // Invalidate all balance queries for src/dst chains and tokens
+                            if (srcChainId && userAddress) {
+                                queryClient.invalidateQueries({
+                                    queryKey: ["balances", srcChainId, userAddress],
+                                })
+                                queryClient.invalidateQueries({
+                                    queryKey: ["tokenBalance", srcChainId, userAddress],
+                                })
+                            }
+                            if (dstChainId && userAddress) {
+                                queryClient.invalidateQueries({
+                                    queryKey: ["balances", dstChainId, userAddress],
+                                })
+                                queryClient.invalidateQueries({
+                                    queryKey: ["tokenBalance", dstChainId, userAddress],
+                                })
+                            }
+                        }}
+                    />
+                </div>
             )}
         </div>
     )
@@ -434,6 +447,7 @@ function SlippageAndAmount({ balance, amount, onAmount }: { balance?: string; am
             </div>
             <div className="flex items-center gap-3">
                 <input
+                    className="range range-primary flex-1"
                     type="range"
                     min={0}
                     max={100}
@@ -443,7 +457,6 @@ function SlippageAndAmount({ balance, amount, onAmount }: { balance?: string; am
                         setPct(v)
                         if (numericBal > 0) onAmount((numericBal * (v / 100)).toString())
                     }}
-                    className="range flex-1"
                 />
                 <input className="input input-bordered w-24" value={pct} onChange={(e) => setPct(Number(e.target.value) || 0)} />
             </div>
@@ -585,7 +598,8 @@ function SelectedTokenInfo({
     balanceLoading?: boolean
     priceLoading?: boolean
 }) {
-    const href = chains ? buildTokenUrl(chains, chainId, tokenAddress) : undefined
+    const isNative = tokenAddress.toLowerCase() === zeroAddress.toLowerCase()
+    const href = !isNative && chains ? buildTokenUrl(chains, chainId, tokenAddress) : undefined
     const usd = balance && price ? Number(balance) * price : undefined
     return (
         <div className="text-xs mt-1 flex items-center justify-between">
