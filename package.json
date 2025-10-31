@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "tsx script/permit-batch.ts",
+    "web": "cd ui && pnpm start",
     "contract": "tsx script/permit-batch.ts --m 0xF3f6f0cCe68be57B9605D77B7B3d424f95f04871"
   },
   "dependencies": {
