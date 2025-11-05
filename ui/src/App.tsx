@@ -5,6 +5,7 @@ import type { Hex } from 'viem'
 import TabSelector from './components/VariantSelector'
 import BatchTransactionForm from './components/BatchTransactionForm'
 import { SwapTab } from './components/swap/SwapTab'
+import { TradeAggregator } from '@1delta/trade-sdk'
 
 export default function App() {
   const { address, isConnected } = useAccount()
