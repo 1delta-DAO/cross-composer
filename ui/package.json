@@ -9,6 +9,7 @@
         "fetch-assets": "npx tsx src/lib/assetLists.ts"
     },
     "dependencies": {
+        "@1delta/bridge-configs": "^0.1.0",
         "@1delta/trade-sdk": "^0.1.0",
         "@rainbow-me/rainbowkit": "^2.2.9",
         "@tailwindcss/postcss": "^4.1.16",
