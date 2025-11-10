@@ -3,7 +3,7 @@ import { Address, Hex, Abi } from "viem"
 /**
  * Destination action type enum
  */
-export type DestinationActionType = "game_token" | "buy_ticket" | "custom"
+export type DestinationActionType = "game_token" | "buy_ticket" | "lending"
 
 /**
  * Structured interface for destination actions (game-related actions on Moonbeam)
@@ -17,6 +17,14 @@ export interface DestinationAction {
     abi: Abi
     /** Type of action */
     actionType: DestinationActionType
+    /** Optional grouping/category (e.g.) */
+    group?: string
+    /** Optional metadata used by UI */
+    meta?: {
+        underlying?: Address
+        symbol?: string
+        decimals?: number
+    }
     /** Display name */
     name: string
     /** Description */
@@ -43,4 +51,3 @@ export interface EncodedDestinationAction {
     calldata: Hex
     value?: bigint
 }
-
