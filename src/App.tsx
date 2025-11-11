@@ -4,7 +4,7 @@ import { useState } from "react"
 import type { Hex } from "viem"
 import BatchTransactionForm from "./components/BatchTransactionForm"
 import { SwapTab } from "./components/swap/SwapTab"
-import { TradeSdkWalletSync } from "./lib/trade-sdk/walletClient"
+import { TradeSdkWalletSync } from "./lib/trade-helpers/walletClient"
 import { SwapSlippageSelector } from "./components/swap/SwapSlippageSelector"
 
 export default function App() {
