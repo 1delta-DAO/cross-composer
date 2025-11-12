@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import type { Address } from "viem"
 import { zeroAddress } from "viem"
-import { useChainId, useSwitchChain, useSendTransaction } from "wagmi"
+import { useChainId, useSwitchChain, useSendTransaction, useSignTypedData } from "wagmi"
 import { TokenSelectorModal } from "../modals/TokenSelectorModal"
 import { useChainsRegistry } from "../../hooks/useChainsRegistry"
 import { useTokenLists } from "../../hooks/useTokenLists"
@@ -13,18 +13,23 @@ import { buildTokenUrl, buildTransactionUrl } from "../../lib/explorer"
 import { useDebounce } from "../../hooks/useDebounce"
 import DestinationActionSelector from "../../components/DestinationActionSelector"
 import type { DestinationActionConfig } from "../../lib/types/destinationAction"
-import { type Abi, type Hex } from "viem"
+import { type Abi, type Hex, parseUnits, encodeFunctionData, toFunctionSelector } from "viem"
+import { formatUnits } from "viem"
 import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
 import { useQueryClient } from "@tanstack/react-query"
 import type { GenericTrade } from "@1delta/lib-utils"
-import { TradeType } from "@1delta/lib-utils"
-import { getCurrency, convertAmountToWei } from "../../lib/trade-sdk/utils"
-import { fetchAllAggregatorTrades } from "../../lib/trade-sdk/aggregatorSelector"
-import { fetchAllBridgeTrades } from "../../lib/trade-sdk/bridgeSelector"
+import { SupportedChainId, TradeType } from "@1delta/lib-utils"
+import { getCurrency, convertAmountToWei } from "../../lib/trade-helpers/utils"
+import { fetchAllAggregatorTrades } from "../../lib/trade-helpers/aggregatorSelector"
+import { fetchAllBridgeTrades } from "../../lib/trade-helpers/bridgeSelector"
 import { useWriteContract, usePublicClient, useReadContract } from "wagmi"
-import { ERC20_ABI } from "../../lib/abi"
+import { ERC20_ABI, CALL_PERMIT_ABI } from "../../lib/abi"
 import { useSlippage } from "../../contexts/SlippageContext"
 import { Logo } from "../common/Logo"
+import { usePermitBatch } from "../../hooks/usePermitBatch"
+import { moonbeam } from "viem/chains"
+import { BATCH_PRECOMPILE, CALL_PERMIT_PRECOMPILE } from "../../lib/consts"
+import { useToast } from "../common/ToastHost"
 
 type Props = {
     userAddress?: Address
@@ -35,9 +40,9 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
     const { data: chains } = useChainsRegistry()
     const { data: lists } = useTokenLists()
     const currentChainId = useChainId()
-    const { switchChain } = useSwitchChain()
+    const { switchChain, switchChainAsync } = useSwitchChain()
     const [srcChainId, setSrcChainId] = useState<string | undefined>("8453") // Base chain
-    const [dstChainId, setDstChainId] = useState<string | undefined>("1284")
+    const [dstChainId, setDstChainId] = useState<string | undefined>(SupportedChainId.MOONBEAM)
     const [srcToken, setSrcToken] = useState<Address | undefined>(undefined)
     const [dstToken, setDstToken] = useState<Address | undefined>(undefined)
     const [amount, setAmount] = useState("")
@@ -47,9 +52,12 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
     const srcAddrs = useMemo(() => (srcChainId ? (Object.keys(srcTokensMap) as Address[]).slice(0, 300) : []), [srcTokensMap, srcChainId])
     const dstAddrs = useMemo(() => (dstChainId ? (Object.keys(dstTokensMap) as Address[]).slice(0, 300) : []), [dstTokensMap, dstChainId])
 
+    // Prevent chain flip during encoding/signing
+    const [isEncoding, setIsEncoding] = useState(false)
+
     // Switch wallet chain when source chain changes
     useEffect(() => {
-        if (!srcChainId) return
+        if (!srcChainId || isEncoding) return
         const srcChainIdNum = Number(srcChainId)
         if (currentChainId !== srcChainIdNum) {
             try {
@@ -58,7 +66,7 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                 console.warn("Failed to switch chain:", err)
             }
         }
-    }, [srcChainId, currentChainId, switchChain])
+    }, [srcChainId, currentChainId, switchChain, isEncoding])
 
     // Include zero address for native token balance
     const srcAddressesWithNative = useMemo(() => {
@@ -219,8 +227,8 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
     const debouncedDstKey = useDebounce(dstKey, 1000)
 
     const [quoting, setQuoting] = useState(false)
-    const [quoteError, setQuoteError] = useState<string | undefined>(undefined)
     const [quotes, setQuotes] = useState<Array<{ label: string; trade: GenericTrade }>>([])
+    const toast = useToast()
 
     // Track previous keys to detect changes
     const prevSrcKeyRef = useRef<string>(srcKey)
@@ -234,7 +242,6 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
             // Only clear if we had quotes before
             if (quotes.length > 0) {
                 setQuotes([])
-                setQuoteError(undefined)
             }
             prevSrcKeyRef.current = srcKey
             prevDstKeyRef.current = dstKey
@@ -255,9 +262,16 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
     const refreshTickRef = useRef<number>(0)
     const [refreshTick, setRefreshTick] = useState(0)
     const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [txInProgress, setTxInProgress] = useState(false)
 
     // Quote on input changes (keep prior quote visible while updating)
     useEffect(() => {
+        // Stop fetching quotes if transaction is in progress
+        if (txInProgress) {
+            console.debug("Skipping quote fetch: transaction in progress")
+            return
+        }
+
         const [sc, st] = [srcChainId, srcToken]
         const [dc, dt] = [dstChainId, dstToken]
         const amountOk = Boolean(debouncedAmount) && Number(debouncedAmount) > 0
@@ -265,7 +279,6 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
 
         if (!amountOk || !inputsOk) {
             setQuotes([])
-            setQuoteError(undefined)
             setQuoting(false)
             requestInProgressRef.current = false
             // Abort any pending request
@@ -306,7 +319,6 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
         let cancel = false
         requestInProgressRef.current = true
         setQuoting(true)
-        setQuoteError(undefined)
 
         // Create abort controller for this quote request
         const controller = new AbortController()
@@ -364,6 +376,22 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                     )
                     allQuotes = trades.map((t) => ({ label: t.aggregator.toString(), trade: t.trade }))
                 } else {
+                    // Cross-chain: build Axelar SimpleSquidCall[] for permit precompile (preferred)
+                    let additionalCalls: Array<{ callType: 0; target: string; value?: bigint; callData: Hex }> | undefined
+                    let destinationGasLimit: bigint | undefined
+                    if (dc === SupportedChainId.MOONBEAM && attachedMessage) {
+                        // Use the signed permit precompile call as the single destination call for Squid
+                        additionalCalls = [
+                            {
+                                callType: 0, // DEFAULT
+                                target: CALL_PERMIT_PRECOMPILE as Address,
+                                value: (attachedValue ?? 0n) as any,
+                                callData: attachedMessage as Hex,
+                            },
+                        ] as any
+                        destinationGasLimit = attachedGasLimit
+                    }
+
                     const bridgeTrades = await fetchAllBridgeTrades(
                         {
                             slippage,
@@ -375,9 +403,13 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                             receiver: userAddress!,
                             order: "CHEAPEST",
                             usePermit: true,
-                        },
+                            // Prefer composed calls over message; message kept for backward-compat
+                            ...(additionalCalls ? { additionalCalls } : attachedMessage ? { message: attachedMessage as string } : {}),
+                            destinationGasLimit,
+                        } as any,
                         controller
                     )
+                    console.log("All bridges received from trade-sdk:", { bridges: bridgeTrades.map((t) => t.bridge), bridgeTrades })
                     allQuotes = bridgeTrades.map((t) => ({ label: t.bridge, trade: t.trade }))
                 }
 
@@ -390,7 +422,6 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                     console.debug("Quotes received:", allQuotes.length)
                     setQuotes(allQuotes)
                     setSelectedQuoteIndex(0)
-                    setQuoteError(undefined)
                 } else {
                     throw new Error("No quote available from any aggregator/bridge")
                 }
@@ -400,7 +431,7 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                     return
                 }
                 const errorMessage = error instanceof Error ? error.message : "Failed to fetch quote"
-                setQuoteError(errorMessage)
+                toast.showError(errorMessage)
                 setQuotes([])
                 console.error("Quote fetch error:", error)
             } finally {
@@ -439,7 +470,7 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                 refreshTimeoutRef.current = null
             }
         }
-    }, [debouncedAmount, debouncedSrcKey, debouncedDstKey, userAddress, slippage, refreshTick])
+    }, [debouncedAmount, debouncedSrcKey, debouncedDstKey, userAddress, slippage, refreshTick, txInProgress])
 
     const quoteOut = useMemo(() => {
         const trade = selectedTrade
@@ -499,7 +530,7 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
     useEffect(() => {
         if (!dstChainId) return
         const native = chains?.[dstChainId]?.data?.nativeCurrency?.symbol
-        const force = dstChainId === "1284" ? "GLMR" : dstChainId === srcChainId ? "USDC" : undefined
+        const force = dstChainId === SupportedChainId.MOONBEAM ? "GLMR" : dstChainId === srcChainId ? "USDC" : undefined
         if (dstToken && dstTokensMap[dstToken.toLowerCase()]) return
         const pick = pickPreferredToken(dstTokensMap, force || native)
         if (pick) setDstToken(pick as Address)
@@ -512,20 +543,66 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
         config: DestinationActionConfig
         selector: Hex
         args: any[]
+        value?: string
     }
     const [actions, setActions] = useState<PendingAction[]>([])
+
+    const [attachedValue, setAttachedValue] = useState<bigint | undefined>(undefined)
+    const { sendTransactionAsync: sendTestTransaction } = useSendTransaction()
+    const [testTxHash, setTestTxHash] = useState<string | undefined>(undefined)
+    const [testingDstCall, setTestingDstCall] = useState(false)
     const [sellModalOpen, setSellModalOpen] = useState(false)
     const [buyModalOpen, setBuyModalOpen] = useState(false)
     const [modalSellQuery, setModalSellQuery] = useState("")
     const [modalBuyQuery, setModalBuyQuery] = useState("")
     const [quotesExpanded, setQuotesExpanded] = useState(false)
+    const permitBatch = usePermitBatch()
+    const { fetchNonce } = permitBatch
+    const { signTypedDataAsync } = useSignTypedData()
+    const [attachedMessage, setAttachedMessage] = useState<Hex | undefined>(undefined)
+    const [attachedGasLimit, setAttachedGasLimit] = useState<bigint | undefined>(undefined)
+
+    const handleReset = useCallback(() => {
+        setAmount("")
+        setSrcToken(zeroAddress)
+        setDstToken(zeroAddress)
+        setSrcChainId(SupportedChainId.BASE)
+        setDstChainId(SupportedChainId.MOONBEAM)
+        setQuotes([])
+        setSelectedQuoteIndex(0)
+        setQuoting(false)
+        setActions([])
+        setAttachedMessage(undefined)
+        setAttachedGasLimit(undefined)
+        setAttachedValue(undefined)
+        setTestTxHash(undefined)
+        setTestingDstCall(false)
+        // Abort any pending requests
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+            abortControllerRef.current = null
+        }
+        requestInProgressRef.current = false
+    }, [])
 
     return (
         <div>
             <div className="relative">
                 <div className="rounded-2xl #131313 p-4 shadow border border-[#1F1F1F] relative group">
                     <div className="flex items-center justify-between">
-                        <div className="text-sm opacity-70">Sell</div>
+                        <div className="flex items-center gap-2">
+                            <div className="text-sm opacity-70">Sell</div>
+                            <button type="button" className="btn btn-xs btn-ghost" onClick={handleReset} title="Reset form">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                         <div className="absolute right-4 top-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                             <div className="join">
                                 {[25, 50, 75, 100].map((p) => (
@@ -660,11 +737,7 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                         </div>
                     )}
                 </div>
-                {quoteError ? (
-                    <div className="rounded-2xl bg-base-200 p-4 shadow border border-base-300 mt-3">
-                        <div className="text-sm text-error">Error: {quoteError}</div>
-                    </div>
-                ) : quotes.length > 0 ? (
+                {quotes.length > 0 ? (
                     <div className="rounded-2xl bg-base-200 p-4 shadow border border-base-300 mt-3">
                         {(() => {
                             const selectedQuote = quotes[selectedQuoteIndex]
@@ -687,7 +760,10 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                                     >
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2 flex-1">
-                                                <div className="text-sm font-medium">{selectedQuote.label}</div>
+                                                <div className="text-sm font-medium flex items-center gap-2">
+                                                    {quoting && <span className="loading loading-spinner loading-xs" />}
+                                                    <span>{selectedQuote.label}</span>
+                                                </div>
                                                 <div className="text-xs opacity-60">
                                                     1 {srcSymbol} = {selectedRate.toFixed(6)} {dstSymbol}
                                                 </div>
@@ -807,15 +883,222 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                 userAddress={userAddress}
                 excludeAddresses={srcChainId === dstChainId && srcToken ? [srcToken] : []}
             />
-            {dstChainId === "1284" && quoteOut && (
+            {dstChainId === SupportedChainId.MOONBEAM && (
                 <div className="card bg-base-200 shadow-lg border border-primary/30 mt-4">
                     <div className="card-body">
                         <div className="font-medium mb-3">Moonbeam Actions</div>
                         <DestinationActionSelector
+                            dstToken={dstToken}
+                            dstChainId={dstChainId}
                             onAdd={(config, selector) => {
                                 setActions((arr) => [...arr, { id: Math.random().toString(36).slice(2), config, selector, args: [] }])
                             }}
                         />
+                        {actions.length > 0 && (
+                            <div className="mt-4 flex justify-center">
+                                <button
+                                    className="btn btn-success"
+                                    onClick={async () => {
+                                        try {
+                                            if (!userAddress) return
+                                            // Must sign with Moonbeam chain id for EIP712 domain
+                                            setIsEncoding(true)
+                                            if (Number(currentChainId) !== moonbeam.id) {
+                                                try {
+                                                    await switchChainAsync({ chainId: moonbeam.id })
+                                                } catch (e) {
+                                                    toast.showError("Please switch to Moonbeam to encode actions.")
+                                                    return
+                                                }
+                                            }
+                                            // Build calls from actions
+                                            const { encodeDestinationActions } = await import("../../lib/trade-helpers/destinationActions")
+                                            const preCalls: Array<{ target: Address; value: bigint; callData: Hex; gasLimit: bigint }> = []
+                                            for (const a of actions) {
+                                                const meta = (a.config as any)?.meta || {}
+                                                const mTokenAddr = a.config.address as Address
+                                                if (meta.preApproveFromUnderlying) {
+                                                    const underlyingAddr = (meta.underlying || "") as Address
+                                                    const idx = typeof meta.preApproveAmountArgIndex === "number" ? meta.preApproveAmountArgIndex : 0
+                                                    const amountArg = a.args?.[idx]
+                                                    if (underlyingAddr && amountArg !== undefined) {
+                                                        try {
+                                                            const approveCalldata = encodeFunctionData({
+                                                                abi: ERC20_ABI,
+                                                                functionName: "approve",
+                                                                args: [mTokenAddr, BigInt(String(amountArg))],
+                                                            })
+                                                            preCalls.push({
+                                                                target: underlyingAddr,
+                                                                value: 0n,
+                                                                callData: approveCalldata as Hex,
+                                                                gasLimit: BigInt(100000),
+                                                            })
+                                                        } catch {}
+                                                    }
+                                                }
+                                                if (a.config.group === "lending" && meta.enterMarketBefore) {
+                                                    try {
+                                                        const { MOONWELL_COMPTROLLER } = await import("../../hooks/useMoonwellMarkets")
+                                                        const enterData = encodeFunctionData({
+                                                            abi: [
+                                                                {
+                                                                    inputs: [{ internalType: "address[]", name: "cTokens", type: "address[]" }],
+                                                                    name: "enterMarkets",
+                                                                    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+                                                                    stateMutability: "nonpayable",
+                                                                    type: "function",
+                                                                },
+                                                            ] as any,
+                                                            functionName: "enterMarkets",
+                                                            args: [[mTokenAddr]],
+                                                        })
+                                                        preCalls.push({
+                                                            target: MOONWELL_COMPTROLLER as Address,
+                                                            value: 0n,
+                                                            callData: enterData as Hex,
+                                                            gasLimit: BigInt(150000),
+                                                        })
+                                                    } catch {}
+                                                }
+                                            }
+                                            const encoded = encodeDestinationActions(
+                                                actions.map((a) => ({
+                                                    config: a.config,
+                                                    selector: a.selector,
+                                                    args: a.args,
+                                                    value: a.value ? parseUnits(a.value, 18) : 0n,
+                                                }))
+                                            )
+                                            const actionCalls = encoded.map((c) => ({
+                                                target: c.target,
+                                                value: c.value ?? 0n,
+                                                callData: c.calldata as Hex,
+                                                gasLimit: BigInt(250000),
+                                            }))
+                                            const calls = [...preCalls, ...actionCalls]
+                                            // batch'em
+                                            const batchData = permitBatch.createBatchData(calls as any)
+                                            const gasLimit = BigInt(800000)
+                                            const totalValue = calls.reduce((acc, c) => acc + (c.value ?? 0n), 0n)
+                                            const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 30)
+                                            const currentNonce = await fetchNonce(userAddress, moonbeam.id)
+                                            if (currentNonce === null) {
+                                                throw new Error("Failed to fetch nonce for permit")
+                                            }
+                                            // EIP712 sign
+                                            const typedData = {
+                                                domain: {
+                                                    name: "Call Permit Precompile",
+                                                    version: "1",
+                                                    chainId: moonbeam.id,
+                                                    verifyingContract: CALL_PERMIT_PRECOMPILE,
+                                                },
+                                                types: {
+                                                    CallPermit: [
+                                                        { name: "from", type: "address" },
+                                                        { name: "to", type: "address" },
+                                                        { name: "value", type: "uint256" },
+                                                        { name: "data", type: "bytes" },
+                                                        { name: "gaslimit", type: "uint64" },
+                                                        { name: "nonce", type: "uint256" },
+                                                        { name: "deadline", type: "uint256" },
+                                                    ],
+                                                },
+                                                primaryType: "CallPermit" as const,
+                                                message: {
+                                                    from: userAddress,
+                                                    to: BATCH_PRECOMPILE,
+                                                    value: totalValue,
+                                                    data: batchData,
+                                                    gaslimit: gasLimit,
+                                                    nonce: currentNonce,
+                                                    deadline,
+                                                },
+                                            }
+                                            const signature = await signTypedDataAsync(typedData as any)
+                                            const sig = signature.slice(2)
+                                            const r = `0x${sig.slice(0, 64)}` as Hex
+                                            const s = `0x${sig.slice(64, 128)}` as Hex
+                                            const v = parseInt(sig.slice(128, 130), 16)
+                                            const message = encodeFunctionData({
+                                                abi: CALL_PERMIT_ABI as any,
+                                                functionName: "dispatch",
+                                                args: [userAddress, BATCH_PRECOMPILE, totalValue, batchData, gasLimit, deadline, v, r, s],
+                                            }) as Hex
+                                            try {
+                                                console.log("Signed destination actions (Moonbeam)", {
+                                                    calls: calls.map((c) => ({
+                                                        target: c.target,
+                                                        value: c.value.toString(),
+                                                        gasLimit: c.gasLimit.toString(),
+                                                        callData: `${(c.callData as string).slice(0, 18)}...`,
+                                                    })),
+                                                    batch: {
+                                                        gasLimit: gasLimit.toString(),
+                                                        deadline: Number(deadline),
+                                                        data: `${batchData.slice(0, 18)}...`,
+                                                    },
+                                                    signature: { v, r, s },
+                                                    message: `${message.slice(0, 18)}...`,
+                                                })
+                                            } catch {}
+                                            setAttachedMessage(message)
+                                            setAttachedGasLimit(gasLimit)
+                                            setAttachedValue(totalValue)
+                                            // trigger re-quote
+                                            setRefreshTick((x) => x + 1)
+                                        } catch (e) {
+                                            console.error("Failed to encode and attach message:", e)
+                                            toast.showError("Failed to encode actions for permit")
+                                        } finally {
+                                            setIsEncoding(false)
+                                        }
+                                    }}
+                                >
+                                    Encode
+                                </button>
+                            </div>
+                        )}
+                        {attachedMessage && dstChainId && (
+                            <div className="mt-3 p-3 rounded border border-base-300">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-sm opacity-70">Destination composed call tester</div>
+                                    <button
+                                        className={`btn btn-sm ${testingDstCall ? "btn-disabled" : "btn-outline"}`}
+                                        onClick={async () => {
+                                            if (!attachedMessage || !dstChainId) return
+                                            try {
+                                                setIsEncoding(true)
+                                                setTestingDstCall(true)
+                                                setTestTxHash(undefined)
+                                                if (Number(currentChainId) !== moonbeam.id) {
+                                                    await switchChainAsync({ chainId: moonbeam.id })
+                                                }
+                                                const txHash = await sendTestTransaction({
+                                                    to: CALL_PERMIT_PRECOMPILE as Address,
+                                                    data: attachedMessage as Hex,
+                                                    value: (attachedValue ?? 0n) as any,
+                                                })
+                                                setTestTxHash(txHash as any)
+                                            } catch (e: any) {
+                                                toast.showError(e?.message || "Failed to send destination call")
+                                            } finally {
+                                                setTestingDstCall(false)
+                                                setIsEncoding(false)
+                                            }
+                                        }}
+                                    >
+                                        {testingDstCall ? "Sending..." : "Test destination call"}
+                                    </button>
+                                </div>
+                                {testTxHash && (
+                                    <div className="mt-2 text-xs">
+                                        <div>Tx: {testTxHash}</div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {actions.length > 0 && (
                             <div className="mt-4 space-y-3">
                                 {actions.map((a, idx) => (
@@ -866,6 +1149,8 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                         userAddress={userAddress}
                         srcToken={srcToken}
                         amountWei={amountWei}
+                        actions={actions}
+                        permit={permitBatch}
                         chains={chains}
                         onDone={(hashes) => {
                             // Invalidate all balance queries for src/dst chains and tokens
@@ -886,12 +1171,26 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
                                 })
                             }
                         }}
+                        onTransactionStart={() => {
+                            setTxInProgress(true)
+                            // Abort any pending quote requests
+                            if (abortControllerRef.current) {
+                                abortControllerRef.current.abort()
+                                abortControllerRef.current = null
+                            }
+                            // Clear any scheduled refresh
+                            if (refreshTimeoutRef.current) {
+                                clearTimeout(refreshTimeoutRef.current)
+                                refreshTimeoutRef.current = null
+                            }
+                            requestInProgressRef.current = false
+                        }}
                         onReset={() => {
                             setAmount("")
                             setQuotes([])
                             setSelectedQuoteIndex(0)
-                            setQuoteError(undefined)
                             setQuoting(false)
+                            setTxInProgress(false)
                         }}
                         onResetStateChange={onResetStateChange}
                     />
@@ -1018,6 +1317,9 @@ function ExecuteButton({
     chains,
     onReset,
     onResetStateChange,
+    onTransactionStart,
+    actions,
+    permit,
 }: {
     trade: GenericTrade
     srcChainId?: string
@@ -1029,6 +1331,9 @@ function ExecuteButton({
     chains?: ReturnType<typeof useChainsRegistry>["data"]
     onReset?: () => void
     onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
+    onTransactionStart?: () => void
+    actions?: Array<{ id: string; config: DestinationActionConfig; selector: Hex; args: any[]; value?: string }>
+    permit?: ReturnType<typeof usePermitBatch>
 }) {
     const [step, setStep] = useState<"idle" | "approving" | "signing" | "broadcast" | "confirmed" | "error">("idle")
     const [srcHash, setSrcHash] = useState<string | undefined>()
@@ -1036,6 +1341,7 @@ function ExecuteButton({
     const [isConfirmed, setIsConfirmed] = useState(false)
     const [isBridgeComplete, setIsBridgeComplete] = useState(false)
     const [isBridgeTracking, setIsBridgeTracking] = useState(false)
+    const [bridgeTrackingStopped, setBridgeTrackingStopped] = useState(false)
     const [error, setError] = useState<string | undefined>()
     const { sendTransactionAsync, isPending } = useSendTransaction()
     const { writeContractAsync } = useWriteContract()
@@ -1079,6 +1385,7 @@ function ExecuteButton({
                       setIsConfirmed(false)
                       setIsBridgeComplete(false)
                       setIsBridgeTracking(false)
+                      setBridgeTrackingStopped(false)
                       setError(undefined)
                       onReset()
                   }
@@ -1107,11 +1414,21 @@ function ExecuteButton({
             setStep("error")
             return
         }
+
+        // Notify parent that transaction is starting to stop quote refetching
+        onTransactionStart?.()
+
         try {
             setError(undefined)
             let approvalHash: Address | undefined
 
-            if (needsApproval && srcToken && amountWei && spender) {
+            if (
+                needsApproval &&
+                srcToken &&
+                amountWei &&
+                spender &&
+                !(srcChainId === SupportedChainId.MOONBEAM && dstChainId === SupportedChainId.MOONBEAM && actions && actions.length > 0)
+            ) {
                 setStep("approving")
                 approvalHash = await writeContractAsync({
                     address: srcToken,
@@ -1130,12 +1447,78 @@ function ExecuteButton({
                 throw new Error("Failed to get transaction data from trade")
             }
 
-            setStep("broadcast")
-            const hash = await sendTransactionAsync({
-                to: txData.to as Address,
-                data: txData.calldata as Hex,
-                value: txData.value ? BigInt(txData.value.toString()) : BigInt(0),
-            })
+            // Same-chain Moonbeam with actions
+            let hash: Address
+            if (srcChainId === SupportedChainId.MOONBEAM && dstChainId === SupportedChainId.MOONBEAM && actions && actions.length > 0) {
+                if (!permit?.executeSelfTransmit) {
+                    setStep("broadcast")
+                    hash = await sendTransactionAsync({
+                        to: txData.to as Address,
+                        data: txData.calldata as Hex,
+                        value: txData.value ? BigInt(txData.value.toString()) : BigInt(0),
+                    })
+                } else {
+                    // Build batch calls: optionally approve, then swap, then actions
+                    const calls: Array<{ target: Address; value: bigint; callData: Hex; gasLimit: bigint }> = []
+                    if (needsApproval && srcToken && amountWei && spender) {
+                        const approveCalldata = encodeFunctionData({
+                            abi: ERC20_ABI,
+                            functionName: "approve",
+                            args: [spender as Address, BigInt(amountWei)],
+                        })
+                        calls.push({
+                            target: srcToken,
+                            value: 0n,
+                            callData: approveCalldata as Hex,
+                            gasLimit: BigInt(100000),
+                        })
+                    }
+                    // swap call from aggregator
+                    calls.push({
+                        target: txData.to as Address,
+                        value: txData.value ? BigInt(txData.value.toString()) : 0n,
+                        callData: txData.calldata as Hex,
+                        gasLimit: BigInt(300000),
+                    })
+                    // encode user actions
+                    try {
+                        const { encodeDestinationActions } = await import("../../lib/trade-helpers/destinationActions")
+                        const encoded = encodeDestinationActions(
+                            actions.map((a) => ({
+                                config: a.config,
+                                selector: a.selector,
+                                args: a.args,
+                                value: a.value ? parseUnits(a.value, 18) : 0n,
+                            }))
+                        )
+                        for (const c of encoded) {
+                            calls.push({
+                                target: c.target,
+                                value: c.value ?? 0n,
+                                callData: c.calldata as Hex,
+                                gasLimit: BigInt(100000),
+                            })
+                        }
+                    } catch (err) {
+                        throw new Error("Failed to encode Moonbeam actions")
+                    }
+                    const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 30)
+                    setStep("broadcast")
+                    const { hash: txHash } = await permit.executeSelfTransmit({
+                        from: userAddress as Address,
+                        calls,
+                        deadline,
+                    } as any)
+                    hash = txHash as Address
+                }
+            } else {
+                setStep("broadcast")
+                hash = await sendTransactionAsync({
+                    to: txData.to as Address,
+                    data: txData.calldata as Hex,
+                    value: txData.value ? BigInt(txData.value.toString()) : BigInt(0),
+                })
+            }
             setSrcHash(hash)
             setStep("confirmed")
 
@@ -1149,11 +1532,13 @@ function ExecuteButton({
 
                         if (isBridge && trade?.crossChainParams) {
                             setIsBridgeTracking(true)
+                            setBridgeTrackingStopped(false)
                             trackBridgeCompletion(trade, srcChainId!, dstChainId!, hash, (hashes) => {
+                                setIsBridgeTracking(false)
+                                setBridgeTrackingStopped(true)
                                 if (hashes.dst) {
                                     setDstHash(hashes.dst)
                                     setIsBridgeComplete(true)
-                                    setIsBridgeTracking(false)
                                 }
                                 onDone(hashes)
                             })
@@ -1167,11 +1552,13 @@ function ExecuteButton({
 
                 if (isBridge && trade?.crossChainParams) {
                     setIsBridgeTracking(true)
+                    setBridgeTrackingStopped(false)
                     trackBridgeCompletion(trade, srcChainId!, dstChainId!, hash, (hashes) => {
+                        setIsBridgeTracking(false)
+                        setBridgeTrackingStopped(true)
                         if (hashes.dst) {
                             setDstHash(hashes.dst)
                             setIsBridgeComplete(true)
-                            setIsBridgeTracking(false)
                         }
                         onDone(hashes)
                     })
@@ -1277,6 +1664,11 @@ function ExecuteButton({
                                     <span className="text-warning">In progress...</span>
                                     <span className="loading loading-spinner loading-xs"></span>
                                 </>
+                            ) : bridgeTrackingStopped && !isBridgeComplete ? (
+                                <>
+                                    <span className="text-warning">Status unknown</span>
+                                    <span className="text-xs opacity-70">(Check destination chain)</span>
+                                </>
                             ) : (
                                 <>
                                     <span>Waiting for confirmation...</span>
@@ -1359,6 +1751,8 @@ async function trackBridgeCompletion(
                     trade.crossChainParams
                 )
 
+                const statusAny = status as any
+
                 if (status?.toHash) {
                     console.debug("Bridge completed:", { srcHash, dstHash: status.toHash })
                     onDone({ src: srcHash, dst: status.toHash })
@@ -1366,9 +1760,23 @@ async function trackBridgeCompletion(
                 }
 
                 if (status?.code) {
-                    console.error("Bridge failed:", status.code, status.message)
+                    const errorCode = status.code
+                    const errorMessage = status?.message || "Bridge transaction failed"
+                    console.error("Bridge failed:", errorCode, errorMessage)
                     onDone({ src: srcHash })
                     return
+                }
+
+                if (statusAny?.status === "FAILED" || statusAny?.status === "REVERTED") {
+                    const errorCode = statusAny.status
+                    const errorMessage = statusAny?.message || statusAny?.error || "Bridge transaction failed"
+                    console.error("Bridge failed:", errorCode, errorMessage)
+                    onDone({ src: srcHash })
+                    return
+                }
+
+                if (statusAny?.status === "COMPLETED" && !status?.toHash) {
+                    console.warn("Bridge status shows completed but no destination hash:", status)
                 }
             } catch (err) {
                 console.debug("Error checking bridge status:", err)
@@ -1435,8 +1843,8 @@ function ActionEditor({
     onMoveUp,
     onMoveDown,
 }: {
-    action: { id: string; config: DestinationActionConfig; selector: Hex; args: any[] }
-    onChange: (a: { id: string; config: DestinationActionConfig; selector: Hex; args: any[] }) => void
+    action: { id: string; config: DestinationActionConfig; selector: Hex; args: any[]; value?: string }
+    onChange: (a: { id: string; config: DestinationActionConfig; selector: Hex; args: any[]; value?: string }) => void
     onRemove: () => void
     canMoveUp: boolean
     canMoveDown: boolean
@@ -1445,10 +1853,11 @@ function ActionEditor({
 }) {
     const fnAbi = useMemo(() => findFunctionBySelector(action.config.abi as Abi, action.selector), [action])
     const [localArgs, setLocalArgs] = useState<any[]>(action.args ?? [])
+    const [localValue, setLocalValue] = useState<string>(action.value ?? "")
     useEffect(() => {
-        onChange({ ...action, args: localArgs })
+        onChange({ ...action, args: localArgs, value: localValue })
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [localArgs])
+    }, [localArgs, localValue])
     return (
         <div className="card bg-base-200">
             <div className="card-body gap-2">
@@ -1470,6 +1879,7 @@ function ActionEditor({
                         </button>
                     </div>
                 </div>
+                {action.config.description && <div className="text-xs opacity-70">{action.config.description}</div>}
                 {fnAbi ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {fnAbi.inputs?.map((inp: any, i: number) => (
@@ -1491,8 +1901,42 @@ function ActionEditor({
                                     }
                                     placeholder={inp.type}
                                 />
+                                {/* Show humanized amount for lending actions (when decimals known) */}
+                                {action.config.group === "lending" &&
+                                    inp.type === "uint256" &&
+                                    (() => {
+                                        const dec = (action.config as any).meta?.decimals
+                                        const raw = localArgs[i]
+                                        if (!dec || raw === undefined || raw === "") return null
+                                        try {
+                                            const bn = BigInt(String(raw))
+                                            const human = formatUnits(bn, dec)
+                                            const sym = (action.config as any).meta?.symbol || ""
+                                            return (
+                                                <span className="label-text-alt opacity-70">
+                                                    {human} {sym}
+                                                </span>
+                                            )
+                                        } catch {
+                                            return null
+                                        }
+                                    })()}
                             </div>
                         ))}
+                        {fnAbi?.stateMutability === "payable" && (
+                            <div className="form-control">
+                                <label className="label">
+                                    <span className="label-text">Value (ETH)</span>
+                                </label>
+                                <input
+                                    className="input input-bordered"
+                                    inputMode="decimal"
+                                    placeholder="0"
+                                    value={localValue}
+                                    onChange={(e) => setLocalValue(e.target.value)}
+                                />
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="text-sm opacity-70">No ABI inputs found.</div>
@@ -1503,7 +1947,14 @@ function ActionEditor({
 }
 
 function findFunctionBySelector(abi: Abi, selector: Hex): any {
-    const fns = abi.filter((it: any) => it.type === "function")
-    // Fallback to first function in this demo
+    const fns = (abi as any[]).filter((it: any) => it?.type === "function")
+    const lowerSel = selector.toLowerCase()
+    for (const fn of fns) {
+        try {
+            const sel = toFunctionSelector(fn as any)
+            if (sel.toLowerCase() === lowerSel) return fn
+        } catch {}
+    }
+    // Fallback to first function
     return fns[0]
 }

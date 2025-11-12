@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import type { Address } from "viem"
+import { useEffect } from "react"
+import { setPricesFromDexscreener } from "../../lib/trade-helpers/prices"
 
 export type PricesRecord = Record<string, Record<string, { usd: number }>>
 
@@ -54,7 +56,7 @@ async function fetchPrices(chainId: string, addresses: Address[]): Promise<Price
 
 export function useDexscreenerPrices(params: { chainId: string; addresses: Address[]; enabled?: boolean }) {
     const { chainId, addresses, enabled = true } = params
-    return useQuery({
+    const query = useQuery({
         queryKey: [
             "prices",
             chainId,
@@ -68,4 +70,12 @@ export function useDexscreenerPrices(params: { chainId: string; addresses: Addre
         staleTime: 1000 * 60 * 2,
         refetchOnWindowFocus: false,
     })
+
+    useEffect(() => {
+        if (query.data) {
+            setPricesFromDexscreener(query.data)
+        }
+    }, [query.data])
+
+    return query
 }

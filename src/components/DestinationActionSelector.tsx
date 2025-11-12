@@ -1,23 +1,80 @@
-import React, { useState } from "react"
-import { DESTINATION_ACTIONS, getDestinationActionsByType } from "../lib/config/destinationActions"
+import { useMemo, useState, useEffect } from "react"
 import { DestinationActionConfig, DestinationActionType } from "../lib/types/destinationAction"
 import { Hex } from "viem"
+import { getAllActions, getActionsByGroup } from "../lib/actions/registry"
+import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from "../lib/moonwell/marketCache"
+import { SupportedChainId } from "@1delta/lib-utils"
 
 interface DestinationActionSelectorProps {
     onAdd?: (config: DestinationActionConfig, functionSelector: Hex) => void
+    dstToken?: string
+    dstChainId?: string
 }
 
-export default function DestinationActionSelector({ onAdd }: DestinationActionSelectorProps) {
+export default function DestinationActionSelector({ onAdd, dstToken, dstChainId }: DestinationActionSelectorProps) {
     const [selectedActionType, setSelectedActionType] = useState<DestinationActionType | "">("")
-    const [selectedAction, setSelectedAction] = useState<string>("")
+    const [selectedActionKey, setSelectedActionKey] = useState<string>("")
+    const [marketsReady, setMarketsReady] = useState(isMarketsReady())
+    const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
 
-    const actionsByType = selectedActionType ? getDestinationActionsByType(selectedActionType) : DESTINATION_ACTIONS
+    // Subscribe to market cache changes
+    useEffect(() => {
+        setMarketsReady(isMarketsReady())
+        setMarketsLoading(isMarketsLoading())
 
-    const handleSelectAction = (actionAddress: string) => {
-        setSelectedAction(actionAddress)
+        const unsubscribe = subscribeToCacheChanges(() => {
+            setMarketsReady(isMarketsReady())
+            setMarketsLoading(isMarketsLoading())
+        })
+
+        return unsubscribe
+    }, [])
+
+    const allActions = useMemo(() => getAllActions({ dstToken, dstChainId }), [dstToken, dstChainId, marketsReady])
+
+    const actionsByType = useMemo(() => {
+        if (!selectedActionType) {
+            // Deduplicate by address-name combination
+            const seen = new Set<string>()
+            return allActions.filter((a) => {
+                const key = `${a.address.toLowerCase()}-${a.name}`
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+            })
+        }
+        return getActionsByGroup(selectedActionType, { dstToken, dstChainId })
+    }, [allActions, selectedActionType, dstToken, dstChainId])
+
+    const handleSelectAction = (val: string) => {
+        setSelectedActionKey(val)
     }
 
-    if (DESTINATION_ACTIONS.length === 0) {
+    if (dstChainId === SupportedChainId.MOONBEAM && marketsLoading && !marketsReady) {
+        return (
+            <div className="alert alert-info">
+                <span className="loading loading-spinner loading-sm"></span>
+                <span>Loading ...</span>
+            </div>
+        )
+    }
+
+    if (allActions.length === 0) {
+        if (dstChainId === SupportedChainId.MOONBEAM && !marketsReady) {
+            return (
+                <div className="alert alert-warning">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                    </svg>
+                    <span>Moonwell markets are not available yet. Please wait for markets to load.</span>
+                </div>
+            )
+        }
         return (
             <div className="alert alert-info">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,53 +93,53 @@ export default function DestinationActionSelector({ onAdd }: DestinationActionSe
     return (
         <div className="space-y-4">
             <div className="form-control">
-                <label className="label">
-                    <span className="label-text font-medium">Action Type</span>
-                </label>
-                <select
-                    value={selectedActionType}
-                    onChange={(e) => {
-                        setSelectedActionType(e.target.value as DestinationActionType | "")
-                        setSelectedAction("")
-                    }}
-                    className="select select-bordered w-full"
-                >
-                    <option value="">All Types</option>
-                    <option value="game_token">Game Token</option>
-                    <option value="buy_ticket">Buy Ticket</option>
-                    <option value="custom">Custom</option>
-                </select>
-            </div>
-
-            {actionsByType.length > 0 && (
-                <div className="form-control">
-                    <label className="label">
-                        <span className="label-text font-medium">Select Action</span>
-                    </label>
-                    <select value={selectedAction} onChange={(e) => handleSelectAction(e.target.value)} className="select select-bordered w-full">
-                        <option value="">Choose an action...</option>
-                        {actionsByType.map((action) => (
-                            <option key={action.address} value={action.address}>
-                                {action.name} - {action.description}
-                            </option>
-                        ))}
+                <div className="flex items-center gap-2">
+                    <select
+                        value={selectedActionType}
+                        onChange={(e) => {
+                            setSelectedActionType(e.target.value as DestinationActionType | "")
+                            setSelectedActionKey("")
+                        }}
+                        className="select select-bordered flex-1"
+                    >
+                        <option value="">All Types</option>
+                        <option value="game_token">Game Token</option>
+                        <option value="buy_ticket">Buy Ticket</option>
+                        <option value="lending">Lending</option>
+                        <option value="custom">Custom</option>
                     </select>
-                    <div className="mt-3">
-                        <button
-                            className="btn btn-primary"
-                            disabled={!selectedAction}
-                            onClick={() => {
-                                const action = DESTINATION_ACTIONS.find((a) => a.address.toLowerCase() === selectedAction.toLowerCase())
-                                if (!action) return
-                                const selector = (action.defaultFunctionSelector || action.functionSelectors[0]) as Hex
-                                if (onAdd) onAdd(action, selector)
-                            }}
-                        >
-                            Add
-                        </button>
-                    </div>
+                    <select value={selectedActionKey} onChange={(e) => handleSelectAction(e.target.value)} className="select select-bordered flex-1">
+                        <option value="">Choose an action...</option>
+                        {actionsByType.flatMap((action) => {
+                            const selectors = action.defaultFunctionSelector
+                                ? [action.defaultFunctionSelector, ...action.functionSelectors]
+                                : action.functionSelectors
+                            const uniq = Array.from(new Set(selectors.map((s) => s.toLowerCase())))
+                            return uniq.map((selector) => {
+                                const key = `${action.address.toLowerCase()}|${selector}`
+                                return (
+                                    <option key={key} value={key}>
+                                        {action.name}
+                                    </option>
+                                )
+                            })
+                        })}
+                    </select>
+                    <button
+                        className="btn btn-primary"
+                        disabled={!selectedActionKey}
+                        onClick={() => {
+                            if (!selectedActionKey) return
+                            const [addr, selector] = selectedActionKey.split("|")
+                            const action = actionsByType.find((a) => a.address.toLowerCase() === addr)
+                            if (!action || !selector) return
+                            if (onAdd) onAdd(action, selector as Hex)
+                        }}
+                    >
+                        Add
+                    </button>
                 </div>
-            )}
+            </div>
         </div>
     )
 }
