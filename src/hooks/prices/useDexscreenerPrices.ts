@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import type { Address } from "viem"
 import { useEffect } from "react"
-import { setPricesFromDexscreener } from "../../lib/trade-helpers/prices"
+import { setPricesFromDexscreener } from "../../sdk/trade-helpers/prices"
 
 export type PricesRecord = Record<string, Record<string, { usd: number }>>
 

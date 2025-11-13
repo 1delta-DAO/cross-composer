@@ -4,9 +4,8 @@ import { zeroAddress } from "viem"
 import { useTokenLists } from "../../hooks/useTokenLists"
 import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
 import { useDexscreenerPrices } from "../../hooks/prices/useDexscreenerPrices"
-import { useChainsRegistry } from "../../hooks/useChainsRegistry"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
-import { SupportedChainId } from "@1delta/lib-utils"
+import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
+import { CurrencyHandler, SupportedChainId } from "../../sdk/types"
 import { Logo } from "../common/Logo"
 import { getTokenFromCache } from "../../lib/data/tokenListsCache"
 
@@ -23,7 +22,7 @@ type Props = {
 }
 
 // Stablecoin symbols (common stablecoins)
-const STABLECOIN_SYMBOLS = new Set(["USDC", "USDT", "DAI", "BUSD", "FRAX", "USDD", "TUSD", "LUSD", "SUSD", "GUSD", "MIM", "DOLA"])
+const STABLECOIN_SYMBOLS = new Set(["USDC", "USDT", "DAI", "BUSD", "FRAX", "USDD", "USDE", "TUSD", "LUSD", "SUSD", "GUSD", "MIM", "DOLA"])
 
 // LST (Liquid Staking Token) patterns - common LST symbols
 const LST_SYMBOLS = new Set(["STETH", "RETH", "CBETH", "SFRXETH", "WBETH", "STSOL", "MSOL", "JITOSOL"])

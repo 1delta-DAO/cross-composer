@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import type { Address } from "viem"
-import type { GenericTrade } from "@1delta/lib-utils"
+import type { GenericTrade } from "../sdk/types"
 import { getTokenPrice } from "../components/swap/swapUtils"
 
 export function usePriceImpact({

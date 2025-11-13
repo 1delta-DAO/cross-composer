@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { GenericTrade } from "@1delta/lib-utils"
+import type { GenericTrade } from "../../sdk/types"
 import { Logo } from "../common/Logo"
 
 type QuoteSelectorProps = {

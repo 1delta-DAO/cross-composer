@@ -1,10 +1,9 @@
 import type { Address } from "viem"
 import { zeroAddress } from "viem"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
+import { CurrencyHandler } from "../../sdk/types"
 
 // Helper function to get aggregator logo URL
 export function getAggregatorLogo(aggregatorName: string): string {
-    // Normalize aggregator name for URL (lowercase, handle special cases)
     const normalizedName = aggregatorName.toLowerCase().replace(/\s+/g, "-")
     return `https://raw.githubusercontent.com/1delta-DAO/protocol-icons/refs/heads/main/aggregator/${normalizedName}.webp`
 }
@@ -15,7 +14,7 @@ export function getBridgeLogo(bridgeName: string): string {
 }
 
 export function filterNumeric(s: string): string {
-    // Allow digits and a single dot; mimic numeric validation in Transactions
+    // Allow digits and a single dot
     s = s.replace(/[^0-9.]/g, "")
     const parts = s.split(".")
     if (parts.length <= 1) return s
@@ -53,4 +52,3 @@ export function formatDisplayAmount(val: string): string {
     const frac = fracRaw.slice(0, maxFrac).replace(/0+$/, "")
     return frac ? `${intPart}.${frac}` : intPart
 }
-

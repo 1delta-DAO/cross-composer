@@ -3,7 +3,7 @@ import { DestinationActionConfig, DestinationActionType } from "../lib/types/des
 import { Hex } from "viem"
 import { getAllActions, getActionsByGroup } from "../lib/actions/registry"
 import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from "../lib/moonwell/marketCache"
-import { SupportedChainId } from "@1delta/lib-utils"
+import { SupportedChainId } from "../sdk/types"
 
 interface DestinationActionSelectorProps {
     onAdd?: (config: DestinationActionConfig, functionSelector: Hex) => void

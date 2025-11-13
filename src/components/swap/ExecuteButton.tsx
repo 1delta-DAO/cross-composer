@@ -2,14 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import type { Address, Hex } from "viem"
 import { zeroAddress } from "viem"
 import { useSendTransaction, useWriteContract, usePublicClient, useReadContract } from "wagmi"
-import type { GenericTrade } from "@1delta/lib-utils"
-import { SupportedChainId } from "@1delta/lib-utils"
+import type { GenericTrade } from "../../sdk/types"
+import { SupportedChainId } from "../../sdk/types"
 import { buildTransactionUrl } from "../../lib/explorer"
 import { ERC20_ABI } from "../../lib/abi"
 import { encodeFunctionData, parseUnits } from "viem"
 import type { DestinationActionConfig } from "../../lib/types/destinationAction"
-import { useChainsRegistry } from "../../hooks/useChainsRegistry"
-import { usePermitBatch } from "../../hooks/usePermitBatch"
+import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
+import { usePermitBatch } from "../../sdk/hooks/usePermitBatch"
 import { useToast } from "../common/ToastHost"
 
 type StepStatus = "idle" | "active" | "done" | "error"
@@ -181,24 +181,25 @@ export default function ExecuteButton({
         return currentAllowance < requiredAmount
     }, [srcToken, spender, amountWei, currentAllowance, skipApprove])
 
+    const resetCallback = useCallback(() => {
+        setStep("idle")
+        setSrcHash(undefined)
+        setDstHash(undefined)
+        setIsConfirmed(false)
+        setIsBridgeComplete(false)
+        setIsBridgeTracking(false)
+        setBridgeTrackingStopped(false)
+        onReset?.()
+    }, [onReset])
+
     useEffect(() => {
         const showReset = Boolean((isBridgeComplete || (!isBridge && isConfirmed)) && srcHash)
-        const resetCallback =
-            showReset && onReset
-                ? () => {
-                      setStep("idle")
-                      setSrcHash(undefined)
-                      setDstHash(undefined)
-                      setIsConfirmed(false)
-                      setIsBridgeComplete(false)
-                      setIsBridgeTracking(false)
-                      setBridgeTrackingStopped(false)
-                      setError(undefined)
-                      onReset()
-                  }
-                : undefined
-        onResetStateChange?.(showReset, resetCallback)
-    }, [isBridgeComplete, isBridge, isConfirmed, srcHash, onReset, onResetStateChange])
+        if (onResetStateChange) {
+            requestAnimationFrame(() => {
+                onResetStateChange(showReset, showReset && onReset ? resetCallback : undefined)
+            })
+        }
+    }, [isBridgeComplete, isBridge, isConfirmed, srcHash, onReset, onResetStateChange, resetCallback])
 
     // Extract transaction data from trade
     const getTransactionData = useCallback(async () => {
@@ -287,7 +288,7 @@ export default function ExecuteButton({
                     })
                     // encode user actions
                     try {
-                        const { encodeDestinationActions } = await import("../../lib/trade-helpers/destinationActions")
+                        const { encodeDestinationActions } = await import("../../sdk/trade-helpers/destinationActions")
                         const encoded = encodeDestinationActions(
                             actions.map((a) => ({
                                 config: a.config,
@@ -488,4 +489,3 @@ export default function ExecuteButton({
         </div>
     )
 }
-

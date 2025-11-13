@@ -3,12 +3,12 @@ import type { Address, Hex } from "viem"
 import { encodeFunctionData, parseUnits } from "viem"
 import { useSendTransaction, useSignTypedData, useSwitchChain } from "wagmi"
 import { moonbeam } from "viem/chains"
-import { SupportedChainId } from "@1delta/lib-utils"
+import { SupportedChainId } from "../../sdk/types"
 import DestinationActionSelector from "../DestinationActionSelector"
 import type { DestinationActionConfig } from "../../lib/types/destinationAction"
 import { ERC20_ABI, CALL_PERMIT_ABI } from "../../lib/abi"
 import { BATCH_PRECOMPILE, CALL_PERMIT_PRECOMPILE } from "../../lib/consts"
-import { usePermitBatch } from "../../hooks/usePermitBatch"
+import { usePermitBatch } from "../../sdk/hooks/usePermitBatch"
 import { useToast } from "../common/ToastHost"
 import { ActionEditor } from "./ActionEditor"
 
@@ -97,7 +97,7 @@ export function MoonbeamActionsPanel({
                                         }
                                     }
                                     // Build calls from actions
-                                    const { encodeDestinationActions } = await import("../../lib/trade-helpers/destinationActions")
+                                    const { encodeDestinationActions } = await import("../../sdk/trade-helpers/destinationActions")
                                     const preCalls: Array<{ target: Address; value: bigint; callData: Hex; gasLimit: bigint }> = []
                                     for (const a of actions) {
                                         const meta = (a.config as any)?.meta || {}

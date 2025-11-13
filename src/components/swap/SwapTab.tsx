@@ -3,19 +3,18 @@ import type { Address, Hex } from "viem"
 import { zeroAddress } from "viem"
 import { useChainId, useSwitchChain } from "wagmi"
 import { TokenSelectorModal } from "../modals/TokenSelectorModal"
-import { useChainsRegistry } from "../../hooks/useChainsRegistry"
+import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { useTokenLists } from "../../hooks/useTokenLists"
 import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
 import { useTokenBalance } from "../../hooks/balances/useTokenBalance"
 import { useDexscreenerPrices } from "../../hooks/prices/useDexscreenerPrices"
 import { useTokenPrice } from "../../hooks/prices/useTokenPrice"
 import { useDebounce } from "../../hooks/useDebounce"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
+import { CurrencyHandler, SupportedChainId } from "../../sdk/types"
 import { useQueryClient } from "@tanstack/react-query"
-import { SupportedChainId } from "@1delta/lib-utils"
 import { useSlippage } from "../../contexts/SlippageContext"
-import { usePermitBatch } from "../../hooks/usePermitBatch"
-import { useSwapQuotes } from "../../hooks/useSwapQuotes"
+import { usePermitBatch } from "../../sdk/hooks/usePermitBatch"
+import { useSwapQuotes } from "../../sdk/hooks/useSwapQuotes"
 import { usePriceImpact } from "../../hooks/usePriceImpact"
 import { TokenInputSection } from "./TokenInputSection"
 import { TokenOutputSection } from "./TokenOutputSection"
@@ -234,15 +233,7 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
     const [attachedGasLimit, setAttachedGasLimit] = useState<bigint | undefined>(undefined)
     const [attachedValue, setAttachedValue] = useState<bigint | undefined>(undefined)
 
-    const {
-        quotes,
-        quoting,
-        selectedQuoteIndex,
-        setSelectedQuoteIndex,
-        amountWei,
-        refreshQuotes,
-        abortQuotes,
-    } = useSwapQuotes({
+    const { quotes, quoting, selectedQuoteIndex, setSelectedQuoteIndex, amountWei, refreshQuotes, abortQuotes } = useSwapQuotes({
         srcChainId,
         srcToken,
         dstChainId,
@@ -259,7 +250,6 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
     })
 
     const selectedTrade = quotes[selectedQuoteIndex]?.trade
-
 
     const quoteOut = useMemo(() => {
         const trade = selectedTrade

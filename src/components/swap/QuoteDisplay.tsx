@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { GenericTrade } from "@1delta/lib-utils"
+import type { GenericTrade } from "../../sdk/types"
 import { Logo } from "../common/Logo"
 import { getAggregatorLogo, getBridgeLogo, getTokenPrice } from "./swapUtils"
 
@@ -112,12 +112,7 @@ export function QuoteDisplay({
                                 }}
                             >
                                 <div className="flex items-center gap-3 flex-1">
-                                    <Logo
-                                        src={getLogo(q.label)}
-                                        alt={q.label}
-                                        size={20}
-                                        fallbackText={q.label.slice(0, 2).toUpperCase()}
-                                    />
+                                    <Logo src={getLogo(q.label)} alt={q.label} size={20} fallbackText={q.label.slice(0, 2).toUpperCase()} />
                                     <div className="flex flex-col">
                                         <div className="text-sm font-medium">
                                             {output.toFixed(6)} {dstSymbol}
@@ -140,4 +135,3 @@ export function QuoteDisplay({
         </div>
     )
 }
-

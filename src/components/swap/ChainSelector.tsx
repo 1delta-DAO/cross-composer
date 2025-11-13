@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useChainsRegistry } from "../../hooks/useChainsRegistry"
+import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { SUPPORTED_CHAIN_IDS } from "../../lib/data/chainIds"
 import { Logo } from "../common/Logo"
-import { SupportedChainId } from "@1delta/lib-utils"
+import { SupportedChainId } from "../../sdk/types"
 
 type Props = {
     value?: string

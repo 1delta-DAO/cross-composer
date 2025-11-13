@@ -9,7 +9,7 @@ import { config } from "./wagmi"
 import App from "./App"
 import { ToastProvider } from "./components/common/ToastHost"
 import { SlippageProvider } from "./contexts/SlippageContext"
-import { initAll } from "./lib/trade-helpers/initialize"
+import { initAll } from "./sdk/trade-helpers/initialize"
 
 const client = new QueryClient()
 
