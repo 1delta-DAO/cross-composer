@@ -3,7 +3,7 @@ import { Address, Hex, Abi } from "viem"
 /**
  * Destination action type enum
  */
-export type DestinationActionType = "game_token" | "buy_ticket" | "custom"
+export type DestinationActionType = "game_token" | "buy_ticket" | "lending"
 
 /**
  * Structured interface for destination actions (game-related actions on Moonbeam)
@@ -17,6 +17,22 @@ export interface DestinationAction {
     abi: Abi
     /** Type of action */
     actionType: DestinationActionType
+    /** Optional grouping/category (e.g.) */
+    group?: string
+    /** Optional metadata used by UI */
+    meta?: {
+        underlying?: Address
+        symbol?: string
+        decimals?: number
+        /** If true, UI/app should use permit precompile flow for composed destination actions */
+        usePermitPrecompile?: boolean
+        /** Insert ERC20 approve( spender=config.address, amount=args[preApproveAmountArgIndex] ) for 'underlying' before the main call */
+        preApproveFromUnderlying?: boolean
+        /** Index of the uint256 amount argument to reuse for approve amount (default: 0) */
+        preApproveAmountArgIndex?: number
+        /** If true, insert Comptroller enterMarkets before main (for lending) */
+        enterMarketBefore?: boolean
+    }
     /** Display name */
     name: string
     /** Description */
@@ -43,4 +59,3 @@ export interface EncodedDestinationAction {
     calldata: Hex
     value?: bigint
 }
-

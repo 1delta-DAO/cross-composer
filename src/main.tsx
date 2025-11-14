@@ -9,12 +9,12 @@ import { config } from "./wagmi"
 import App from "./App"
 import { ToastProvider } from "./components/common/ToastHost"
 import { SlippageProvider } from "./contexts/SlippageContext"
-import { initializeTradeSdk } from "./lib/trade-sdk/initialize"
+import { initAll } from "./sdk/trade-helpers/initialize"
 
 const client = new QueryClient()
 
-// init trade-sdk on app startup
-initializeTradeSdk().catch((error) => {
+// init trade-sdk and moonwell markets on app startup
+initAll().catch((error) => {
     console.error("Failed to initialize Trade SDK:", error)
 })
 

@@ -1,4 +1,4 @@
-import { ChainsRegistryRecord } from "../hooks/useChainsRegistry"
+import { ChainsRegistryRecord } from "../sdk/hooks/useChainsRegistry"
 
 function getPrimaryExplorerBase(chain: ChainsRegistryRecord[string] | undefined): string | undefined {
     if (!chain) return undefined

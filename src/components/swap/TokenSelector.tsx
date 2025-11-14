@@ -4,9 +4,10 @@ import { zeroAddress } from "viem"
 import { useTokenLists } from "../../hooks/useTokenLists"
 import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
 import { useDexscreenerPrices } from "../../hooks/prices/useDexscreenerPrices"
-import { useChainsRegistry } from "../../hooks/useChainsRegistry"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
+import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
+import { CurrencyHandler, SupportedChainId } from "../../sdk/types"
 import { Logo } from "../common/Logo"
+import { getTokenFromCache } from "../../lib/data/tokenListsCache"
 
 type Props = {
     chainId: string
@@ -20,10 +21,8 @@ type Props = {
     listMode?: boolean // When true, shows only the list without dropdown button
 }
 
-const RELEVANT_SYMBOLS = ["ETH", "WETH", "USDC", "USDT", "GLMR", "WBTC"]
-
 // Stablecoin symbols (common stablecoins)
-const STABLECOIN_SYMBOLS = new Set(["USDC", "USDT", "DAI", "BUSD", "FRAX", "USDD", "TUSD", "LUSD", "SUSD", "GUSD", "MIM", "DOLA"])
+const STABLECOIN_SYMBOLS = new Set(["USDC", "USDT", "DAI", "BUSD", "FRAX", "USDD", "USDE", "TUSD", "LUSD", "SUSD", "GUSD", "MIM", "DOLA"])
 
 // LST (Liquid Staking Token) patterns - common LST symbols
 const LST_SYMBOLS = new Set(["STETH", "RETH", "CBETH", "SFRXETH", "WBETH", "STSOL", "MSOL", "JITOSOL"])
@@ -87,46 +86,167 @@ export function TokenSelector({
         tokenAddresses: userAddress ? addressesWithNative : [],
     })
 
-    // Include wrapped native address for native token price
-    const priceAddresses = useMemo(() => {
-        const addrs = [...allAddrs.slice(0, 300)]
-        const wrapped = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
-        if (wrapped && !addrs.includes(wrapped as Address)) {
-            addrs.push(wrapped as Address)
+    const relevant = useMemo(() => {
+        const relevantTokens: Address[] = []
+
+        const isAlreadyIncluded = (addr: string) => {
+            const addrLower = addr.toLowerCase()
+            return relevantTokens.some((a) => a.toLowerCase() === addrLower)
         }
-        return addrs
-    }, [allAddrs, chainId])
 
-    const { data: prices, isLoading: pricesLoading } = useDexscreenerPrices({ chainId, addresses: priceAddresses })
+        const addTokenIfNotIncluded = (candidates: [string, any][], selector: (candidates: [string, any][]) => [string, any] | undefined) => {
+            if (candidates.length === 0) return
+            const selected = selector(candidates)
+            if (selected && !isAlreadyIncluded(selected[0])) {
+                relevantTokens.push(selected[0] as Address)
+            }
+        }
 
-    // Helper function to get token category for sorting
+        relevantTokens.push(zeroAddress as Address)
+
+        const wrappedNative = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
+        if (wrappedNative) {
+            const wrappedAddr = wrappedNative.toLowerCase()
+            const wrappedLower = Object.keys(tokensMap).find((addr) => addr.toLowerCase() === wrappedAddr)
+            if (wrappedLower && !isAlreadyIncluded(wrappedLower)) {
+                relevantTokens.push(wrappedLower as Address)
+            } else {
+                const nativeSymbol = nativeCurrencySymbol
+                const wrappedEntry = Object.entries(tokensMap).find(([addr, t]: [string, any]) => {
+                    const addrLower = addr.toLowerCase()
+                    const isWrapped = addrLower === wrappedAddr
+                    const hasWnativeProp = t?.props?.wnative === true
+                    const assetGroupMatches = t?.assetGroup?.toUpperCase() === nativeSymbol
+                    return (isWrapped || hasWnativeProp || assetGroupMatches) && !isAlreadyIncluded(addr)
+                })
+                if (wrappedEntry) {
+                    relevantTokens.push(wrappedEntry[0] as Address)
+                }
+            }
+        }
+
+        // USDC selection logic
+        const usdcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === "USDC")
+        addTokenIfNotIncluded(usdcCandidates, (candidates) => {
+            const isMoonbeam = chainId === SupportedChainId.MOONBEAM
+            if (isMoonbeam) {
+                // On moonbeam, prefer xc tokens
+                const xcUsdc = candidates.find(([, t]: [string, any]) => {
+                    const symbolUpper = t?.symbol?.toUpperCase() || ""
+                    return symbolUpper.startsWith("XC") && symbolUpper.includes("USDC")
+                })
+                if (xcUsdc) return xcUsdc
+            }
+            return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === "USDC") || candidates[0]
+        })
+
+        // USDT selection logic
+        const usdtCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === "USDT")
+        addTokenIfNotIncluded(usdtCandidates, (candidates) => {
+            const isMoonbeam = chainId === SupportedChainId.MOONBEAM
+            if (isMoonbeam) {
+                // On moonbeam, prefer xc tokens
+                const xcUsdt = candidates.find(([, t]: [string, any]) => {
+                    const symbolUpper = t?.symbol?.toUpperCase() || ""
+                    return symbolUpper.startsWith("XC") && symbolUpper.includes("USDT")
+                })
+                if (xcUsdt) return xcUsdt
+            }
+            return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === "USDT") || candidates[0]
+        })
+
+        // WBTC selection logic
+        const wbtcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => {
+            const symbolUpper = t?.symbol?.toUpperCase() || ""
+            const assetGroupUpper = t?.assetGroup?.toUpperCase() || ""
+            return (
+                symbolUpper.includes("WBTC") ||
+                assetGroupUpper.includes("WBTC") ||
+                (assetGroupUpper.includes("BTC") && !assetGroupUpper.includes("INTER"))
+            )
+        })
+        addTokenIfNotIncluded(wbtcCandidates, (candidates) => {
+            return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === "WBTC") || candidates[0]
+        })
+
+        return relevantTokens
+    }, [tokensMap, chainId, nativeCurrencySymbol])
+
+    const getStablecoinFallbackPrice = useCallback((chainId: string, address: string): number | undefined => {
+        const token = getTokenFromCache(chainId, address)
+        if (!token) return undefined
+        const symbol = (token as any)?.symbol?.toUpperCase?.() || ""
+        const assetGroup = (token as any)?.assetGroup || ""
+        if (assetGroup === "USDC") return 1
+        if (symbol === "USDC" || symbol === "USDT" || symbol === "DAI" || symbol === "USDBC" || symbol === "XCUSDC" || symbol === "XCUSDT") return 1
+        return undefined
+    }, [])
+
+    const priceAddresses = useMemo(() => {
+        const addressesWithBalance: Address[] = []
+        const wrapped = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
+
+        if (balances?.[chainId] && userAddress) {
+            for (const addr of addressesWithNative) {
+                const bal = balances[chainId][addr.toLowerCase()]
+                if (bal && Number(bal.value || 0) > 0) {
+                    if (addr.toLowerCase() === zeroAddress.toLowerCase() && wrapped) {
+                        if (!addressesWithBalance.includes(wrapped as Address)) {
+                            addressesWithBalance.push(wrapped as Address)
+                        }
+                    } else {
+                        if (!addressesWithBalance.includes(addr)) {
+                            addressesWithBalance.push(addr)
+                        }
+                    }
+                }
+            }
+        }
+
+        for (const addr of relevant) {
+            const addrLower = addr.toLowerCase()
+            if (addrLower === zeroAddress.toLowerCase() && wrapped) {
+                if (!addressesWithBalance.includes(wrapped as Address)) {
+                    addressesWithBalance.push(wrapped as Address)
+                }
+            } else {
+                if (!addressesWithBalance.includes(addr)) {
+                    addressesWithBalance.push(addr)
+                }
+            }
+        }
+
+        return addressesWithBalance
+    }, [balances, chainId, addressesWithNative, userAddress, relevant])
+
+    const { data: prices, isLoading: pricesLoading } = useDexscreenerPrices({
+        chainId,
+        addresses: priceAddresses,
+        enabled: priceAddresses.length > 0,
+    })
+
     const getTokenCategory = useCallback(
         (token: { symbol: string }): number => {
             const symbolUpper = token.symbol.toUpperCase()
             const isNative = symbolUpper === nativeCurrencySymbol
             const isWrappedNative = symbolUpper === `W${nativeCurrencySymbol}` || symbolUpper.startsWith(`W${nativeCurrencySymbol}`)
 
-            // Category 1: Native or wrapped native (if not shown yet)
             if (isNative || isWrappedNative) {
                 return 1
             }
 
-            // Category 2: LST tokens
             if (LST_SYMBOLS.has(symbolUpper) || symbolUpper.includes("ST") || (symbolUpper.includes("ETH") && symbolUpper.includes("S"))) {
                 return 2
             }
 
-            // Category 3: Stablecoins
             if (STABLECOIN_SYMBOLS.has(symbolUpper)) {
                 return 3
             }
 
-            // Category 4: Bitcoin tokens
             if (BITCOIN_SYMBOLS.has(symbolUpper) || symbolUpper.includes("BTC")) {
                 return 4
             }
 
-            // Category 5: Everything else
             return 5
         },
         [nativeCurrencySymbol]
@@ -134,16 +254,30 @@ export function TokenSelector({
 
     const rows = useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
+        const relevantSet = new Set(relevant.map((addr) => addr.toLowerCase()))
+
         const filtered = allAddrs
             .map((addr) => {
                 const token = tokensMap[addr]
                 const bal = balances?.[chainId]?.[addr.toLowerCase()]
-                const price = prices?.[chainId]?.[addr.toLowerCase()]
-                const usdValue = bal && price ? Number(bal.value || 0) * price.usd : 0
-                return { addr, token, usdValue, category: getTokenCategory(token) }
+                const priceData = prices?.[chainId]?.[addr.toLowerCase()]
+                const price = priceData?.usd
+
+                // Get fallback price for stablecoins if no price from API
+                const fallbackPrice = price || getStablecoinFallbackPrice(chainId, addr) || 0
+                const finalPrice = price || fallbackPrice
+
+                // Calculate USD value: balance * price, or use price for sorting if no balance
+                const balanceAmount = bal ? Number(bal.value || 0) : 0
+                const usdValue = balanceAmount * finalPrice
+
+                const isRelevant = relevantSet.has(addr.toLowerCase())
+                return { addr, token, usdValue, price: finalPrice, balanceAmount, category: getTokenCategory(token), isRelevant }
             })
             .filter(({ addr }) => !excludeAddresses || !excludeAddresses.map((a) => a.toLowerCase()).includes(addr.toLowerCase()))
-            .filter(({ addr, token }) => {
+            .filter(({ addr, token, isRelevant }) => {
+                // Always include relevant tokens in the list, regardless of search query
+                if (isRelevant) return true
                 if (!q) return true
                 const addrLower = addr.toLowerCase()
                 const symbolLower = token.symbol.toLowerCase()
@@ -152,40 +286,31 @@ export function TokenSelector({
                 return symbolLower.includes(q) || nameLower.includes(q) || addrLower.includes(q)
             })
 
-        // Sort by:
-        // 1. Highest USD balance first (primary sort)
-        // 2. Then by category as tiebreaker:
-        //    - Native/wrapped native and LST (category 1-2)
-        //    - Stablecoins (category 3)
-        //    - Bitcoin tokens (category 4)
-        //    - Rest (category 5)
-        // 3. Within same balance and category, sort alphabetically
+        // Sort by USD value (balance * price), then by price for tokens without balance
         return filtered.sort((a, b) => {
-            // Primary: Sort by USD balance (highest first)
-            const balanceDiff = b.usdValue - a.usdValue
-            // If balance difference is significant (> $0.01), prioritize balance
-            if (Math.abs(balanceDiff) > 0.01) {
-                return balanceDiff
+            // Primary: Sort by USD value (highest first)
+            const usdValueDiff = b.usdValue - a.usdValue
+            // If USD value difference is significant (> $0.01), prioritize USD value
+            if (Math.abs(usdValueDiff) > 0.01) {
+                return usdValueDiff
             }
 
-            // Secondary: Sort by category (lower category number = higher priority)
+            // Secondary: For tokens with same USD value (or both zero), sort by price
+            // This helps sort tokens without balance by their price
+            const priceDiff = b.price - a.price
+            if (Math.abs(priceDiff) > 0.0001) {
+                return priceDiff
+            }
+
+            // Tertiary: Sort by category (lower category number = higher priority)
             if (a.category !== b.category) {
                 return a.category - b.category
             }
 
-            // Tertiary: Alphabetically by symbol
+            // Quaternary: Alphabetically by symbol
             return a.token.symbol.localeCompare(b.token.symbol)
         })
-    }, [allAddrs, tokensMap, searchQuery, balances, prices, chainId, excludeAddresses, getTokenCategory])
-
-    const relevant = useMemo(() => {
-        const foundBySymbol: Address[] = []
-        for (const sym of RELEVANT_SYMBOLS) {
-            const entry = Object.entries(tokensMap).find(([, t]) => t.symbol.toUpperCase() === sym)
-            if (entry) foundBySymbol.push(entry[0] as Address)
-        }
-        return foundBySymbol
-    }, [tokensMap])
+    }, [allAddrs, tokensMap, searchQuery, balances, prices, chainId, excludeAddresses, getTokenCategory, relevant, getStablecoinFallbackPrice])
 
     const selected = value ? tokensMap[value.toLowerCase()] : undefined
 
@@ -195,7 +320,19 @@ export function TokenSelector({
             <div className="w-full">
                 <div className="flex flex-wrap gap-2 mb-2">
                     {relevant.map((addr) => {
-                        const t = tokensMap[addr]
+                        const addrLower = addr.toLowerCase()
+                        let t = tokensMap[addrLower]
+                        if (!t && addrLower === zeroAddress.toLowerCase()) {
+                            const nativeCurrency = chains?.[chainId]?.data?.nativeCurrency
+                            if (nativeCurrency) {
+                                t = {
+                                    symbol: nativeCurrency.symbol,
+                                    name: nativeCurrency.name,
+                                    logoURI: chains[chainId]?.data?.icon,
+                                } as any
+                            }
+                        }
+                        if (!t) return null
                         return (
                             <button
                                 key={addr}
@@ -275,7 +412,19 @@ export function TokenSelector({
                 <div className="mt-2 p-2 rounded-box border border-base-300 bg-base-100 shadow-xl absolute z-20 w-full">
                     <div className="flex flex-wrap gap-2 mb-2">
                         {relevant.map((addr) => {
-                            const t = tokensMap[addr]
+                            const addrLower = addr.toLowerCase()
+                            let t = tokensMap[addrLower]
+                            if (!t && addrLower === zeroAddress.toLowerCase()) {
+                                const nativeCurrency = chains?.[chainId]?.data?.nativeCurrency
+                                if (nativeCurrency) {
+                                    t = {
+                                        symbol: nativeCurrency.symbol,
+                                        name: nativeCurrency.name,
+                                        logoURI: chains[chainId]?.data?.icon,
+                                    } as any
+                                }
+                            }
+                            if (!t) return null
                             return (
                                 <button
                                     key={addr}

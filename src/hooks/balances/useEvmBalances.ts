@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import type { Address } from "viem"
 import { zeroAddress } from "viem"
-import { fetchEvmUserTokenDataEnhanced } from "./fetchBalances"
+import { fetchEvmUserTokenDataEnhanced } from "../../sdk/utils/fetchBalances"
 
 export type ChainBalancesRecord = Record<string, Record<string, { raw: string; value: string }>>
 

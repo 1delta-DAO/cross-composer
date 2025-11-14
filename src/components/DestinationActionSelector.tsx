@@ -1,23 +1,77 @@
-import React, { useState } from "react"
-import { DESTINATION_ACTIONS, getDestinationActionsByType } from "../lib/config/destinationActions"
+import { useMemo, useState, useEffect } from "react"
 import { DestinationActionConfig, DestinationActionType } from "../lib/types/destinationAction"
 import { Hex } from "viem"
+import { getAllActions, getActionsByGroup } from "../lib/actions/registry"
+import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from "../lib/moonwell/marketCache"
+import { SupportedChainId } from "../sdk/types"
+import { LendingSubPanel } from "./LendingSubPanel"
+import { LendingActionModal } from "./LendingActionModal"
 
 interface DestinationActionSelectorProps {
-    onAdd?: (config: DestinationActionConfig, functionSelector: Hex) => void
+    onAdd?: (config: DestinationActionConfig, functionSelector: Hex, args?: any[], value?: string) => void
+    dstToken?: string
+    dstChainId?: string
+    userAddress?: string
 }
 
-export default function DestinationActionSelector({ onAdd }: DestinationActionSelectorProps) {
+export default function DestinationActionSelector({ onAdd, dstToken, dstChainId, userAddress }: DestinationActionSelectorProps) {
     const [selectedActionType, setSelectedActionType] = useState<DestinationActionType | "">("")
-    const [selectedAction, setSelectedAction] = useState<string>("")
+    const [selectedActionKey, setSelectedActionKey] = useState<string>("")
+    const [marketsReady, setMarketsReady] = useState(isMarketsReady())
+    const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
+    const [modalAction, setModalAction] = useState<{ config: DestinationActionConfig; selector: Hex } | null>(null)
 
-    const actionsByType = selectedActionType ? getDestinationActionsByType(selectedActionType) : DESTINATION_ACTIONS
+    // Subscribe to market cache changes
+    useEffect(() => {
+        setMarketsReady(isMarketsReady())
+        setMarketsLoading(isMarketsLoading())
 
-    const handleSelectAction = (actionAddress: string) => {
-        setSelectedAction(actionAddress)
+        const unsubscribe = subscribeToCacheChanges(() => {
+            setMarketsReady(isMarketsReady())
+            setMarketsLoading(isMarketsLoading())
+        })
+
+        return unsubscribe
+    }, [])
+
+    const allActions = useMemo(() => getAllActions({ dstToken, dstChainId }), [dstToken, dstChainId, marketsReady])
+
+    // Filter out lending actions from dropdown (they're handled by LendingSubPanel)
+    const nonLendingActions = useMemo(() => {
+        return allActions.filter((a) => a.actionType !== "lending")
+    }, [allActions])
+
+    const actionsByType = useMemo(() => {
+        if (!selectedActionType) {
+            // Deduplicate by address-name combination
+            const seen = new Set<string>()
+            return nonLendingActions.filter((a) => {
+                const key = `${a.address.toLowerCase()}-${a.name}`
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+            })
+        }
+        return getActionsByGroup(selectedActionType, { dstToken, dstChainId }).filter((a) => a.actionType !== "lending")
+    }, [nonLendingActions, selectedActionType, dstToken, dstChainId])
+
+    const handleSelectAction = (val: string) => {
+        setSelectedActionKey(val)
     }
 
-    if (DESTINATION_ACTIONS.length === 0) {
+    if (dstChainId === SupportedChainId.MOONBEAM && marketsLoading && !marketsReady) {
+        return (
+            <div className="alert alert-info">
+                <span className="loading loading-spinner loading-sm"></span>
+                <span>Loading ...</span>
+            </div>
+        )
+    }
+
+    // Show lending sub-panel for Moonbeam
+    const showLendingPanel = dstChainId === SupportedChainId.MOONBEAM
+
+    if (nonLendingActions.length === 0 && !showLendingPanel) {
         return (
             <div className="alert alert-info">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,53 +89,88 @@ export default function DestinationActionSelector({ onAdd }: DestinationActionSe
 
     return (
         <div className="space-y-4">
-            <div className="form-control">
-                <label className="label">
-                    <span className="label-text font-medium">Action Type</span>
-                </label>
-                <select
-                    value={selectedActionType}
-                    onChange={(e) => {
-                        setSelectedActionType(e.target.value as DestinationActionType | "")
-                        setSelectedAction("")
+            {showLendingPanel && (
+                <LendingSubPanel
+                    dstToken={dstToken}
+                    userAddress={userAddress}
+                    chainId={dstChainId}
+                    onAdd={(config, selector, args, value) => {
+                        if (onAdd) {
+                            onAdd(config, selector, args, value)
+                        }
                     }}
-                    className="select select-bordered w-full"
-                >
-                    <option value="">All Types</option>
-                    <option value="game_token">Game Token</option>
-                    <option value="buy_ticket">Buy Ticket</option>
-                    <option value="custom">Custom</option>
-                </select>
-            </div>
-
-            {actionsByType.length > 0 && (
+                />
+            )}
+            {nonLendingActions.length > 0 && (
                 <div className="form-control">
-                    <label className="label">
-                        <span className="label-text font-medium">Select Action</span>
-                    </label>
-                    <select value={selectedAction} onChange={(e) => handleSelectAction(e.target.value)} className="select select-bordered w-full">
-                        <option value="">Choose an action...</option>
-                        {actionsByType.map((action) => (
-                            <option key={action.address} value={action.address}>
-                                {action.name} - {action.description}
-                            </option>
-                        ))}
-                    </select>
-                    <div className="mt-3">
+                    <div className="flex items-center gap-2">
+                        <select
+                            value={selectedActionType}
+                            onChange={(e) => {
+                                setSelectedActionType(e.target.value as DestinationActionType | "")
+                                setSelectedActionKey("")
+                            }}
+                            className="select select-bordered flex-1"
+                        >
+                            <option value="">All Types</option>
+                            <option value="game_token">Game Token</option>
+                            <option value="buy_ticket">Buy Ticket</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <select
+                            value={selectedActionKey}
+                            onChange={(e) => handleSelectAction(e.target.value)}
+                            className="select select-bordered flex-1"
+                        >
+                            <option value="">Choose an action...</option>
+                            {actionsByType.flatMap((action) => {
+                                const selectors = action.defaultFunctionSelector
+                                    ? [action.defaultFunctionSelector, ...action.functionSelectors]
+                                    : action.functionSelectors
+                                const uniq = Array.from(new Set(selectors.map((s) => s.toLowerCase())))
+                                return uniq.map((selector) => {
+                                    const key = `${action.address.toLowerCase()}|${selector}`
+                                    return (
+                                        <option key={key} value={key}>
+                                            {action.name}
+                                        </option>
+                                    )
+                                })
+                            })}
+                        </select>
                         <button
                             className="btn btn-primary"
-                            disabled={!selectedAction}
+                            disabled={!selectedActionKey}
                             onClick={() => {
-                                const action = DESTINATION_ACTIONS.find((a) => a.address.toLowerCase() === selectedAction.toLowerCase())
-                                if (!action) return
-                                const selector = (action.defaultFunctionSelector || action.functionSelectors[0]) as Hex
-                                if (onAdd) onAdd(action, selector)
+                                if (!selectedActionKey) return
+                                const [addr, selector] = selectedActionKey.split("|")
+                                const action = actionsByType.find((a) => a.address.toLowerCase() === addr)
+                                if (!action || !selector) return
+                                // Open modal instead of adding directly
+                                setModalAction({ config: action, selector: selector as Hex })
+                                setSelectedActionKey("") // Reset selection
                             }}
                         >
                             Add
                         </button>
                     </div>
                 </div>
+            )}
+            {modalAction && (
+                <LendingActionModal
+                    open={modalAction !== null}
+                    onClose={() => setModalAction(null)}
+                    actionConfig={modalAction.config}
+                    selector={modalAction.selector}
+                    userAddress={userAddress as any}
+                    chainId={dstChainId}
+                    onConfirm={(config, selector, args, value) => {
+                        if (onAdd) {
+                            onAdd(config, selector, args, value)
+                        }
+                        setModalAction(null)
+                    }}
+                />
             )}
         </div>
     )
