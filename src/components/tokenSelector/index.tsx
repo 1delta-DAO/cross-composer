@@ -6,8 +6,9 @@ import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
 import { useDexscreenerPrices } from "../../hooks/prices/useDexscreenerPrices"
 import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { CurrencyHandler, SupportedChainId } from "../../sdk/types"
-import { Logo } from "../common/Logo"
 import { getTokenFromCache } from "../../lib/data/tokenListsCache"
+import { TokenSelectorDropdownMode } from "./Dropdown"
+import { TokenSelectorListMode } from "./ListMode"
 
 type Props = {
     chainId: string
@@ -21,8 +22,32 @@ type Props = {
     listMode?: boolean // When true, shows only the list without dropdown button
 }
 
+type TokenRowData = {
+    addr: Address
+    token: any
+    usdValue: number
+    price: number
+    balanceAmount: number
+    category: number
+    isRelevant: boolean
+}
+
 // Stablecoin symbols (common stablecoins)
-const STABLECOIN_SYMBOLS = new Set(["USDC", "USDT", "DAI", "BUSD", "FRAX", "USDD", "USDE", "TUSD", "LUSD", "SUSD", "GUSD", "MIM", "DOLA"])
+const STABLECOIN_SYMBOLS = new Set([
+    "USDC",
+    "USDT",
+    "DAI",
+    "BUSD",
+    "FRAX",
+    "USDD",
+    "USDE",
+    "TUSD",
+    "LUSD",
+    "SUSD",
+    "GUSD",
+    "MIM",
+    "DOLA",
+])
 
 // LST (Liquid Staking Token) patterns - common LST symbols
 const LST_SYMBOLS = new Set(["STETH", "RETH", "CBETH", "SFRXETH", "WBETH", "STSOL", "MSOL", "JITOSOL"])
@@ -94,7 +119,10 @@ export function TokenSelector({
             return relevantTokens.some((a) => a.toLowerCase() === addrLower)
         }
 
-        const addTokenIfNotIncluded = (candidates: [string, any][], selector: (candidates: [string, any][]) => [string, any] | undefined) => {
+        const addTokenIfNotIncluded = (
+            candidates: [string, any][],
+            selector: (candidates: [string, any][]) => [string, any] | undefined
+        ) => {
             if (candidates.length === 0) return
             const selected = selector(candidates)
             if (selected && !isAlreadyIncluded(selected[0])) {
@@ -102,6 +130,7 @@ export function TokenSelector({
             }
         }
 
+        // Native
         relevantTokens.push(zeroAddress as Address)
 
         const wrappedNative = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
@@ -178,7 +207,15 @@ export function TokenSelector({
         const symbol = (token as any)?.symbol?.toUpperCase?.() || ""
         const assetGroup = (token as any)?.assetGroup || ""
         if (assetGroup === "USDC") return 1
-        if (symbol === "USDC" || symbol === "USDT" || symbol === "DAI" || symbol === "USDBC" || symbol === "XCUSDC" || symbol === "XCUSDT") return 1
+        if (
+            symbol === "USDC" ||
+            symbol === "USDT" ||
+            symbol === "DAI" ||
+            symbol === "USDBC" ||
+            symbol === "XCUSDC" ||
+            symbol === "XCUSDT"
+        )
+            return 1
         return undefined
     }, [])
 
@@ -252,7 +289,7 @@ export function TokenSelector({
         [nativeCurrencySymbol]
     )
 
-    const rows = useMemo(() => {
+    const rows: TokenRowData[] = useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
         const relevantSet = new Set(relevant.map((addr) => addr.toLowerCase()))
 
@@ -310,204 +347,62 @@ export function TokenSelector({
             // Quaternary: Alphabetically by symbol
             return a.token.symbol.localeCompare(b.token.symbol)
         })
-    }, [allAddrs, tokensMap, searchQuery, balances, prices, chainId, excludeAddresses, getTokenCategory, relevant, getStablecoinFallbackPrice])
+    }, [
+        allAddrs,
+        tokensMap,
+        searchQuery,
+        balances,
+        prices,
+        chainId,
+        excludeAddresses,
+        getTokenCategory,
+        relevant,
+        getStablecoinFallbackPrice,
+    ])
 
     const selected = value ? tokensMap[value.toLowerCase()] : undefined
 
     // List mode: just show the token list without dropdown button
     if (listMode) {
         return (
-            <div className="w-full">
-                <div className="flex flex-wrap gap-2 mb-2">
-                    {relevant.map((addr) => {
-                        const addrLower = addr.toLowerCase()
-                        let t = tokensMap[addrLower]
-                        if (!t && addrLower === zeroAddress.toLowerCase()) {
-                            const nativeCurrency = chains?.[chainId]?.data?.nativeCurrency
-                            if (nativeCurrency) {
-                                t = {
-                                    symbol: nativeCurrency.symbol,
-                                    name: nativeCurrency.name,
-                                    logoURI: chains[chainId]?.data?.icon,
-                                } as any
-                            }
-                        }
-                        if (!t) return null
-                        return (
-                            <button
-                                key={addr}
-                                className="btn btn-sm btn-ghost gap-2"
-                                onClick={() => {
-                                    onChange(addr)
-                                }}
-                            >
-                                <Logo src={t.logoURI} alt={t.symbol} fallbackText={t.symbol} />
-                                <span>{t.symbol}</span>
-                            </button>
-                        )
-                    })}
-                </div>
-                {relevant.length > 0 && <div className="divider my-1" />}
-                <div className="overflow-auto">
-                    {rows.map(({ addr, token }) => {
-                        const bal = balances?.[chainId]?.[addr.toLowerCase()]
-                        const wrapped = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
-                        const priceAddr = addr.toLowerCase() === zeroAddress.toLowerCase() ? wrapped : addr
-                        const price = prices?.[chainId]?.[priceAddr?.toLowerCase() || ""]
-                        const usd = bal && price ? Number(bal.value || 0) * price.usd : undefined
-                        const showBalanceLoading = balancesLoading && userAddress && !bal
-                        const showPriceLoading = pricesLoading && !price && !usd
-                        const balanceText = bal?.value ? Number(bal.value).toFixed(4) : undefined
-                        return (
-                            <button
-                                key={addr}
-                                className="w-full py-2 px-2 hover:bg-base-200 rounded flex items-center gap-3"
-                                onClick={() => {
-                                    onChange(addr)
-                                }}
-                            >
-                                <div className="relative w-6 h-6">
-                                    <Logo src={token.logoURI} alt={token.symbol} fallbackText={token.symbol} />
-                                    {chains?.[chainId]?.data?.icon && (
-                                        <img
-                                            src={chains[chainId].data.icon}
-                                            alt="chain"
-                                            className="w-3 h-3 rounded-full absolute -right-1 -bottom-1 border border-base-100"
-                                        />
-                                    )}
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <div className="font-medium">{token.name}</div>
-                                    <div className="text-xs opacity-70">{token.symbol}</div>
-                                </div>
-                                <div className="text-right min-w-24">
-                                    {showBalanceLoading ? (
-                                        <span className="loading loading-spinner loading-xs" />
-                                    ) : balanceText ? (
-                                        <div className="font-mono text-sm opacity-80">{balanceText}</div>
-                                    ) : null}
-                                    {showPriceLoading ? (
-                                        <span className="loading loading-spinner loading-xs ml-2" />
-                                    ) : usd !== undefined && isFinite(usd) ? (
-                                        <div className="text-xs opacity-60">${usd.toFixed(2)}</div>
-                                    ) : null}
-                                </div>
-                            </button>
-                        )
-                    })}
-                </div>
-            </div>
+            <TokenSelectorListMode
+                chainId={chainId}
+                chains={chains}
+                relevant={relevant}
+                rows={rows}
+                tokensMap={tokensMap}
+                balances={balances}
+                prices={prices}
+                balancesLoading={balancesLoading}
+                pricesLoading={pricesLoading}
+                userAddress={userAddress}
+                onChange={onChange}
+            />
         )
     }
 
     // Dropdown mode: show button and dropdown
     return (
-        <div className="relative" ref={dropdownRef}>
-            <button type="button" className="btn btn-outline w-full flex items-center gap-2" onClick={() => setOpen((o) => !o)}>
-                <Logo src={selected?.logoURI} alt={selected?.symbol || "Token"} fallbackText={selected?.symbol || "T"} />
-                <span className="truncate">{selected?.symbol || (listsLoading ? "Loading tokens..." : "Select token")}</span>
-                <span className="ml-auto tab">▼</span>
-            </button>
-            {open && (
-                <div className="mt-2 p-2 rounded-box border border-base-300 bg-base-100 shadow-xl absolute z-20 w-full">
-                    <div className="flex flex-wrap gap-2 mb-2">
-                        {relevant.map((addr) => {
-                            const addrLower = addr.toLowerCase()
-                            let t = tokensMap[addrLower]
-                            if (!t && addrLower === zeroAddress.toLowerCase()) {
-                                const nativeCurrency = chains?.[chainId]?.data?.nativeCurrency
-                                if (nativeCurrency) {
-                                    t = {
-                                        symbol: nativeCurrency.symbol,
-                                        name: nativeCurrency.name,
-                                        logoURI: chains[chainId]?.data?.icon,
-                                    } as any
-                                }
-                            }
-                            if (!t) return null
-                            return (
-                                <button
-                                    key={addr}
-                                    className="btn btn-sm btn-ghost gap-2"
-                                    onClick={() => {
-                                        onChange(addr)
-                                        setOpen(false)
-                                    }}
-                                >
-                                    <Logo src={t.logoURI} alt={t.symbol} fallbackText={t.symbol} />
-                                    <span>{t.symbol}</span>
-                                </button>
-                            )
-                        })}
-                    </div>
-                    <div className="divider my-1" />
-                    {showSearch && (
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search tokens"
-                            className="input input-bordered w-full mb-2"
-                        />
-                    )}
-                    <div className="max-h-72 overflow-auto">
-                        {rows.map(({ addr, token }) => {
-                            const bal = balances?.[chainId]?.[addr.toLowerCase()]
-                            const wrapped = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
-                            const priceAddr = addr.toLowerCase() === zeroAddress.toLowerCase() ? wrapped : addr
-                            const price = prices?.[chainId]?.[priceAddr?.toLowerCase() || ""]
-                            const usd = bal && price ? Number(bal.value || 0) * price.usd : undefined
-                            const showBalanceLoading = balancesLoading && userAddress && !bal
-                            const showPriceLoading = pricesLoading && !price && !usd
-                            const balanceText = bal?.value ? Number(bal.value).toFixed(4) : undefined
-                            return (
-                                <button
-                                    key={addr}
-                                    className="w-full py-2 px-2 hover:bg-base-200 rounded flex items-center gap-3"
-                                    onClick={() => {
-                                        onChange(addr)
-                                        setOpen(false)
-                                    }}
-                                >
-                                    <div className="relative w-6 h-6">
-                                        <Logo src={token.logoURI} alt={token.symbol} fallbackText={token.symbol} />
-                                        {chains?.[chainId]?.data?.icon && (
-                                            <img
-                                                src={chains[chainId].data.icon}
-                                                alt="chain"
-                                                className="w-3 h-3 rounded-full absolute -right-1 -bottom-1 border border-base-100"
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 text-left">
-                                        <div className="font-medium">{token.name}</div>
-                                        <div className="text-xs opacity-70">{token.symbol}</div>
-                                    </div>
-                                    <div className="text-right min-w-24">
-                                        {showBalanceLoading ? (
-                                            <span className="loading loading-spinner loading-xs" />
-                                        ) : balanceText ? (
-                                            <div className="font-mono text-sm opacity-80">{balanceText}</div>
-                                        ) : null}
-                                        {showPriceLoading ? (
-                                            <span className="loading loading-spinner loading-xs ml-2" />
-                                        ) : usd !== undefined && isFinite(usd) ? (
-                                            <div className="text-xs opacity-60">${usd.toFixed(2)}</div>
-                                        ) : null}
-                                    </div>
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
-        </div>
+        <TokenSelectorDropdownMode
+            dropdownRef={dropdownRef as any}
+            open={open}
+            setOpen={setOpen}
+            chainId={chainId}
+            chains={chains}
+            relevant={relevant}
+            rows={rows}
+            tokensMap={tokensMap}
+            balances={balances}
+            prices={prices}
+            balancesLoading={balancesLoading}
+            pricesLoading={pricesLoading}
+            userAddress={userAddress}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            showSearch={showSearch}
+            listsLoading={listsLoading}
+            selected={selected}
+            onChange={onChange}
+        />
     )
-}
-
-function trimAmount(v: string): string {
-    if (!v.includes(".")) return v
-    const [w, f] = v.split(".")
-    const frac = f.slice(0, 6).replace(/0+$/, "")
-    return frac ? `${w}.${frac}` : w
 }
