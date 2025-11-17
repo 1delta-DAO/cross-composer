@@ -5,7 +5,7 @@ import { SupportedChainId, TradeType } from "@1delta/lib-utils"
 import { getCurrency, convertAmountToWei } from "../lib/trade-helpers/utils"
 import { fetchAllAggregatorTrades } from "../lib/trade-helpers/aggregatorSelector"
 import { fetchAllBridgeTrades } from "../lib/trade-helpers/bridgeSelector"
-import { CALL_PERMIT_PRECOMPILE } from "../lib/consts"
+import { CALL_PERMIT_PRECOMPILE, MOCK_RECEIVER_ADDRESS } from "../lib/consts"
 import { useToast } from "../components/common/ToastHost"
 
 type Quote = { label: string; trade: GenericTrade }
@@ -78,6 +78,8 @@ export function useSwapQuotes({
     // Track previous txInProgress to detect when transaction completes
     const prevTxInProgressRef = useRef(txInProgress)
 
+    const receiverAddress = userAddress || MOCK_RECEIVER_ADDRESS
+
     // Quote on input changes (keep prior quote visible while updating)
     useEffect(() => {
         // Stop fetching quotes if transaction is in progress
@@ -107,7 +109,7 @@ export function useSwapQuotes({
         const [sc, st] = [srcChainId, srcToken]
         const [dc, dt] = [dstChainId, dstToken]
         const amountOk = Boolean(debouncedAmount) && Number(debouncedAmount) > 0
-        const inputsOk = Boolean(debouncedSrcKey && debouncedDstKey && sc && st && dc && dt && userAddress)
+        const inputsOk = Boolean(debouncedSrcKey && debouncedDstKey && sc && st && dc && dt)
 
         // Detect transition between bridge and swap (cross-chain to same-chain or vice versa)
         const isSameChain = sc === dc
@@ -160,7 +162,7 @@ export function useSwapQuotes({
         }
 
         // Prevent unnecessary re-quote if nothing changed and 30s not elapsed
-        const currentKey = `${debouncedAmount}|${debouncedSrcKey}|${debouncedDstKey}|${slippage}|${userAddress || ""}`
+        const currentKey = `${debouncedAmount}|${debouncedSrcKey}|${debouncedDstKey}|${slippage}|${receiverAddress}`
         const now = Date.now()
         const sameAsLast = lastQuotedKeyRef.current === currentKey
         const elapsed = now - lastQuotedAtRef.current
@@ -233,8 +235,8 @@ export function useSwapQuotes({
                             toCurrency,
                             swapAmount: amountInWei,
                             slippage,
-                            caller: userAddress!,
-                            receiver: userAddress!,
+                            caller: receiverAddress,
+                            receiver: receiverAddress,
                             tradeType: TradeType.EXACT_INPUT,
                             flashSwap: false,
                             usePermit: true,
@@ -266,8 +268,8 @@ export function useSwapQuotes({
                             fromCurrency,
                             toCurrency,
                             swapAmount: amountInWei,
-                            caller: userAddress!,
-                            receiver: userAddress!,
+                            caller: receiverAddress,
+                            receiver: receiverAddress,
                             order: "CHEAPEST",
                             usePermit: true,
                             // Prefer composed calls over message; message kept for backward-compat
@@ -352,6 +354,7 @@ export function useSwapQuotes({
         attachedMessage,
         attachedGasLimit,
         attachedValue,
+        receiverAddress,
     ])
 
     const refreshQuotes = () => {

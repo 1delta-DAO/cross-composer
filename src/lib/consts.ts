@@ -18,3 +18,5 @@ export const DEFAULT_DECIMALS: Record<Address, number> = {
     [XCUSDC_ADDRESS]: 6,
     [GLMR_ADDRESS]: 18,
 }
+
+export const MOCK_RECEIVER_ADDRESS: Address = "0x1de17a0000000000000000000000000000000001"

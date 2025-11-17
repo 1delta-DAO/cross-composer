@@ -5,7 +5,7 @@ import { SupportedChainId, TradeType } from "@1delta/lib-utils"
 import { getCurrency, convertAmountToWei } from "../trade-helpers/utils"
 import { fetchAllAggregatorTrades } from "../trade-helpers/aggregatorSelector"
 import { fetchAllBridgeTrades } from "../trade-helpers/bridgeSelector"
-import { CALL_PERMIT_PRECOMPILE } from "../../lib/consts"
+import { CALL_PERMIT_PRECOMPILE, MOCK_RECEIVER_ADDRESS } from "../../lib/consts"
 import { useToast } from "../../components/common/ToastHost"
 
 type Quote = { label: string; trade: GenericTrade }
@@ -79,6 +79,8 @@ export function useSwapQuotes({
         }
     }, [attachedMessage, quotes.length])
 
+    const receiverAddress = userAddress || MOCK_RECEIVER_ADDRESS
+
     const prevTxInProgressRef = useRef(txInProgress)
 
     useEffect(() => {
@@ -105,7 +107,7 @@ export function useSwapQuotes({
         const [sc, st] = [srcChainId, srcToken]
         const [dc, dt] = [dstChainId, dstToken]
         const amountOk = Boolean(debouncedAmount) && Number(debouncedAmount) > 0
-        const inputsOk = Boolean(debouncedSrcKey && debouncedDstKey && sc && st && dc && dt && userAddress)
+        const inputsOk = Boolean(debouncedSrcKey && debouncedDstKey && sc && st && dc && dt)
 
         const isSameChain = sc === dc
         const wasSameChain = prevIsSameChainRef.current
@@ -152,9 +154,7 @@ export function useSwapQuotes({
         const messageKey = attachedMessage ? `${attachedMessage.length}|${attachedMessage.slice(0, 10)}|${attachedMessage.slice(-10)}` : ""
         const gasLimitKey = attachedGasLimit ? attachedGasLimit.toString() : ""
         const valueKey = attachedValue ? attachedValue.toString() : ""
-        const currentKey = `${debouncedAmount}|${debouncedSrcKey}|${debouncedDstKey}|${slippage}|${
-            userAddress || ""
-        }|${messageKey}|${gasLimitKey}|${valueKey}`
+        const currentKey = `${debouncedAmount}|${debouncedSrcKey}|${debouncedDstKey}|${slippage}|${receiverAddress}|${messageKey}|${gasLimitKey}|${valueKey}`
         const now = Date.now()
         const sameAsLast = lastQuotedKeyRef.current === currentKey
         const elapsed = now - lastQuotedAtRef.current
@@ -221,8 +221,8 @@ export function useSwapQuotes({
                             toCurrency,
                             swapAmount: amountInWei,
                             slippage,
-                            caller: userAddress!,
-                            receiver: userAddress!,
+                            caller: receiverAddress,
+                            receiver: receiverAddress,
                             tradeType: TradeType.EXACT_INPUT,
                             flashSwap: false,
                             usePermit: true,
@@ -252,8 +252,8 @@ export function useSwapQuotes({
                             fromCurrency,
                             toCurrency,
                             swapAmount: amountInWei,
-                            caller: userAddress!,
-                            receiver: userAddress!,
+                            caller: receiverAddress,
+                            receiver: receiverAddress,
                             order: "CHEAPEST",
                             usePermit: true,
                             ...(additionalCalls ? { additionalCalls } : attachedMessage ? { message: attachedMessage as string } : {}),
@@ -335,6 +335,7 @@ export function useSwapQuotes({
         attachedMessage,
         attachedGasLimit,
         attachedValue,
+        receiverAddress,
     ])
 
     const refreshQuotes = () => {

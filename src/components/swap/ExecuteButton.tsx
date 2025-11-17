@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import type { Address, Hex } from "viem"
 import { zeroAddress } from "viem"
-import { useSendTransaction, useWriteContract, usePublicClient, useReadContract } from "wagmi"
+import { useSendTransaction, useWriteContract, usePublicClient, useReadContract, useAccount } from "wagmi"
 import type { GenericTrade } from "../../sdk/types"
 import { SupportedChainId } from "../../sdk/types"
 import { buildTransactionUrl } from "../../lib/explorer"
@@ -11,6 +11,7 @@ import type { DestinationActionConfig } from "../../lib/types/destinationAction"
 import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { usePermitBatch } from "../../sdk/hooks/usePermitBatch"
 import { useToast } from "../common/ToastHost"
+import { WalletConnect } from "../connect"
 
 type StepStatus = "idle" | "active" | "done" | "error"
 
@@ -135,6 +136,7 @@ export default function ExecuteButton({
     actions,
     permit,
 }: ExecuteButtonProps) {
+    const { isConnected } = useAccount()
     const [step, setStep] = useState<"idle" | "approving" | "signing" | "broadcast" | "confirmed" | "error">("idle")
     const [srcHash, setSrcHash] = useState<string | undefined>()
     const [dstHash, setDstHash] = useState<string | undefined>()
@@ -408,9 +410,17 @@ export default function ExecuteButton({
     return (
         <div className="space-y-3">
             {(step === "idle" || step === "error") && (
-                <button className="btn btn-primary w-full" onClick={execute} disabled={isPending}>
-                    {isBridge ? "Bridge" : "Swap"}
-                </button>
+                <>
+                    {!isConnected ? (
+                        <div className="w-full flex justify-center">
+                            <WalletConnect />
+                        </div>
+                    ) : (
+                        <button className="btn btn-primary w-full" onClick={execute} disabled={isPending}>
+                            {isBridge ? "Bridge" : "Swap"}
+                        </button>
+                    )}
+                </>
             )}
             {step !== "idle" && !srcHash && (
                 <div className="space-y-3">
