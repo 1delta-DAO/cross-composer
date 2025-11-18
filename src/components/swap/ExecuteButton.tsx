@@ -60,6 +60,10 @@ async function trackBridgeCompletion(
                 )
 
                 const statusAny = status as any
+                const statusInfo = statusAny?.statusInfo
+                const bridgeStatus = (statusInfo?.status || statusAny?.status) as string | undefined
+
+                console.debug("Bridge status poll result:", { srcHash, status })
 
                 if (status?.toHash) {
                     console.debug("Bridge completed:", { srcHash, dstHash: status.toHash })
@@ -67,28 +71,26 @@ async function trackBridgeCompletion(
                     return
                 }
 
+                if (bridgeStatus === "DONE" || bridgeStatus === "COMPLETED") {
+                    console.debug("Bridge completed without destination hash:", { srcHash, status })
+                    onDone({ src: srcHash })
+                    return
+                }
+
                 if (status?.code) {
                     const errorCode = status.code
                     const errorMessage = status?.message || "Bridge transaction failed"
                     console.error("Bridge failed:", errorCode, errorMessage)
-                    // Note: We don't show toast here as this is called from trackBridgeCompletion
-                    // which runs asynchronously and doesn't have access to toast context
                     onDone({ src: srcHash })
                     return
                 }
 
-                if (statusAny?.status === "FAILED" || statusAny?.status === "REVERTED") {
-                    const errorCode = statusAny.status
-                    const errorMessage = statusAny?.message || statusAny?.error || "Bridge transaction failed"
+                if (bridgeStatus === "FAILED" || bridgeStatus === "TRANSFER_REFUNDED" || bridgeStatus === "INVALID" || bridgeStatus === "REVERTED") {
+                    const errorCode = bridgeStatus
+                    const errorMessage = statusInfo?.message || statusAny?.message || statusAny?.error || "Bridge transaction failed"
                     console.error("Bridge failed:", errorCode, errorMessage)
-                    // Note: We don't show toast here as this is called from trackBridgeCompletion
-                    // which runs asynchronously and doesn't have access to toast context
                     onDone({ src: srcHash })
                     return
-                }
-
-                if (statusAny?.status === "COMPLETED" && !status?.toHash) {
-                    console.warn("Bridge status shows completed but no destination hash:", status)
                 }
             } catch (err) {
                 console.debug("Error checking bridge status:", err)
@@ -117,6 +119,7 @@ type ExecuteButtonProps = {
     onReset?: () => void
     onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
     onTransactionStart?: () => void
+    onTransactionEnd?: () => void
     actions?: Array<{ id: string; config: DestinationActionConfig; selector: Hex; args: any[]; value?: string }>
     destinationCalls?: DestinationCall[]
 }
@@ -133,6 +136,7 @@ export default function ExecuteButton({
     onReset,
     onResetStateChange,
     onTransactionStart,
+    onTransactionEnd,
     actions,
     destinationCalls,
 }: ExecuteButtonProps) {
@@ -206,15 +210,35 @@ export default function ExecuteButton({
     // Extract transaction data from trade
     const getTransactionData = useCallback(async () => {
         if (!trade) return null
+
         if ("assemble" in trade && typeof (trade as any).assemble === "function") {
-            const txData = await (trade as any).assemble()
-            if (txData && "EVM" in txData) {
-                return (txData as any).EVM
+            const assembled = await (trade as any).assemble()
+            if (assembled && "EVM" in assembled && (assembled as any).EVM) {
+                return (assembled as any).EVM
             }
         }
+
         if ("transaction" in trade && (trade as any).transaction) {
-            return (trade as any).transaction
+            const tx = (trade as any).transaction
+            const calldata = (tx as any).calldata ?? (tx as any).data
+            if (tx && calldata && (tx as any).to) {
+                return {
+                    to: (tx as any).to,
+                    calldata,
+                    value: (tx as any).value ?? 0n,
+                }
+            }
         }
+
+        if ((trade as any).target && ((trade as any).calldata || (trade as any).data)) {
+            const calldata = (trade as any).calldata ?? (trade as any).data
+            return {
+                to: (trade as any).target,
+                calldata,
+                value: (trade as any).value ?? 0n,
+            }
+        }
+
         return null
     }, [trade])
 
@@ -334,7 +358,8 @@ export default function ExecuteButton({
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Transaction failed"
             toast.showError(errorMessage)
-            setStep("idle") // Reset to idle so user can retry
+            onTransactionEnd?.()
+            setStep("idle")
             console.error("Execution error:", err)
         }
     }, [
@@ -355,6 +380,7 @@ export default function ExecuteButton({
         publicClient,
         onDone,
         onTransactionStart,
+        onTransactionEnd,
         isBridge,
         trade,
     ])
