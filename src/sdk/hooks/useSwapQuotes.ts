@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react"
-import type { Address, Hex } from "viem"
+import type { Address } from "viem"
 import type { GenericTrade } from "@1delta/lib-utils"
-import { SupportedChainId, TradeType } from "@1delta/lib-utils"
+import { TradeType } from "@1delta/lib-utils"
 import { getCurrency, convertAmountToWei } from "../trade-helpers/utils"
 import { fetchAllAggregatorTrades } from "../trade-helpers/aggregatorSelector"
 import { fetchAllBridgeTrades } from "../trade-helpers/bridgeSelector"
 import { MOCK_RECEIVER_ADDRESS } from "../../lib/consts"
 import { useToast } from "../../components/common/ToastHost"
 import type { DestinationCall } from "../../lib/types/destinationAction"
+import type { DeltaCall } from "@1delta/trade-sdk"
 
 type Quote = { label: string; trade: GenericTrade }
 
@@ -235,7 +236,7 @@ export function useSwapQuotes({
                     )
                     allQuotes = trades.map((t) => ({ label: t.aggregator.toString(), trade: t.trade }))
                 } else {
-                    let additionalCalls: Array<{ callType: 0; target: string; value?: bigint; callData: Hex }> | undefined
+                    let additionalCalls: DeltaCall[] | undefined
                     let destinationGasLimit: bigint | undefined
                     if (destinationCalls && destinationCalls.length > 0) {
                         additionalCalls = destinationCalls.map((c) => ({
@@ -243,7 +244,7 @@ export function useSwapQuotes({
                             target: c.target,
                             value: c.value && c.value > 0n ? c.value : undefined,
                             callData: c.calldata,
-                        })) as any
+                        }))
                         destinationGasLimit = destinationCalls.reduce((acc, c) => acc + (c.gasLimit || 0n), 0n)
                     }
 

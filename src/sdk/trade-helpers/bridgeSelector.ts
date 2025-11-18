@@ -1,38 +1,15 @@
-import { fetchBridgeTrade } from "@1delta/trade-sdk"
+import { fetchBridgeTradeWithoutComposed } from "@1delta/trade-sdk"
 import { Bridge, getBridges } from "@1delta/bridge-configs"
 import type { GenericTrade, RawCurrency } from "@1delta/lib-utils"
-import type { BridgeInput, BaseBridgeInput } from "@1delta/trade-sdk/dist/types"
-import type { SimpleSquidCall } from "@1delta/trade-sdk"
+import type { BaseBridgeInput, BaseComposedInput } from "@1delta/trade-sdk/dist/types"
 import type { Address } from "viem"
 import { getPricesCallback } from "./prices"
 import { getCurrency as getCurrencyRaw } from "./utils"
-import { simpleSquidCallsFromMessage } from "./destinationActions"
-import type { Hex } from "viem"
+import type { DeltaCall } from "@1delta/trade-sdk"
+import { fetchAxelarTradeWithSwaps } from "@1delta/trade-sdk/dist/composedTrades/axelar/axelarWithSwaps"
+import { fetchAcrossTradeWithSwaps } from "@1delta/trade-sdk/dist/composedTrades/across/acrossWithSwaps"
 
-function toBridgeInput(bridge: Bridge, input: BaseBridgeInput): BridgeInput {
-    if (bridge === Bridge.AXELAR) {
-        const explicitAdditional = (input as any)?.additionalCalls as
-            | Array<{ callType: 0; target: string; value?: bigint; callData: Hex }>
-            | undefined
-        const additionalCalls =
-            explicitAdditional && explicitAdditional.length > 0
-                ? explicitAdditional
-                : input.message && typeof input.message === "string"
-                ? simpleSquidCallsFromMessage(input.message as Hex)
-                : undefined
-        return {
-            bridge,
-            input: {
-                ...input,
-                additionalCalls,
-            } as any,
-        } as BridgeInput
-    }
-    return {
-        bridge,
-        input,
-    } as BridgeInput
-}
+type ExtendedBridgeInput = BaseComposedInput & BaseBridgeInput
 
 function getCurrency(chainId: string | undefined, tokenAddress: string | undefined): RawCurrency {
     if (!chainId || !tokenAddress) {
@@ -45,20 +22,15 @@ function getCurrency(chainId: string | undefined, tokenAddress: string | undefin
     return currency
 }
 
-type ExtendedBridgeInput = BaseBridgeInput & { additionalCalls?: SimpleSquidCall[] }
-
 export async function fetchAllBridgeTrades(
     input: ExtendedBridgeInput,
     controller?: AbortController
 ): Promise<Array<{ bridge: string; trade: GenericTrade }>> {
-    let availableBridges = getBridges()
-    const hasComposedCalls = Boolean(input.additionalCalls && input.additionalCalls.length > 0)
-    const hasComposedMessage = Boolean(input.message && (input.message as string).length > 2)
-    if (hasComposedCalls || hasComposedMessage) {
-        availableBridges = [Bridge.AXELAR]
-    }
+    const availableBridges = getBridges()
+    const hasAdditionalCalls = Boolean(input.additionalCalls && input.additionalCalls.length > 0)
+
     console.debug(
-        hasComposedCalls || hasComposedMessage ? "Fetching from bridges (forced Axelar due to composed calls):" : "Fetching from bridges:",
+        "Fetching from bridges:",
         availableBridges.map((b) => (b.toString ? b.toString() : String(b)))
     )
     if (availableBridges.length === 0) return []
@@ -66,12 +38,41 @@ export async function fetchAllBridgeTrades(
     const results = await Promise.all(
         availableBridges.map(async (bridge: Bridge) => {
             try {
-                const trade = await fetchBridgeTrade(
-                    toBridgeInput(bridge, input),
-                    getPricesCallback,
-                    getCurrency,
-                    controller || new AbortController()
-                )
+                let trade: GenericTrade | undefined
+
+                if (hasAdditionalCalls) {
+                    if (bridge === Bridge.AXELAR || bridge === Bridge.ACROSS) {
+                        const composedInput = {
+                            ...input,
+                            additionalCalls: (input.additionalCalls || []) as DeltaCall[],
+                        } as BaseComposedInput
+
+                        if (bridge === Bridge.AXELAR) {
+                            trade = await fetchAxelarTradeWithSwaps(composedInput, getCurrency, getPricesCallback, controller)
+                        } else {
+                            trade = await fetchAcrossTradeWithSwaps(composedInput, getCurrency, controller)
+                        }
+                    } else {
+                        return undefined
+                    }
+                } else {
+                    const baseInput: BaseBridgeInput = {
+                        slippage: input.slippage,
+                        tradeType: input.tradeType,
+                        fromCurrency: input.fromCurrency,
+                        toCurrency: input.toCurrency,
+                        swapAmount: input.swapAmount,
+                        caller: input.caller,
+                        receiver: input.receiver,
+                        order: input.order,
+                        message: input.message,
+                        usePermit: input.usePermit,
+                        destinationGasLimit: input.destinationGasLimit,
+                    }
+
+                    trade = await fetchBridgeTradeWithoutComposed(bridge, baseInput, controller || new AbortController())
+                }
+
                 if (trade) return { bridge: bridge.toString(), trade }
             } catch (error) {
                 console.debug("Error fetching trade from ${bridge}:", {
@@ -92,4 +93,3 @@ export async function fetchAllBridgeTrades(
 
     return trades.sort((a, b) => b.trade.outputAmountRealized - a.trade.outputAmountRealized)
 }
-
