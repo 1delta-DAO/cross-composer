@@ -40,6 +40,8 @@ export interface DestinationAction {
         composerAddress?: Address
         /** Call forwarder contract address */
         callForwarderAddress?: Address
+        /** Optional list of chainIds where this action is valid */
+        supportedChainIds?: string[]
     }
     /** Display name */
     name: string

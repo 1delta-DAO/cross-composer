@@ -89,6 +89,7 @@ export function getActionsForMarket(market: MoonwellMarket, dstToken?: string): 
                 underlying: market.underlying,
                 symbol: market.symbol,
                 decimals: market.decimals,
+                supportedChainIds: [SupportedChainId.MOONBEAM, SupportedChainId.BASE, SupportedChainId.OPBNB_MAINNET, SupportedChainId.MOONRIVER],
             },
         } as DestinationActionConfig)
     }

@@ -56,6 +56,7 @@ export function getActions(opts?: { dstToken?: string; dstChainId?: string }): D
             callForwarderAddress: CALL_FORWARDER_ADDRESS,
             symbol: "DOT",
             decimals: 10,
+            supportedChainIds: [SupportedChainId.MOONBEAM as string],
         },
     }
 

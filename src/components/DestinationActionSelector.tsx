@@ -6,20 +6,23 @@ import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from "../li
 import { SupportedChainId } from "../sdk/types"
 import { LendingSubPanel } from "./LendingSubPanel"
 import { LendingActionModal } from "./LendingActionModal"
+import { useOlderfallListings } from "../hooks/useOlderfallListings"
 
 interface DestinationActionSelectorProps {
     onAdd?: (config: DestinationActionConfig, functionSelector: Hex, args?: any[], value?: string) => void
     dstToken?: string
     dstChainId?: string
     userAddress?: string
+    tokenLists?: Record<string, Record<string, { symbol?: string; decimals?: number }>> | undefined
 }
 
-export default function DestinationActionSelector({ onAdd, dstToken, dstChainId, userAddress }: DestinationActionSelectorProps) {
+export default function DestinationActionSelector({ onAdd, dstToken, dstChainId, userAddress, tokenLists }: DestinationActionSelectorProps) {
     const [selectedActionType, setSelectedActionType] = useState<DestinationActionType | "">("")
     const [selectedActionKey, setSelectedActionKey] = useState<string>("")
     const [marketsReady, setMarketsReady] = useState(isMarketsReady())
     const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
     const [modalAction, setModalAction] = useState<{ config: DestinationActionConfig; selector: Hex } | null>(null)
+    const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
 
     // Subscribe to market cache changes
     useEffect(() => {
@@ -36,10 +39,16 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
 
     const allActions = useMemo(() => getAllActions({ dstToken, dstChainId }), [dstToken, dstChainId, marketsReady])
 
-    // Filter out lending actions from dropdown (they're handled by LendingSubPanel)
+    const olderfallActions = useMemo(() => allActions.filter((a) => a.group === "olderfall_nft"), [allActions])
+    const lendingActions = useMemo(() => allActions.filter((a) => a.actionType === "lending"), [allActions])
     const nonLendingActions = useMemo(() => {
-        return allActions.filter((a) => a.actionType !== "lending")
+        return allActions.filter((a) => a.actionType !== "lending" && a.group !== "olderfall_nft")
     }, [allActions])
+
+    const hasOlderfall = olderfallActions.length > 0
+    const hasLending = lendingActions.length > 0
+
+    const { listings: olderfallListings, loading: olderfallLoading } = useOlderfallListings(hasOlderfall)
 
     const actionsByType = useMemo(() => {
         if (!selectedActionType) {
@@ -52,14 +61,16 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
                 return true
             })
         }
-        return getActionsByGroup(selectedActionType, { dstToken, dstChainId }).filter((a) => a.actionType !== "lending")
+        return getActionsByGroup(selectedActionType, { dstToken, dstChainId }).filter(
+            (a) => a.actionType !== "lending" && a.group !== "olderfall_nft"
+        )
     }, [nonLendingActions, selectedActionType, dstToken, dstChainId])
 
     const handleSelectAction = (val: string) => {
         setSelectedActionKey(val)
     }
 
-    if (dstChainId === SupportedChainId.MOONBEAM && marketsLoading && !marketsReady) {
+    if (marketsLoading && !marketsReady) {
         return (
             <div className="alert alert-info">
                 <span className="loading loading-spinner loading-sm"></span>
@@ -68,10 +79,10 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
         )
     }
 
-    // Show lending sub-panel for Moonbeam
-    const showLendingPanel = dstChainId === SupportedChainId.MOONBEAM
+    const showLendingPanel = hasLending
+    const showOlderfallSection = hasOlderfall && Boolean(onAdd)
 
-    if (nonLendingActions.length === 0 && !showLendingPanel) {
+    if (nonLendingActions.length === 0 && !showLendingPanel && !showOlderfallSection) {
         return (
             <div className="alert alert-info">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,6 +111,107 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
                         }
                     }}
                 />
+            )}
+            {showOlderfallSection && (
+                <div className="space-y-2">
+                    <div className="font-semibold text-sm">Olderfall NFTs</div>
+                    {olderfallLoading ? (
+                        <div className="flex items-center gap-2 text-xs opacity-70">
+                            <span className="loading loading-spinner loading-xs" />
+                            <span>Loading listings from Sequence…</span>
+                        </div>
+                    ) : olderfallListings.length > 0 ? (
+                        <div className="space-y-2">
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {olderfallListings.map((l) => {
+                                    const isSelected = selectedOlderfallOrderId === l.orderId
+                                    const chainKey = SupportedChainId.POLYGON_MAINNET
+                                    const tokenMeta =
+                                        tokenLists && chainKey && l.currency ? tokenLists[chainKey]?.[l.currency.toLowerCase()] : undefined
+                                    const decimals = typeof tokenMeta?.decimals === "number" ? tokenMeta.decimals : l.priceDecimals
+                                    const symbol = tokenMeta?.symbol || "TOKEN"
+                                    let priceLabel = ""
+                                    try {
+                                        const base = BigInt(l.pricePerToken)
+                                        const d = BigInt(decimals >= 0 ? decimals : 0)
+                                        const denom = 10n ** d
+                                        const whole = base / denom
+                                        const frac = base % denom
+                                        let fracStr = decimals > 0 ? frac.toString().padStart(Number(d), "0") : ""
+                                        if (fracStr) {
+                                            fracStr = fracStr.replace(/0+$/, "")
+                                        }
+                                        const human = fracStr ? `${whole.toString()}.${fracStr}` : whole.toString()
+                                        priceLabel = `${human} ${symbol}`
+                                    } catch {
+                                        priceLabel = `${l.pricePerToken} ${symbol}`
+                                    }
+                                    const title = l.name || `Armor #${l.tokenId}`
+                                    return (
+                                        <button
+                                            key={l.orderId}
+                                            type="button"
+                                            className={`w-full flex items-center gap-3 p-2 rounded border ${
+                                                isSelected ? "border-primary bg-primary/10" : "border-base-300"
+                                            }`}
+                                            onClick={() => setSelectedOlderfallOrderId(l.orderId)}
+                                        >
+                                            {l.image && (
+                                                <div className="w-10 h-10 rounded overflow-hidden bg-base-300 flex-shrink-0">
+                                                    <img src={l.image} alt={title} className="w-full h-full object-cover" />
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col items-start text-left">
+                                                <div className="text-sm font-medium truncate max-w-[200px]">{title}</div>
+                                                <div className="text-xs opacity-70">#{l.tokenId}</div>
+                                                <div className="text-xs font-semibold">{priceLabel}</div>
+                                            </div>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            <button
+                                className="btn btn-primary"
+                                disabled={!selectedOlderfallOrderId || !userAddress}
+                                onClick={() => {
+                                    if (!selectedOlderfallOrderId || !userAddress) {
+                                        return
+                                    }
+                                    const cfg = allActions.find((a) => a.group === "olderfall_nft")
+                                    const listing = olderfallListings.find((l) => l.orderId === selectedOlderfallOrderId)
+                                    if (!cfg || !listing) {
+                                        return
+                                    }
+                                    const selector = (cfg.defaultFunctionSelector as Hex) || (cfg.functionSelectors[0] as Hex) || ("0x" as Hex)
+                                    const args: any[] = [BigInt(selectedOlderfallOrderId), 1n, userAddress, [], []]
+                                    const cfgWithMeta: DestinationActionConfig = {
+                                        ...cfg,
+                                        meta: {
+                                            ...(cfg.meta || {}),
+                                            sequenceCurrency: listing.currency,
+                                            sequencePricePerToken: listing.pricePerToken,
+                                            sequenceTokenId: listing.tokenId,
+                                            sequencePriceDecimals: listing.priceDecimals,
+                                            minDstToken: listing.currency,
+                                            minDstChainId: SupportedChainId.POLYGON_MAINNET,
+                                            minDstAmountRaw: listing.pricePerToken,
+                                            minDstAmountDecimals: listing.priceDecimals,
+                                            minDstAmountBufferBps: 30,
+                                        } as any,
+                                    }
+                                    if (onAdd) {
+                                        onAdd(cfgWithMeta, selector, args, "0")
+                                    }
+                                    setSelectedOlderfallOrderId("")
+                                }}
+                            >
+                                Add
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="text-xs opacity-70">No Olderfall listings found or Sequence API not configured.</div>
+                    )}
+                </div>
             )}
             {nonLendingActions.length > 0 && (
                 <div className="form-control">

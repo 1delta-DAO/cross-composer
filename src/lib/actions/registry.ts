@@ -32,7 +32,6 @@ export function getAllActions(opts?: { dstToken?: string; dstChainId?: string })
             dynamic.push(...mod.actions)
         }
 
-        // Process dynamic exports (functions that return actions)
         if (mod.getActions) {
             try {
                 const actions = mod.getActions(opts)
@@ -43,6 +42,16 @@ export function getAllActions(opts?: { dstToken?: string; dstChainId?: string })
                 console.warn(`Failed to get actions from ${key}:`, e)
             }
         }
+    }
+
+    if (opts?.dstChainId) {
+        return dynamic.filter((a) => {
+            const supported = (a.meta as any)?.supportedChainIds as string[] | undefined
+            if (!supported || supported.length === 0) {
+                return true
+            }
+            return supported.includes(opts.dstChainId as string)
+        })
     }
 
     return [...dynamic]

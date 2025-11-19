@@ -31,6 +31,7 @@ type MoonbeamActionsPanelProps = {
     actions: PendingAction[]
     setActions: React.Dispatch<React.SetStateAction<PendingAction[]>>
     onRefreshQuotes: () => void
+    tokenLists?: Record<string, Record<string, { symbol?: string; decimals?: number }>> | undefined
 }
 
 export function MoonbeamActionsPanel({
@@ -45,6 +46,7 @@ export function MoonbeamActionsPanel({
     actions,
     setActions,
     onRefreshQuotes,
+    tokenLists,
 }: MoonbeamActionsPanelProps) {
     const { sendTransactionAsync: sendTestTransaction } = useSendTransaction()
     const [testTxHash, setTestTxHash] = useState<string | undefined>(undefined)
@@ -53,10 +55,6 @@ export function MoonbeamActionsPanel({
     const [encodedActions, setEncodedActions] = useState<PendingAction[]>([])
     const { switchChainAsync } = useSwitchChain()
     const toast = useToast()
-
-    if (dstChainId !== SupportedChainId.MOONBEAM) {
-        return null
-    }
 
     return (
         <div className="card bg-base-200 shadow-lg border border-primary/30 mt-4">
@@ -68,6 +66,7 @@ export function MoonbeamActionsPanel({
                             dstToken={dstToken}
                             dstChainId={dstChainId}
                             userAddress={userAddress}
+                            tokenLists={tokenLists}
                             onAdd={(config, selector, args, value) => {
                                 setActions((arr) => [
                                     ...arr,
@@ -140,6 +139,7 @@ export function MoonbeamActionsPanel({
                                         setIsEncoding(true)
                                         const { encodeDestinationActions } = await import("../../sdk/trade-helpers/destinationActions")
                                         const { encodeStellaDotStakingComposerCalldata } = await import("../../lib/trade-helpers/composerEncoding")
+                                        const { generateOlderfallBuySteps } = await import("../../sdk/utils/sequenceMarketplace")
                                         const preCalls: DestinationCall[] = []
                                         const actionCalls: DestinationCall[] = []
                                         const composerActions: Array<{
@@ -148,6 +148,7 @@ export function MoonbeamActionsPanel({
                                             composerAddress: Address
                                             gasLimit: bigint
                                         }> = []
+                                        const olderfallActions: PendingAction[] = []
 
                                         for (const a of actions) {
                                             const meta = (a.config as any)?.meta || {}
@@ -200,6 +201,10 @@ export function MoonbeamActionsPanel({
 
                                                 continue
                                             }
+                                            if (a.config.group === "olderfall_nft") {
+                                                olderfallActions.push(a)
+                                                continue
+                                            }
 
                                             if (meta.preApproveFromUnderlying) {
                                                 const underlyingAddr = (meta.underlying || "") as Address
@@ -247,7 +252,9 @@ export function MoonbeamActionsPanel({
                                             }
                                         }
 
-                                        const regularActions = actions.filter((a) => !(a.config as any)?.meta?.useComposer)
+                                        const regularActions = actions.filter(
+                                            (a) => !(a.config as any)?.meta?.useComposer && a.config.group !== "olderfall_nft"
+                                        )
                                         if (regularActions.length > 0) {
                                             const encoded = encodeDestinationActions(
                                                 regularActions.map((a) => ({
@@ -276,6 +283,34 @@ export function MoonbeamActionsPanel({
                                             })
                                         }
 
+                                        if (olderfallActions.length > 0 && dstChainId && userAddress) {
+                                            for (const a of olderfallActions) {
+                                                const meta = (a.config as any)?.meta || {}
+                                                const orderId = String(a.args?.[0] ?? "")
+                                                const tokenId = String(meta.sequenceTokenId ?? "")
+                                                if (!orderId || !tokenId) {
+                                                    continue
+                                                }
+                                                const steps = await generateOlderfallBuySteps({
+                                                    chainId: dstChainId,
+                                                    buyer: userAddress,
+                                                    orderId,
+                                                    tokenId,
+                                                    quantity: "1",
+                                                })
+                                                for (const step of steps) {
+                                                    const rawValue = step.value || ""
+                                                    const v = rawValue && rawValue !== "0" ? BigInt(rawValue) : 0n
+                                                    actionCalls.push({
+                                                        target: step.to as Address,
+                                                        value: v,
+                                                        calldata: step.data as Hex,
+                                                        gasLimit: BigInt(250000),
+                                                    })
+                                                }
+                                            }
+                                        }
+
                                         const allCalls = [...preCalls, ...actionCalls]
                                         setDestinationCalls(allCalls)
                                         setEncodedActions(actions)
@@ -293,7 +328,7 @@ export function MoonbeamActionsPanel({
                         </div>
                     </div>
                 )}
-                {destinationCalls.length > 0 && dstChainId && (
+                {destinationCalls.length > 0 && dstChainId === SupportedChainId.MOONBEAM && (
                     <div className="mt-3 p-3 rounded border border-base-300">
                         <div className="flex items-center justify-between">
                             <div className="text-sm opacity-70">Destination composed call tester</div>
