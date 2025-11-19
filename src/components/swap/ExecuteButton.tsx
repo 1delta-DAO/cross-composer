@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import type { Address, Hex } from "viem"
 import { zeroAddress } from "viem"
 import { useSendTransaction, useWriteContract, usePublicClient, useReadContract, useAccount } from "wagmi"
@@ -12,6 +12,7 @@ import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { usePermitBatch } from "../../sdk/hooks/usePermitBatch"
 import { useToast } from "../common/ToastHost"
 import { WalletConnect } from "../connect"
+import { useTxHistory } from "../../contexts/TxHistoryContext"
 
 type StepStatus = "idle" | "active" | "done" | "error"
 
@@ -31,7 +32,7 @@ async function trackBridgeCompletion(
     srcChainId: string,
     dstChainId: string,
     srcHash: string,
-    onDone: (hashes: { src?: string; dst?: string }) => void
+    onDone: (hashes: { src?: string; dst?: string; completed?: boolean }) => void
 ) {
     if (!trade.crossChainParams) {
         onDone({ src: srcHash })
@@ -67,13 +68,13 @@ async function trackBridgeCompletion(
 
                 if (status?.toHash) {
                     console.debug("Bridge completed:", { srcHash, dstHash: status.toHash })
-                    onDone({ src: srcHash, dst: status.toHash })
+                    onDone({ src: srcHash, dst: status.toHash, completed: true })
                     return
                 }
 
                 if (bridgeStatus === "DONE" || bridgeStatus === "COMPLETED") {
                     console.debug("Bridge completed without destination hash:", { srcHash, status })
-                    onDone({ src: srcHash })
+                    onDone({ src: srcHash, completed: true })
                     return
                 }
 
@@ -114,7 +115,7 @@ type ExecuteButtonProps = {
     userAddress?: Address
     srcToken?: Address
     amountWei?: string
-    onDone: (hashes: { src?: string; dst?: string }) => void
+    onDone: (hashes: { src?: string; dst?: string; completed?: boolean }) => void
     chains?: ReturnType<typeof useChainsRegistry>["data"]
     onReset?: () => void
     onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
@@ -152,6 +153,8 @@ export default function ExecuteButton({
     const { writeContractAsync } = useWriteContract()
     const publicClient = usePublicClient()
     const toast = useToast()
+    const { createEntry, updateEntry } = useTxHistory()
+    const historyIdRef = useRef<string | null>(null)
 
     // Reset error state when trade changes (user selected different quote/aggregator)
     useEffect(() => {
@@ -199,13 +202,13 @@ export default function ExecuteButton({
     }, [onReset])
 
     useEffect(() => {
-        const showReset = Boolean((isBridgeComplete || (!isBridge && isConfirmed)) && srcHash)
+        const showReset = Boolean(isConfirmed && srcHash)
         if (onResetStateChange) {
             requestAnimationFrame(() => {
                 onResetStateChange(showReset, showReset && onReset ? resetCallback : undefined)
             })
         }
-    }, [isBridgeComplete, isBridge, isConfirmed, srcHash, onReset, onResetStateChange, resetCallback])
+    }, [isConfirmed, srcHash, onReset, onResetStateChange, resetCallback])
 
     // Extract transaction data from trade
     const getTransactionData = useCallback(async () => {
@@ -289,6 +292,33 @@ export default function ExecuteButton({
             setSrcHash(hash)
             setStep("confirmed")
 
+            const type =
+                isBridge && destinationCalls && destinationCalls.length > 0
+                    ? "bridge_with_actions"
+                    : isBridge
+                    ? "bridge"
+                    : "swap"
+
+            if (!historyIdRef.current) {
+                historyIdRef.current = createEntry({
+                    type: type as any,
+                    srcChainId,
+                    dstChainId,
+                    srcHash: hash,
+                    dstHash: undefined,
+                    hasDestinationActions: Boolean(destinationCalls && destinationCalls.length > 0),
+                    status: "pending",
+                })
+            } else {
+                updateEntry(historyIdRef.current, {
+                    srcChainId,
+                    dstChainId,
+                    srcHash: hash,
+                    hasDestinationActions: Boolean(destinationCalls && destinationCalls.length > 0),
+                    status: "pending",
+                })
+            }
+
             // Wait for confirmation asynchronously
             if (publicClient) {
                 publicClient
@@ -296,6 +326,12 @@ export default function ExecuteButton({
                     .then(() => {
                         setIsConfirmed(true)
                         onDone({ src: hash })
+
+                        if (historyIdRef.current && !isBridge) {
+                            updateEntry(historyIdRef.current, {
+                                status: "completed",
+                            })
+                        }
 
                         if (isBridge && trade?.crossChainParams) {
                             setIsBridgeTracking(true)
@@ -305,7 +341,15 @@ export default function ExecuteButton({
                                 setBridgeTrackingStopped(true)
                                 if (hashes.dst) {
                                     setDstHash(hashes.dst)
+                                }
+                                if (hashes.dst || hashes.completed) {
                                     setIsBridgeComplete(true)
+                                }
+                                if (historyIdRef.current) {
+                                    updateEntry(historyIdRef.current, {
+                                        dstHash: hashes.dst || undefined,
+                                        status: hashes.dst || hashes.completed ? "completed" : "failed",
+                                    })
                                 }
                                 onDone(hashes)
                             })
@@ -341,6 +385,12 @@ export default function ExecuteButton({
             } else {
                 onDone({ src: hash })
 
+                if (historyIdRef.current && !isBridge) {
+                    updateEntry(historyIdRef.current, {
+                        status: "completed",
+                    })
+                }
+
                 if (isBridge && trade?.crossChainParams) {
                     setIsBridgeTracking(true)
                     setBridgeTrackingStopped(false)
@@ -349,7 +399,15 @@ export default function ExecuteButton({
                         setBridgeTrackingStopped(true)
                         if (hashes.dst) {
                             setDstHash(hashes.dst)
+                        }
+                        if (hashes.dst || hashes.completed) {
                             setIsBridgeComplete(true)
+                        }
+                        if (historyIdRef.current) {
+                            updateEntry(historyIdRef.current, {
+                                dstHash: hashes.dst || undefined,
+                                status: hashes.dst || hashes.completed ? "completed" : "failed",
+                            })
                         }
                         onDone(hashes)
                     })
@@ -358,6 +416,11 @@ export default function ExecuteButton({
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Transaction failed"
             toast.showError(errorMessage)
+            if (historyIdRef.current) {
+                updateEntry(historyIdRef.current, {
+                    status: "failed",
+                })
+            }
             onTransactionEnd?.()
             setStep("idle")
             console.error("Execution error:", err)
@@ -383,6 +446,8 @@ export default function ExecuteButton({
         onTransactionEnd,
         isBridge,
         trade,
+        createEntry,
+        updateEntry,
     ])
 
     const shouldShow = (name: "approving" | "signing" | "broadcast" | "confirmed") => {
@@ -447,40 +512,6 @@ export default function ExecuteButton({
                         </a>
                         {isConfirmed ? <span className="text-success">✓</span> : <span className="loading loading-spinner loading-xs"></span>}
                     </div>
-                    {isBridge && dstChainId && (
-                        <div className="text-sm flex items-center gap-2">
-                            <span>Bridge status:</span>
-                            {isBridgeComplete && dstHash ? (
-                                <>
-                                    <span className="text-success">Complete</span>
-                                    <a
-                                        href={buildTransactionUrl(chains || {}, dstChainId, dstHash)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="font-mono text-primary hover:underline"
-                                    >
-                                        Dest: {dstHash.slice(0, 4)}...{dstHash.slice(-4)}
-                                    </a>
-                                    <span className="text-success">✓</span>
-                                </>
-                            ) : isBridgeTracking ? (
-                                <>
-                                    <span className="text-warning">In progress...</span>
-                                    <span className="loading loading-spinner loading-xs"></span>
-                                </>
-                            ) : bridgeTrackingStopped && !isBridgeComplete ? (
-                                <>
-                                    <span className="text-warning">Status unknown</span>
-                                    <span className="text-xs opacity-70">(Check destination chain)</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span>Waiting for confirmation...</span>
-                                    <span className="loading loading-spinner loading-xs"></span>
-                                </>
-                            )}
-                        </div>
-                    )}
                 </div>
             )}
         </div>
