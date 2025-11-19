@@ -136,7 +136,7 @@ export function ActionsPanel({
                                     try {
                                         if (!userAddress) return
                                         setIsEncoding(true)
-                                        const { encodeDestinationActions } = await import("../../sdk/trade-helpers/destinationActions")
+                                        const { encodeDestinationActions } = await import("../../lib/trade-helpers/destinationActions")
 
                                         const allCalls: DestinationCall[] = []
 

@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from "react"
 import type { Address } from "viem"
 import type { GenericTrade } from "@1delta/lib-utils"
 import { TradeType } from "@1delta/lib-utils"
-import { getCurrency, convertAmountToWei } from "../trade-helpers/utils"
-import { fetchAllAggregatorTrades } from "../trade-helpers/aggregatorSelector"
-import { fetchAllBridgeTrades } from "../trade-helpers/bridgeSelector"
+import { getCurrency, convertAmountToWei } from "../../lib/trade-helpers/utils"
+import { fetchAllAggregatorTrades } from "../../lib/trade-helpers/aggregatorSelector"
 import { MOCK_RECEIVER_ADDRESS } from "../../lib/consts"
 import { useToast } from "../../components/common/ToastHost"
 import type { DestinationCall } from "../../lib/types/destinationAction"
 import type { DeltaCall } from "@1delta/trade-sdk"
+import { fetchAllBridgeTrades } from "../trade-helpers/bridgeSelector"
 
 type Quote = { label: string; trade: GenericTrade }
 

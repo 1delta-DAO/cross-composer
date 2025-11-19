@@ -82,6 +82,7 @@ export function getActions(opts?: { dstToken?: string; dstChainId?: string }): D
                     target: composerAddress,
                     calldata: composerCalldata as Hex,
                     value: 0n,
+                    callType: 1,
                 },
             ]
         },

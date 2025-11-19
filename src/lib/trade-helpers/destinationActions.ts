@@ -1,4 +1,5 @@
 import { encodeFunctionData, decodeFunctionData, toFunctionSelector, type Abi, type Address, type Hex } from "viem"
+import { SimpleSquidCallType } from "@1delta/trade-sdk/dist/composedTrades/axelar/squid/types"
 import type { DestinationActionConfig, EncodedDestinationAction } from "../../lib/types/destinationAction"
 
 export type PendingActionInput = {
@@ -68,53 +69,30 @@ export function encodeDestinationActions(actions: PendingActionInput[]): Encoded
     return actions.map((a) => encodeDestinationAction(a))
 }
 
-function combineEncodedActions(calls: EncodedDestinationAction[], opts?: { gasPerAction?: bigint }): EncodedActionsBundle {
-    const to: Address[] = calls.map((c) => c.target)
-    const value: bigint[] = calls.map((c) => c.value ?? 0n)
-    const data: Hex[] = calls.map((c) => c.calldata)
-    const tupleAbi: Abi = [
-        {
-            type: "function",
-            name: "batch",
-            stateMutability: "payable",
-            inputs: [
-                { name: "to", type: "address[]" },
-                { name: "value", type: "uint256[]" },
-                { name: "data", type: "bytes[]" },
-            ],
-            outputs: [],
-        },
-    ] as any
-
-    const message = encodeFunctionData({
-        abi: tupleAbi,
-        functionName: "batch",
-        args: [to, value, data],
-    })
-
-    const totalValue = value.reduce((acc, v) => acc + (v ?? 0n), 0n)
-    const estimatedDestinationGasLimit = opts?.gasPerAction && opts.gasPerAction > 0n ? opts.gasPerAction * BigInt(calls.length) : undefined
-
-    return {
-        message,
-        totalValue,
-        estimatedDestinationGasLimit,
-        calls,
-    }
-}
-
 function toSimpleSquidCalls(calls: EncodedDestinationAction[]): Array<{
-    callType: 0
+    callType: SimpleSquidCallType
     target: string
     value?: bigint
     callData: Hex
+    balanceOfInjectIndex?: number
 }> {
-    return calls.map((c) => ({
-        callType: 0, // SimpleSquidCallType.DEFAULT
-        target: c.target,
-        value: c.value && c.value > 0n ? c.value : undefined,
-        callData: c.calldata,
-    }))
+    return calls.map((c) => {
+        const callType = (c.callType as SimpleSquidCallType | undefined) ?? SimpleSquidCallType.DEFAULT
+        const base = {
+            callType,
+            target: c.target,
+            value: c.value && c.value > 0n ? c.value : undefined,
+            callData: c.calldata,
+        }
+        if (callType === SimpleSquidCallType.FULL_TOKEN_BALANCE) {
+            const balanceOfInjectIndex = typeof c.balanceOfInjectIndex === "number" ? c.balanceOfInjectIndex : 0
+            return {
+                ...base,
+                balanceOfInjectIndex,
+            }
+        }
+        return base
+    })
 }
 
 function decodeEncodedActionsMessage(message: Hex): EncodedDestinationAction[] {
@@ -150,10 +128,11 @@ function decodeEncodedActionsMessage(message: Hex): EncodedDestinationAction[] {
 }
 
 export function simpleSquidCallsFromMessage(message: Hex): Array<{
-    callType: 0
+    callType: SimpleSquidCallType
     target: string
     value?: bigint
     callData: Hex
+    balanceOfInjectIndex?: number
 }> {
     const calls = decodeEncodedActionsMessage(message)
     return toSimpleSquidCalls(calls)

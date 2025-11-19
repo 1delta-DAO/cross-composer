@@ -10,7 +10,7 @@ import App from "./App"
 import { ToastProvider } from "./components/common/ToastHost"
 import { SlippageProvider } from "./contexts/SlippageContext"
 import { TxHistoryProvider } from "./contexts/TxHistoryContext"
-import { initAll } from "./sdk/trade-helpers/initialize"
+import { initAll } from "./lib/trade-helpers/initialize"
 import { rainbowDaisyTheme } from "./rainbowkitTheme"
 
 const client = new QueryClient()

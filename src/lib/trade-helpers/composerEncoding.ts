@@ -9,8 +9,6 @@ const encodeAmount = (amount: bigint): Hex => {
     return calldata
 }
 export function encodeStellaDotStakingComposerCalldata(amount: bigint, userAddress: Address, callForwarderAddress: Address): Hex {
-    const transferInCalldata = encodeTransferIn(XCDOT_ADDRESS, callForwarderAddress, amount)
-
     const approveCalldata = encodeApprove(XCDOT_ADDRESS, STELLA_STDOT_ADDRESS)
 
     const catchCalldata = encodeSweep(XCDOT_ADDRESS, userAddress, 0n, SweepType.VALIDATE)
@@ -32,12 +30,10 @@ export function encodeStellaDotStakingComposerCalldata(amount: bigint, userAddre
 
     const forwarderCalldata = encodeExternalCall(callForwarderAddress, 0n, false, forwarderInnerCalldata)
 
-    const packedComposerCalldata = packCommands([transferInCalldata, forwarderCalldata]) as Hex
-
     const deltaComposeCalldata = encodeFunctionData({
         abi: [parseAbiItem("function deltaCompose(bytes calldata) external payable")] as Abi,
         functionName: "deltaCompose",
-        args: [packedComposerCalldata],
+        args: [forwarderCalldata],
     })
 
     return deltaComposeCalldata as Hex

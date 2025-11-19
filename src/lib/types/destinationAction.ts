@@ -35,6 +35,8 @@ export interface EncodedDestinationAction {
     target: Address
     calldata: Hex
     value?: bigint
+    callType?: number
+    balanceOfInjectIndex?: number
 }
 
 export interface DestinationActionBuildContext {
