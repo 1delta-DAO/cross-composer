@@ -1,8 +1,9 @@
-import { toFunctionSelector, type Abi, type Address, type Hex } from "viem"
+import { encodeFunctionData, toFunctionSelector, type Abi, type Address, type Hex } from "viem"
 import type { DestinationActionConfig } from "../../../types/destinationAction"
 import { SEQUENCE_MARKET_ABI, SEQUENCE_MARKET_ADDRESS, OLDERFALL_ARMORS_ADDRESS } from "../../../sequence/market"
 import { SupportedChainId } from "@1delta/lib-utils"
 import { generateOlderfallBuySteps } from "../../../sequence/marketplace"
+import { ERC20_ABI } from "../../../abi"
 
 const base: Omit<DestinationActionConfig, "functionSelectors" | "name" | "description" | "defaultFunctionSelector" | "address"> = {
   abi: SEQUENCE_MARKET_ABI as Abi,
@@ -30,14 +31,30 @@ const olderfallBuyConfig: DestinationActionConfig = {
     supportedChainIds: [SupportedChainId.POLYGON_MAINNET, SupportedChainId.MOONBEAM],
   },
   buildCalls: async (ctx) => {
-    const meta = (olderfallBuyConfig.meta || {}) as any
     const chainId = ctx.dstChainId
     const buyer = ctx.userAddress
     const orderId = String(ctx.args?.[0] ?? "")
-    const tokenId = String(meta.sequenceTokenId ?? "")
+    const tokenId = String(ctx.args?.[5] ?? "")
+    const currency = String(ctx.args?.[6] ?? "")
+    const priceRaw = String(ctx.args?.[7] ?? "")
+    const collectionAddress = String(ctx.args?.[8] ?? "")
 
-    if (!chainId || !buyer || !orderId || !tokenId) {
+    if (!chainId || !buyer || !orderId || !tokenId || !currency || !priceRaw || !collectionAddress) {
       return []
+    }
+
+    const priceAmount = BigInt(priceRaw)
+
+    const approveCalldata = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [SEQUENCE_MARKET_ADDRESS, priceAmount],
+    })
+
+    const approveCall = {
+      target: currency as Address,
+      calldata: approveCalldata as Hex,
+      value: 0n,
     }
 
     const steps = await generateOlderfallBuySteps({
@@ -46,9 +63,10 @@ const olderfallBuyConfig: DestinationActionConfig = {
       orderId,
       tokenId,
       quantity: "1",
+      collectionAddress,
     })
 
-    return steps.map((step) => {
+    const sequenceCalls = steps.map((step) => {
       const rawValue = step.value || ""
       const v = rawValue && rawValue !== "0" ? BigInt(rawValue) : 0n
       return {
@@ -57,12 +75,16 @@ const olderfallBuyConfig: DestinationActionConfig = {
         value: v,
       }
     })
+
+    return [approveCall, ...sequenceCalls]
   },
 }
 
 export function getActions(opts?: { dstToken?: string; dstChainId?: string }): DestinationActionConfig[] {
-  if (opts?.dstChainId && opts.dstChainId !== SupportedChainId.POLYGON_MAINNET) {
-    return []
+  if (opts?.dstChainId) {
+    if (opts.dstChainId !== SupportedChainId.MOONBEAM && opts.dstChainId !== SupportedChainId.POLYGON_MAINNET) {
+      return []
+    }
   }
   return [olderfallBuyConfig]
 }

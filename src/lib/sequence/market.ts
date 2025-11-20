@@ -2,7 +2,18 @@ import type { Abi, Address } from "viem"
 
 export const SEQUENCE_MARKET_ADDRESS: Address = "0xfdb42A198a932C8D3B506Ffa5e855bC4b348a712"
 
-export const OLDERFALL_ARMORS_ADDRESS: Address = "0x50051304a13eebf1fa62d22858e8f62fac47d91f"
+export const OLDERFALL_COLLECTIONS: Record<string, Address[]> = {
+  "137": [
+    "0x50051304a13eebf1fa62d22858e8f62fac47d91f",
+    "0x918da69d9abde0a93906c9f64d821193e9731c1f",
+    "0x4c605d861f86038ec42dd5863e9cede5a181550e",
+    "0x96fc7d0d7d1b39eeefec13f8fcc351d1bc3bdd51",
+    "0x7341fc272731ae2d86b32e47382daf3b723a5724",
+  ],
+  "1284": ["0x502042347a577732704b8a16570d808ebbbb58d6"],
+}
+
+export const OLDERFALL_ARMORS_ADDRESS: Address = OLDERFALL_COLLECTIONS["137"][0]
 
 export const SEQUENCE_MARKET_ABI: Abi = [
   {

@@ -48,7 +48,7 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
   const hasOlderfall = olderfallActions.length > 0
   const hasLending = lendingActions.length > 0
 
-  const { listings: olderfallListings, loading: olderfallLoading } = useOlderfallListings(hasOlderfall)
+  const { listings: olderfallListings, loading: olderfallLoading } = useOlderfallListings(hasOlderfall, dstChainId)
 
   const actionsByType = useMemo(() => {
     if (!selectedActionType) {
@@ -118,8 +118,8 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {olderfallListings.map((l) => {
                   const isSelected = selectedOlderfallOrderId === l.orderId
-                  const chainKey = SupportedChainId.POLYGON_MAINNET
-                  const tokenMeta = tokenLists && chainKey && l.currency ? tokenLists[chainKey]?.[l.currency.toLowerCase()] : undefined
+                  const tokenChainId = dstChainId || SupportedChainId.MOONBEAM
+                  const tokenMeta = tokenLists && tokenChainId && l.currency ? tokenLists[tokenChainId]?.[l.currency.toLowerCase()] : undefined
                   const decimals = typeof tokenMeta?.decimals === "number" ? tokenMeta.decimals : l.priceDecimals
                   const symbol = tokenMeta?.symbol || "TOKEN"
                   let priceLabel = ""
@@ -175,7 +175,17 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
                     return
                   }
                   const selector = (cfg.defaultFunctionSelector as Hex) || (cfg.functionSelectors[0] as Hex) || ("0x" as Hex)
-                  const args: any[] = [BigInt(selectedOlderfallOrderId), 1n, userAddress, [], []]
+                  const args: any[] = [
+                    BigInt(selectedOlderfallOrderId),
+                    1n,
+                    userAddress,
+                    [],
+                    [],
+                    BigInt(listing.tokenId),
+                    listing.currency,
+                    listing.pricePerToken,
+                    listing.tokenContract,
+                  ]
                   const cfgWithMeta: DestinationActionConfig = {
                     ...cfg,
                     meta: {
@@ -185,7 +195,7 @@ export default function DestinationActionSelector({ onAdd, dstToken, dstChainId,
                       sequenceTokenId: listing.tokenId,
                       sequencePriceDecimals: listing.priceDecimals,
                       minDstToken: listing.currency,
-                      minDstChainId: SupportedChainId.POLYGON_MAINNET,
+                      minDstChainId: dstChainId || SupportedChainId.MOONBEAM,
                       minDstAmountRaw: listing.pricePerToken,
                       minDstAmountDecimals: listing.priceDecimals,
                       minDstAmountBufferBps: 30,

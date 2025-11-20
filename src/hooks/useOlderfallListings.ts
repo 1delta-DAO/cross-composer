@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import type { OlderfallListing } from "../lib/sequence/marketplace"
 import { fetchOlderfallListings } from "../lib/sequence/marketplace"
 
-export function useOlderfallListings(enabled: boolean) {
+export function useOlderfallListings(enabled: boolean, chainId?: string) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [listings, setListings] = useState<OlderfallListing[]>([])
@@ -22,7 +22,7 @@ export function useOlderfallListings(enabled: boolean) {
       try {
         setLoading(true)
         setError(null)
-        const data = await fetchOlderfallListings(controller.signal)
+        const data = await fetchOlderfallListings(chainId, controller.signal)
         if (cancelled) {
           return
         }
@@ -46,7 +46,7 @@ export function useOlderfallListings(enabled: boolean) {
       cancelled = true
       controller.abort()
     }
-  }, [enabled])
+  }, [enabled, chainId])
 
   return {
     listings,
