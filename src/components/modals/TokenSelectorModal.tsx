@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import type { Address } from "viem"
 import { ChainSelector } from "../swap/ChainSelector"
 import { TokenSelector } from "../tokenSelector"
@@ -8,7 +9,6 @@ type Props = {
   open: boolean
   onClose: () => void
   currency?: RawCurrency
-  chainId?: string
   onCurrencyChange: (currency: RawCurrency | undefined) => void
   onChainChange?: (chainId: string) => void
   query: string
@@ -21,7 +21,6 @@ export function TokenSelectorModal({
   open,
   onClose,
   currency,
-  chainId: propChainId,
   onCurrencyChange,
   onChainChange,
   query,
@@ -29,9 +28,9 @@ export function TokenSelectorModal({
   userAddress,
   excludeAddresses,
 }: Props) {
-  if (!open) return null
+  // internal chainId, defaulting from currency when opening / changing
+  const [chainId, setChainId] = useState<string | undefined>(currency?.chainId)
 
-  const chainId = propChainId || currency?.chainId
   const tokenValue = currency?.address as Address | undefined
 
   const handleTokenSelect = (addr: Address) => {
@@ -44,11 +43,12 @@ export function TokenSelectorModal({
   }
 
   const handleChainChange = (cid: string) => {
-    if (onChainChange) {
-      onChainChange(cid)
-    }
+    setChainId(cid)
+    onChainChange?.(cid)
     onCurrencyChange(undefined)
   }
+
+  if (!open) return null
 
   return (
     <div className="modal modal-open" onClick={onClose}>
