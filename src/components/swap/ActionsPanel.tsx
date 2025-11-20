@@ -3,6 +3,7 @@ import type { Address, Hex } from "viem"
 import { parseUnits } from "viem"
 import DestinationActionSelector from "../DestinationActionSelector"
 import type { DestinationActionConfig, DestinationCall } from "../../lib/types/destinationAction"
+import type { RawCurrencyAmount } from "../../types/currency"
 import { useToast } from "../common/ToastHost"
 import { ActionsList } from "../ActionsList"
 
@@ -27,7 +28,7 @@ type ActionsPanelProps = {
   setActions: React.Dispatch<React.SetStateAction<PendingAction[]>>
   onRefreshQuotes: () => void
   tokenLists?: Record<string, Record<string, { symbol?: string; decimals?: number }>> | undefined
-  setDestinationInfo?: (chainId: string, address: string, amount?: string) => void
+  setDestinationInfo?: (amount: RawCurrencyAmount | undefined) => void
 }
 
 export function ActionsPanel({

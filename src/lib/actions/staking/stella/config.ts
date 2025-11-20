@@ -2,6 +2,7 @@ import { type Hex, type Address, type Abi, encodeFunctionData, maxUint256, erc20
 import type { DestinationActionConfig } from "../../../types/destinationAction"
 import { SupportedChainId } from "@1delta/lib-utils"
 import { XCDOT_ADDRESS, STELLA_STDOT_ADDRESS } from "../../../consts"
+import type { RawCurrency } from "../../../../types/currency"
 import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
 import { ERC20_ABI } from "../../../abi"
 
@@ -29,6 +30,20 @@ const base: Omit<DestinationActionConfig, "functionSelectors" | "name" | "descri
   group: "staking",
 }
 
+const XCDOT_CURRENCY: RawCurrency = {
+  chainId: SupportedChainId.MOONBEAM,
+  address: XCDOT_ADDRESS,
+  symbol: "DOT",
+  decimals: 10,
+}
+
+const STELLA_STDOT_CURRENCY: RawCurrency = {
+  chainId: SupportedChainId.MOONBEAM,
+  address: STELLA_STDOT_ADDRESS,
+  symbol: "stDOT",
+  decimals: 10,
+}
+
 export function getActions(opts?: { dstToken?: string; dstChainId?: string }): DestinationActionConfig[] {
   if (opts?.dstChainId && opts.dstChainId !== SupportedChainId.MOONBEAM) {
     return []
@@ -45,10 +60,8 @@ export function getActions(opts?: { dstToken?: string; dstChainId?: string }): D
     defaultFunctionSelector: PERMIT_DISPATCH_SELECTOR,
     meta: {
       useComposer: true,
-      underlying: XCDOT_ADDRESS,
-      stakedToken: STELLA_STDOT_ADDRESS,
-      symbol: "DOT",
-      decimals: 10,
+      underlying: XCDOT_CURRENCY,
+      stakedToken: STELLA_STDOT_CURRENCY,
       supportedChainIds: [SupportedChainId.MOONBEAM as string],
     },
     buildCalls: async (ctx) => {

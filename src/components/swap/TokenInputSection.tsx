@@ -1,12 +1,12 @@
 import type { Address } from "viem"
 import { Logo } from "../common/Logo"
 import { filterNumeric, getTokenPrice } from "./swapUtils"
+import type { RawCurrency } from "../../types/currency"
 
 type TokenInputSectionProps = {
   amount: string
   onAmountChange: (value: string) => void
-  srcToken?: Address
-  srcChainId?: string
+  srcCurrency?: RawCurrency
   srcTokenBalance?: { value?: string }
   srcBalances?: Record<string, Record<string, { value?: string }>>
   srcPricesMerged?: Record<string, { usd: number }>
@@ -19,8 +19,7 @@ type TokenInputSectionProps = {
 export function TokenInputSection({
   amount,
   onAmountChange,
-  srcToken,
-  srcChainId,
+  srcCurrency,
   srcTokenBalance,
   srcBalances,
   srcPricesMerged,
@@ -29,6 +28,9 @@ export function TokenInputSection({
   onReset,
   onPercentageClick,
 }: TokenInputSectionProps) {
+  const srcToken = srcCurrency?.address as Address | undefined
+  const srcChainId = srcCurrency?.chainId
+
   const balance = srcTokenBalance?.value || (srcToken && srcChainId ? srcBalances?.[srcChainId]?.[srcToken.toLowerCase()]?.value : undefined)
 
   const price = srcToken && srcChainId ? getTokenPrice(srcChainId, srcToken, srcPricesMerged) : undefined
@@ -81,15 +83,15 @@ export function TokenInputSection({
         />
         <div>
           <button className="btn btn-outline rounded-2xl flex items-center gap-2 border-[0.5px]" onClick={onTokenClick}>
-            {srcToken && srcChainId ? (
+            {srcCurrency ? (
               <>
                 <Logo
-                  src={lists?.[srcChainId]?.[srcToken.toLowerCase()]?.logoURI}
-                  alt={lists?.[srcChainId]?.[srcToken.toLowerCase()]?.symbol || "Token"}
+                  src={srcToken && srcChainId ? lists?.[srcChainId]?.[srcToken.toLowerCase()]?.logoURI : undefined}
+                  alt={srcCurrency.symbol || "Token"}
                   size={20}
-                  fallbackText={lists?.[srcChainId]?.[srcToken.toLowerCase()]?.symbol || "T"}
+                  fallbackText={srcCurrency.symbol?.[0] || "T"}
                 />
-                <span>{lists?.[srcChainId]?.[srcToken.toLowerCase()]?.symbol || "Token"}</span>
+                <span>{srcCurrency.symbol || "Token"}</span>
               </>
             ) : (
               <span>Select token</span>
@@ -100,9 +102,7 @@ export function TokenInputSection({
       <div className="flex items-center justify-between text-xs mt-2">
         <div className="opacity-70">{usd !== undefined ? `$${usd.toFixed(2)}` : "$0"}</div>
         <div className={balance && amount && Number(amount) > Number(balance) ? "text-error" : "opacity-70"}>
-          {balance
-            ? `${Number(balance).toFixed(4)} ${srcToken && srcChainId ? lists?.[srcChainId]?.[srcToken.toLowerCase()]?.symbol || "" : ""}`
-            : ""}
+          {balance ? `${Number(balance).toFixed(4)} ${srcCurrency?.symbol || ""}` : ""}
         </div>
       </div>
     </div>

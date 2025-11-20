@@ -1,9 +1,10 @@
 import type { Address } from "viem"
 import { zeroAddress } from "viem"
 import { buildTokenUrl } from "../../lib/explorer"
+import type { RawCurrency } from "../../types/currency"
 
-export function ExplorerLink({ chains, chainId, tokenAddress }: { chains?: any; chainId: string; tokenAddress: Address }) {
-  const href = chains ? buildTokenUrl(chains, chainId, tokenAddress) : undefined
+export function ExplorerLink({ chains, currency }: { chains?: any; currency: RawCurrency }) {
+  const href = chains ? buildTokenUrl(chains, currency.chainId, currency.address as Address) : undefined
   if (!href) return null
   return (
     <a href={href} target="_blank" rel="noreferrer" className="link link-primary mt-1 inline-block">
@@ -14,21 +15,21 @@ export function ExplorerLink({ chains, chainId, tokenAddress }: { chains?: any; 
 
 export function SelectedTokenInfo({
   chains,
-  chainId,
-  tokenAddress,
+  currency,
   balance,
   price,
   balanceLoading,
   priceLoading,
 }: {
   chains?: any
-  chainId: string
-  tokenAddress: Address
+  currency: RawCurrency
   balance?: string
   price?: number
   balanceLoading?: boolean
   priceLoading?: boolean
 }) {
+  const tokenAddress = currency.address as Address
+  const chainId = currency.chainId
   const isNative = tokenAddress.toLowerCase() === zeroAddress.toLowerCase()
   const href = !isNative && chains ? buildTokenUrl(chains, chainId, tokenAddress) : undefined
   const usd = balance && price ? Number(balance) * price : undefined

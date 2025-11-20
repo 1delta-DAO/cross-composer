@@ -4,7 +4,7 @@ import { multicallViem } from "@1delta/lib-utils/dist/services/multicall/evm"
 import { getRpcSelectorEvmClient } from "@1delta/lib-utils"
 import { chains as dataChains } from "@1delta/data-sdk"
 import { loadTokenLists, getTokenFromCache } from "../../lib/data/tokenListsCache"
-import type { RawCurrency } from "@1delta/lib-utils"
+import type { RawCurrency } from "../../types/currency"
 
 export function getAssetFromListsSync(chainId: string, assetAddress: string): { isReady: boolean; data?: RawCurrency } {
   if (assetAddress.toLowerCase() === zeroAddress.toLowerCase()) {

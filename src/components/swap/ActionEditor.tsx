@@ -80,13 +80,13 @@ export function ActionEditor({ action, onChange, onRemove, canMoveUp, canMoveDow
                 {action.config.group === "lending" &&
                   inp.type === "uint256" &&
                   (() => {
-                    const dec = (action.config as any).meta?.decimals
+                    const dec = action.config.meta?.underlying?.decimals
                     const raw = localArgs[i]
                     if (!dec || raw === undefined || raw === "") return null
                     try {
                       const bn = BigInt(String(raw))
                       const human = formatUnits(bn, dec)
-                      const sym = (action.config as any).meta?.symbol || ""
+                      const sym = action.config.meta?.underlying?.symbol || ""
                       return (
                         <span className="label-text-alt opacity-70">
                           {human} {sym}

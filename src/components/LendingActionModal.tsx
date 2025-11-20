@@ -148,11 +148,11 @@ export function LendingActionModal({
 
     // For repay: show borrow balance (debt)
     if (isRepay && borrowBalance?.raw) {
-      const decimals = (actionConfig.meta as any)?.decimals || 18
+      const decimals = actionConfig.meta?.underlying?.decimals ?? 18
       try {
         const fullFormatted = formatUnits(BigInt(borrowBalance.raw), decimals)
         const formatted = formatBalanceWithDecimals(fullFormatted)
-        const symbol = (actionConfig.meta as any)?.symbol || ""
+        const symbol = actionConfig.meta?.underlying?.symbol || ""
         return { formatted, symbol, raw: borrowBalance.raw, isDebt: true }
       } catch {
         return null
@@ -161,11 +161,11 @@ export function LendingActionModal({
 
     // For withdraw/deposit/staking: show token balance
     if (tokenBalance?.raw) {
-      const decimals = (actionConfig.meta as any)?.decimals || 18
+      const decimals = actionConfig.meta?.underlying?.decimals ?? 18
       try {
         const fullFormatted = formatUnits(BigInt(tokenBalance.raw), decimals)
         const formatted = formatBalanceWithDecimals(fullFormatted)
-        const symbol = (actionConfig.meta as any)?.symbol || ""
+        const symbol = actionConfig.meta?.underlying?.symbol || ""
         return { formatted, symbol, raw: tokenBalance.raw, isDebt: false }
       } catch {
         return null
@@ -368,14 +368,14 @@ export function LendingActionModal({
                     {actionConfig.group === "lending" &&
                       inp.type === "uint256" &&
                       (() => {
-                        const dec = (actionConfig as any).meta?.decimals
+                        const dec = actionConfig.meta?.underlying?.decimals
                         const raw = args[i]
                         if (!dec || raw === undefined || raw === "") return null
                         try {
                           const bn = BigInt(String(raw))
                           const fullHuman = formatUnits(bn, dec)
                           const human = formatBalanceWithDecimals(fullHuman)
-                          const sym = (actionConfig as any).meta?.symbol || ""
+                          const sym = actionConfig.meta?.underlying?.symbol || ""
                           return (
                             <span className="label-text-alt opacity-70 mt-1">
                               {human} {sym}
