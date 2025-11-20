@@ -1,4 +1,4 @@
-import { type Hex, type Address, type Abi, encodeFunctionData, maxUint256 } from "viem"
+import { type Hex, type Address, type Abi, encodeFunctionData, maxUint256, erc20Abi } from "viem"
 import type { DestinationActionConfig } from "../../../types/destinationAction"
 import { SupportedChainId } from "@1delta/lib-utils"
 import { XCDOT_ADDRESS, STELLA_STDOT_ADDRESS } from "../../../consts"
@@ -51,7 +51,7 @@ export function getActions(opts?: { dstToken?: string; dstChainId?: string }): D
       decimals: 10,
       supportedChainIds: [SupportedChainId.MOONBEAM as string],
     },
-    buildCalls: async () => {
+    buildCalls: async (ctx) => {
       return [
         {
           target: XCDOT_ADDRESS,
@@ -66,6 +66,15 @@ export function getActions(opts?: { dstToken?: string; dstChainId?: string }): D
           callType: DeltaCallType.FULL_TOKEN_BALANCE,
           tokenAddress: XCDOT_ADDRESS,
           balanceOfInjectIndex: 0,
+        },
+        {
+          // sweep call
+          target: STELLA_STDOT_ADDRESS,
+          calldata: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [ctx.userAddress, 0n] }),
+          value: 0n,
+          callType: DeltaCallType.FULL_TOKEN_BALANCE,
+          tokenAddress: STELLA_STDOT_ADDRESS,
+          balanceOfInjectIndex: 1,
         },
       ]
     },
