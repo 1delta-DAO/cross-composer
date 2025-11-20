@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import type { Hex, Address } from "viem"
 import type { DestinationActionConfig } from "../../../../lib/types/destinationAction"
+import type { RawCurrencyAmount } from "../../../../types/currency"
 import {
   getCachedMarkets,
   isMarketsReady,
@@ -35,7 +36,7 @@ type DepositPanelProps = {
   onAdd?: (config: DestinationActionConfig, functionSelector: Hex, args: any[], value?: string) => void
   userAddress?: string
   chainId?: string
-  setDestinationInfo?: (chainId: string, address: string, amount?: string) => void
+  setDestinationInfo?: (amount: RawCurrencyAmount | undefined) => void
 }
 
 export function DepositPanel({ onAdd, userAddress, chainId, setDestinationInfo }: DepositPanelProps) {
@@ -130,7 +131,7 @@ export function DepositPanel({ onAdd, userAddress, chainId, setDestinationInfo }
                       if (!depositAction) return null
 
                       return (
-                        <DepositCardWithBalance key={market.mToken} market={market} depositAction={depositAction} onActionClick={handleActionClick} />
+                        <DepositCardWithBalance key={market.mTokenCurrency.address} market={market} depositAction={depositAction} onActionClick={handleActionClick} />
                       )
                     })
                     .filter(Boolean)

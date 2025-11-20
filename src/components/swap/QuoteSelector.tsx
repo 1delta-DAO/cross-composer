@@ -1,6 +1,8 @@
 import { useState } from "react"
 import type { GenericTrade } from "../../sdk/types"
 import { Logo } from "../common/Logo"
+import type { RawCurrency } from "../../types/currency"
+import type { Address } from "viem"
 
 type QuoteSelectorProps = {
   quotes: Array<{ label: string; trade: GenericTrade }>
@@ -9,9 +11,7 @@ type QuoteSelectorProps = {
   amount: string
   srcSymbol: string
   dstSymbol: string
-  srcChainId?: string
-  dstChainId?: string
-  dstToken?: string
+  dstCurrency?: RawCurrency
   dstPricesMerged?: Record<string, { usd: number }>
   quoting: boolean
   getLogo: (name: string) => string
@@ -24,9 +24,7 @@ export function QuoteSelector({
   amount,
   srcSymbol,
   dstSymbol,
-  srcChainId,
-  dstChainId,
-  dstToken,
+  dstCurrency,
   dstPricesMerged,
   quoting,
   getLogo,
@@ -42,6 +40,9 @@ export function QuoteSelector({
   const bestOutput = bestQuote.trade.outputAmountRealized
   const selectedOutput = selectedQuote.trade.outputAmountRealized
   const selectedRate = amount && Number(amount) > 0 ? selectedOutput / Number(amount) : 0
+
+  const dstToken = dstCurrency?.address as Address | undefined
+  const dstChainId = dstCurrency?.chainId
 
   const getTokenPrice = (chainId: string, tokenAddress: string, prices?: Record<string, { usd: number }>): number | undefined => {
     if (!prices) return undefined
@@ -86,7 +87,7 @@ export function QuoteSelector({
             const outputUsd =
               dstToken && dstChainId
                 ? (() => {
-                    const price = getTokenPrice(dstChainId, dstToken, dstPricesMerged)
+                    const price = getTokenPrice(dstChainId, dstToken.toLowerCase(), dstPricesMerged)
                     return price ? output * price : undefined
                   })()
                 : undefined

@@ -4,24 +4,24 @@ import { Hex } from "viem"
 import { getAllActions, getActionsByGroup } from "../lib/actions/registry"
 import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from "../lib/moonwell/marketCache"
 import { SupportedChainId } from "../sdk/types"
+import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
+import { getTokenFromCache } from "../lib/data/tokenListsCache"
+import type { RawCurrency, RawCurrencyAmount } from "../types/currency"
 import { LendingSubPanel } from "./LendingSubPanel"
 import { LendingActionModal } from "./LendingActionModal"
 import { useOlderfallListings } from "../hooks/useOlderfallListings"
-import { DepositPanel } from "./actions/lending/deposit/DepositPanel"
 
 interface DestinationActionSelectorProps {
   onAdd?: (config: DestinationActionConfig, functionSelector: Hex, args?: any[], value?: string) => void
-  dstToken?: string
-  dstChainId?: string
+  dstCurrency?: RawCurrency
   userAddress?: string
   tokenLists?: Record<string, Record<string, { symbol?: string; decimals?: number }>> | undefined
-  setDestinationInfo?: (chainId: string, address: string, amount?: string) => void
+  setDestinationInfo?: (amount: RawCurrencyAmount | undefined) => void
 }
 
 export default function DestinationActionSelector({
   onAdd,
-  dstToken,
-  dstChainId,
+  dstCurrency,
   userAddress,
   tokenLists,
   setDestinationInfo,
@@ -32,6 +32,9 @@ export default function DestinationActionSelector({
   const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
   const [modalAction, setModalAction] = useState<{ config: DestinationActionConfig; selector: Hex } | null>(null)
   const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
+
+  const dstToken = useMemo(() => dstCurrency?.address as string | undefined, [dstCurrency])
+  const dstChainId = useMemo(() => dstCurrency?.chainId, [dstCurrency])
 
   // Subscribe to market cache changes
   useEffect(() => {
@@ -205,6 +208,30 @@ export default function DestinationActionSelector({
                     listing.pricePerToken,
                     listing.tokenContract,
                   ]
+                  const tokenChainId = dstChainId || SupportedChainId.MOONBEAM
+                  const tokenMeta =
+                    tokenLists && tokenChainId && listing.currency ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()] : undefined
+                  const cachedToken = getTokenFromCache(tokenChainId, listing.currency)
+                  const currency: { chainId: string; address: string; symbol?: string; decimals: number } = cachedToken
+                    ? {
+                        chainId: cachedToken.chainId,
+                        address: cachedToken.address,
+                        symbol: cachedToken.symbol,
+                        decimals: cachedToken.decimals,
+                      }
+                    : tokenMeta
+                      ? {
+                          chainId: tokenChainId,
+                          address: listing.currency,
+                          symbol: tokenMeta.symbol,
+                          decimals: tokenMeta.decimals ?? listing.priceDecimals,
+                        }
+                      : {
+                          chainId: tokenChainId,
+                          address: listing.currency,
+                          decimals: listing.priceDecimals,
+                        }
+                  const minDstAmount = CurrencyHandler.fromRawAmount(currency, listing.pricePerToken)
                   const cfgWithMeta: DestinationActionConfig = {
                     ...cfg,
                     meta: {
@@ -213,10 +240,7 @@ export default function DestinationActionSelector({
                       sequencePricePerToken: listing.pricePerToken,
                       sequenceTokenId: listing.tokenId,
                       sequencePriceDecimals: listing.priceDecimals,
-                      minDstToken: listing.currency,
-                      minDstChainId: dstChainId || SupportedChainId.MOONBEAM,
-                      minDstAmountRaw: listing.pricePerToken,
-                      minDstAmountDecimals: listing.priceDecimals,
+                      minDstAmount,
                       minDstAmountBufferBps: 30,
                     } as any,
                   }

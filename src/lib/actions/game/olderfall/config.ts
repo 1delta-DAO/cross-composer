@@ -5,6 +5,7 @@ import { SupportedChainId } from "@1delta/lib-utils"
 import { generateOlderfallBuySteps } from "../../../sequence/marketplace"
 import { ERC20_ABI } from "../../../abi"
 import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
+import type { RawCurrency } from "../../../../types/currency"
 
 const base: Omit<DestinationActionConfig, "functionSelectors" | "name" | "description" | "defaultFunctionSelector" | "address"> = {
   abi: SEQUENCE_MARKET_ABI as Abi,
@@ -19,6 +20,13 @@ function getAcceptRequestSelector(abi: Abi): Hex {
 
 const ACCEPT_REQUEST_SELECTOR: Hex = getAcceptRequestSelector(SEQUENCE_MARKET_ABI as Abi)
 
+const OLDERFALL_ARMOR_CURRENCY: RawCurrency = {
+  chainId: SupportedChainId.POLYGON_MAINNET,
+  address: OLDERFALL_ARMORS_ADDRESS,
+  symbol: "OLDERFALL_ARMOR",
+  decimals: 18,
+}
+
 const olderfallBuyConfig: DestinationActionConfig = {
   ...base,
   address: SEQUENCE_MARKET_ADDRESS,
@@ -27,8 +35,7 @@ const olderfallBuyConfig: DestinationActionConfig = {
   functionSelectors: [ACCEPT_REQUEST_SELECTOR],
   defaultFunctionSelector: ACCEPT_REQUEST_SELECTOR,
   meta: {
-    underlying: OLDERFALL_ARMORS_ADDRESS,
-    symbol: "OLDERFALL_ARMOR",
+    underlying: OLDERFALL_ARMOR_CURRENCY,
     supportedChainIds: [SupportedChainId.POLYGON_MAINNET, SupportedChainId.MOONBEAM],
   },
   buildCalls: async (ctx) => {

@@ -1,12 +1,12 @@
 import type { Address } from "viem"
 import { Logo } from "../common/Logo"
+import type { RawCurrency } from "../../types/currency"
 
 type TokenInputProps = {
   label: string
   amount: string
   onAmountChange: (value: string) => void
-  token?: Address
-  chainId?: string
+  currency?: RawCurrency
   tokenLists?: Record<string, Record<string, any>>
   balance?: string
   balanceSymbol?: string
@@ -22,8 +22,7 @@ export function TokenInput({
   label,
   amount,
   onAmountChange,
-  token,
-  chainId,
+  currency,
   tokenLists,
   balance,
   balanceSymbol,
@@ -34,6 +33,8 @@ export function TokenInput({
   onPercentageClick,
   balanceError,
 }: TokenInputProps) {
+  const token = currency?.address as Address | undefined
+  const chainId = currency?.chainId
   const tokenInfo = token && chainId ? tokenLists?.[chainId]?.[token.toLowerCase()] : undefined
 
   return (
@@ -76,10 +77,15 @@ export function TokenInput({
         />
         <div>
           <button className="btn btn-outline rounded-2xl flex items-center gap-2 border-[0.5px]" onClick={onTokenClick}>
-            {token && chainId ? (
+            {currency ? (
               <>
-                <Logo src={tokenInfo?.logoURI} alt={tokenInfo?.symbol || "Token"} size={20} fallbackText={tokenInfo?.symbol || "T"} />
-                <span>{tokenInfo?.symbol || "Token"}</span>
+                <Logo
+                  src={token && chainId ? tokenInfo?.logoURI : undefined}
+                  alt={currency.symbol || "Token"}
+                  size={20}
+                  fallbackText={currency.symbol?.[0] || "T"}
+                />
+                <span>{currency.symbol || "Token"}</span>
               </>
             ) : (
               <span>Select token</span>
@@ -90,7 +96,7 @@ export function TokenInput({
       <div className="flex items-center justify-between text-xs mt-2">
         <div className="opacity-70">{usdValue ?? "$0"}</div>
         <div className={balanceError ? "text-error" : "opacity-70"}>
-          {balance && balanceSymbol ? `${Number(balance).toFixed(4)} ${balanceSymbol}` : ""}
+          {balance ? `${Number(balance).toFixed(4)} ${balanceSymbol || currency?.symbol || ""}` : ""}
         </div>
       </div>
     </div>

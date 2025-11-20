@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react"
 import type { Abi, Hex, Address } from "viem"
-import { toFunctionSelector } from "viem"
+import { toFunctionSelector, parseUnits } from "viem"
 import type { DestinationActionConfig } from "../../../../lib/types/destinationAction"
+import type { RawCurrencyAmount } from "../../../../types/currency"
+import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
 
 type DepositActionModalProps = {
   open: boolean
@@ -13,7 +15,7 @@ type DepositActionModalProps = {
   userAddress?: Address
   chainId?: string
   onConfirm: (config: DestinationActionConfig, selector: Hex, args: any[], value?: string) => void
-  setDestinationInfo?: (chainId: string, address: string, amount?: string) => void
+  setDestinationInfo?: (amount: RawCurrencyAmount | undefined) => void
 }
 
 function findFunctionBySelector(abi: Abi, selector: Hex): any {
@@ -81,9 +83,17 @@ export function DepositActionModal({
     args[amountInputIndex] = amount
 
     // Notify parent about destination info in a very explicit way
-    const underlying = (actionConfig.meta as any)?.underlying as string | undefined
-    if (setDestinationInfo && underlying) {
-      setDestinationInfo(chainId || "", underlying, amount)
+    const underlying = actionConfig.meta?.underlying
+    if (setDestinationInfo && underlying && amount) {
+      try {
+        const amountBigInt = parseUnits(amount, underlying.decimals)
+        const currencyAmount = CurrencyHandler.fromRawAmount(underlying, amountBigInt)
+        setDestinationInfo(currencyAmount)
+      } catch {
+        setDestinationInfo(undefined)
+      }
+    } else if (setDestinationInfo) {
+      setDestinationInfo(undefined)
     }
 
     onConfirm(actionConfig, selector, args, value)
@@ -93,8 +103,8 @@ export function DepositActionModal({
   // Early return AFTER hooks
   if (!open || !actionConfig || !selector) return null
 
-  const symbol = (actionConfig.meta as any)?.symbol || ""
-  const underlying = (actionConfig.meta as any)?.underlying as string | undefined
+  const symbol = actionConfig.meta?.underlying?.symbol || ""
+  const underlying = actionConfig.meta?.underlying?.address
 
   return (
     <div className={`modal ${open ? "modal-open" : ""}`} onClick={onClose}>

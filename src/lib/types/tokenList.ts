@@ -1,8 +1,5 @@
-import type { RawCurrency } from "@1delta/lib-utils"
+import type { RawCurrency } from "../../types/currency"
 
-/**
- * Token list entry structure matching frontend pattern
- */
 export interface VersionedDeltaTokenList {
   name: string
   version: {

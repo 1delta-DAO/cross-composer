@@ -1,15 +1,16 @@
 import type { Address } from "viem"
 import { ChainSelector } from "../swap/ChainSelector"
 import { TokenSelector } from "../tokenSelector"
-import { zeroAddress } from "viem"
+import type { RawCurrency } from "../../types/currency"
+import { getCurrency } from "../../lib/trade-helpers/utils"
 
 type Props = {
   open: boolean
   onClose: () => void
-  chainId: string | undefined
-  onChainChange: (chainId: string) => void
-  tokenValue: Address | undefined
-  onTokenChange: (address: Address) => void
+  currency?: RawCurrency
+  chainId?: string
+  onCurrencyChange: (currency: RawCurrency | undefined) => void
+  onChainChange?: (chainId: string) => void
   query: string
   onQueryChange: (query: string) => void
   userAddress?: Address
@@ -19,10 +20,10 @@ type Props = {
 export function TokenSelectorModal({
   open,
   onClose,
-  chainId,
+  currency,
+  chainId: propChainId,
+  onCurrencyChange,
   onChainChange,
-  tokenValue,
-  onTokenChange,
   query,
   onQueryChange,
   userAddress,
@@ -30,14 +31,23 @@ export function TokenSelectorModal({
 }: Props) {
   if (!open) return null
 
+  const chainId = propChainId || currency?.chainId
+  const tokenValue = currency?.address as Address | undefined
+
   const handleTokenSelect = (addr: Address) => {
-    onTokenChange(addr)
+    if (!chainId) return
+    const selectedCurrency = getCurrency(chainId, addr)
+    if (selectedCurrency) {
+      onCurrencyChange(selectedCurrency)
+    }
     onClose()
   }
 
   const handleChainChange = (cid: string) => {
-    onChainChange(cid)
-    onTokenChange(zeroAddress)
+    if (onChainChange) {
+      onChainChange(cid)
+    }
+    onCurrencyChange(undefined)
   }
 
   return (

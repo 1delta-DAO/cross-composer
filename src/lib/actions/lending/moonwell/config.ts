@@ -7,6 +7,7 @@ import { SupportedChainId } from "@1delta/lib-utils"
 import { ERC20_ABI } from "../../../abi"
 import { MOONWELL_COMPTROLLER } from "../../../moonwell/consts"
 import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
+import type { RawCurrency } from "../../../../types/currency"
 
 const base: Omit<DestinationActionConfig, "functionSelectors" | "name" | "description" | "defaultFunctionSelector" | "address"> = {
   abi: MTOKEN_ABI,
@@ -64,7 +65,7 @@ function getFunctionNameFromSelector(abi: Abi, selector: Hex): string | undefine
 
 export function getActionsForMarket(market: MoonwellMarket, dstToken?: string): DestinationActionConfig[] {
   const symbol = market.symbol || ""
-  const underlyingLower = (market.underlying || "").toLowerCase()
+  const underlyingLower = (market.underlyingCurrency?.address || "").toLowerCase()
   const dstLower = (dstToken || "").toLowerCase()
 
   const items: DestinationActionConfig[] = []
@@ -89,38 +90,40 @@ export function getActionsForMarket(market: MoonwellMarket, dstToken?: string): 
             ? `Withdraw ${symbol} from Moonwell`
             : `Repay borrowed ${symbol} on Moonwell`
 
+    const underlyingCurrency: RawCurrency | undefined = market.underlyingCurrency || undefined
+
     const finalMeta = {
       ...template.meta,
-      underlying: market.underlying,
-      symbol: market.symbol,
-      decimals: market.decimals,
+      underlying: underlyingCurrency,
       supportedChainIds: [SupportedChainId.MOONBEAM, SupportedChainId.BASE, SupportedChainId.OPBNB_MAINNET, SupportedChainId.MOONRIVER],
     }
 
     items.push({
       ...template,
-      address: market.mToken,
+      address: market.mTokenCurrency.address as Address,
       name: actionName,
       description: actionDescription,
       meta: {
         ...finalMeta,
       },
       buildCalls: async (ctx) => {
-        const calls: { target: Address; calldata: Hex; value?: bigint; callType?: number; tokenAddress?: Address; balanceOfInjectIndex?: number }[] = []
+        const calls: { target: Address; calldata: Hex; value?: bigint; callType?: number; tokenAddress?: Address; balanceOfInjectIndex?: number }[] =
+          []
         const meta = finalMeta as any
+        const underlying = meta.underlying as RawCurrency | undefined
         const selector = ctx.selector
         const args = ctx.args || []
         const value = ctx.value ?? 0n
 
-        if (meta.preApproveFromUnderlying) {
-          const underlyingAddr = (meta.underlying || "") as Address
+        if (meta.preApproveFromUnderlying && underlying) {
+          const underlyingAddr = underlying.address as Address
           const idx = typeof meta.preApproveAmountArgIndex === "number" ? meta.preApproveAmountArgIndex : 0
           const amountArg = args[idx]
           if (underlyingAddr && amountArg !== undefined) {
             const approveCalldata = encodeFunctionData({
               abi: ERC20_ABI,
               functionName: "approve",
-              args: [market.mToken, BigInt(String(amountArg))],
+              args: [market.mTokenCurrency.address as Address, BigInt(String(amountArg))],
             })
             calls.push({
               target: underlyingAddr,
@@ -145,7 +148,7 @@ export function getActionsForMarket(market: MoonwellMarket, dstToken?: string): 
               },
             ] as Abi,
             functionName: "enterMarkets",
-            args: [[market.mToken]],
+            args: [[market.mTokenCurrency.address as Address]],
           })
           calls.push({
             target: MOONWELL_COMPTROLLER as Address,
@@ -168,11 +171,11 @@ export function getActionsForMarket(market: MoonwellMarket, dstToken?: string): 
         })
 
         calls.push({
-          target: market.mToken,
+          target: market.mTokenCurrency.address as Address,
           calldata: mainCalldata as Hex,
           value,
           callType: DeltaCallType.FULL_TOKEN_BALANCE,
-          tokenAddress: market.underlying as Address,
+          tokenAddress: (underlying?.address || market.underlyingCurrency.address) as Address,
           balanceOfInjectIndex: 0,
         })
 

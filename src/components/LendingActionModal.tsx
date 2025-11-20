@@ -6,6 +6,7 @@ import { useTokenBalance } from "../hooks/balances/useTokenBalance"
 import { useBorrowBalance } from "../hooks/balances/useBorrowBalance"
 import { useAccountLiquidity } from "../hooks/balances/useAccountLiquidity"
 import { SupportedChainId } from "../sdk/types"
+import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
 
 type LendingActionModalProps = {
   open: boolean
@@ -76,7 +77,15 @@ export function LendingActionModal({
     if (isWithdraw) {
       return actionConfig.address as Address
     } else if (isDeposit || isRepay || isStaking) {
-      return (actionConfig.meta as any)?.underlying as Address | undefined
+      const underlying = (actionConfig.meta as any)?.underlying
+      if (!underlying) return undefined
+      if (typeof underlying === "string") {
+        return underlying as Address
+      }
+      if (typeof underlying === "object" && underlying !== null && "address" in underlying) {
+        return underlying.address as Address
+      }
+      return undefined
     }
     return undefined
   }, [actionConfig, isWithdraw, isDeposit, isRepay, isStaking])
@@ -148,11 +157,11 @@ export function LendingActionModal({
 
     // For repay: show borrow balance (debt)
     if (isRepay && borrowBalance?.raw) {
-      const decimals = (actionConfig.meta as any)?.decimals || 18
+      const decimals = actionConfig.meta?.underlying?.decimals ?? 18
       try {
         const fullFormatted = formatUnits(BigInt(borrowBalance.raw), decimals)
         const formatted = formatBalanceWithDecimals(fullFormatted)
-        const symbol = (actionConfig.meta as any)?.symbol || ""
+        const symbol = actionConfig.meta?.underlying?.symbol || ""
         return { formatted, symbol, raw: borrowBalance.raw, isDebt: true }
       } catch {
         return null
@@ -160,13 +169,12 @@ export function LendingActionModal({
     }
 
     // For withdraw/deposit/staking: show token balance
-    if (tokenBalance?.raw) {
-      const decimals = (actionConfig.meta as any)?.decimals || 18
+    if (tokenBalance) {
       try {
-        const fullFormatted = formatUnits(BigInt(tokenBalance.raw), decimals)
-        const formatted = formatBalanceWithDecimals(fullFormatted)
-        const symbol = (actionConfig.meta as any)?.symbol || ""
-        return { formatted, symbol, raw: tokenBalance.raw, isDebt: false }
+        const fullFormatted = CurrencyHandler.toExactNumber(tokenBalance)
+        const formatted = formatBalanceWithDecimals(fullFormatted.toString())
+        const symbol = tokenBalance.currency.symbol || ""
+        return { formatted, symbol, raw: tokenBalance.amount.toString(), isDebt: false }
       } catch {
         return null
       }
@@ -203,8 +211,8 @@ export function LendingActionModal({
       }
 
       // For deposit/withdraw/staking: compare with token balance
-      if ((isDeposit || isWithdraw || isStaking) && tokenBalance?.raw) {
-        return enteredAmount > BigInt(tokenBalance.raw)
+      if ((isDeposit || isWithdraw || isStaking) && tokenBalance) {
+        return enteredAmount > tokenBalance.amount
       }
 
       return false
@@ -214,6 +222,7 @@ export function LendingActionModal({
   }, [args, amountInputIndex, isRepay, isDeposit, isWithdraw, isStaking, useMax, borrowBalance, tokenBalance])
 
   const handleConfirm = () => {
+    if (!actionConfig || !selector) return
     const finalArgs = [...args]
     // For staking with max checkbox, set amount to 0
     if (isStaking && useMax && amountInputIndex >= 0) {
@@ -232,8 +241,8 @@ export function LendingActionModal({
     // For deposit: use underlying token balance
     if (isRepay && borrowBalance?.raw) {
       newArgs[amountInputIndex] = borrowBalance.raw
-    } else if (tokenBalance?.raw) {
-      newArgs[amountInputIndex] = tokenBalance.raw
+    } else if (tokenBalance) {
+      newArgs[amountInputIndex] = tokenBalance.amount.toString()
     }
     setArgs(newArgs)
   }
@@ -367,14 +376,14 @@ export function LendingActionModal({
                     {actionConfig.group === "lending" &&
                       inp.type === "uint256" &&
                       (() => {
-                        const dec = (actionConfig as any).meta?.decimals
+                        const dec = actionConfig.meta?.underlying?.decimals
                         const raw = args[i]
                         if (!dec || raw === undefined || raw === "") return null
                         try {
                           const bn = BigInt(String(raw))
                           const fullHuman = formatUnits(bn, dec)
                           const human = formatBalanceWithDecimals(fullHuman)
-                          const sym = (actionConfig as any).meta?.symbol || ""
+                          const sym = actionConfig.meta?.underlying?.symbol || ""
                           return (
                             <span className="label-text-alt opacity-70 mt-1">
                               {human} {sym}

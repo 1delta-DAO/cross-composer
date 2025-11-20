@@ -1,17 +1,17 @@
 import { Address, Hex, Abi } from "viem"
+import type { RawCurrency, RawCurrencyAmount } from "../../types/currency"
 
 export type DestinationActionType = "game_token" | "buy_ticket" | "lending" | "staking"
 
 export interface DestinationActionMeta {
-  underlying?: Address
-  symbol?: string
-  decimals?: number
+  underlying?: RawCurrency
+  minDstAmount?: RawCurrencyAmount
   usePermitPrecompile?: boolean
   preApproveFromUnderlying?: boolean
   preApproveAmountArgIndex?: number
   enterMarketBefore?: boolean
   useComposer?: boolean
-  stakedToken?: Address
+  stakedToken?: RawCurrency
   composerAddress?: Address
   callForwarderAddress?: Address
   supportedChainIds?: string[]
