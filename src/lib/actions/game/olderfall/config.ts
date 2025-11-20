@@ -4,6 +4,7 @@ import { SEQUENCE_MARKET_ABI, SEQUENCE_MARKET_ADDRESS, OLDERFALL_ARMORS_ADDRESS 
 import { SupportedChainId } from "@1delta/lib-utils"
 import { generateOlderfallBuySteps } from "../../../sequence/marketplace"
 import { ERC20_ABI } from "../../../abi"
+import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
 
 const base: Omit<DestinationActionConfig, "functionSelectors" | "name" | "description" | "defaultFunctionSelector" | "address"> = {
   abi: SEQUENCE_MARKET_ABI as Abi,
@@ -76,7 +77,22 @@ const olderfallBuyConfig: DestinationActionConfig = {
       }
     })
 
-    return [approveCall, ...sequenceCalls]
+    const sweepCalldata = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "transfer",
+      args: [buyer, 0n],
+    })
+
+    const sweepCall = {
+      target: currency as Address,
+      calldata: sweepCalldata as Hex,
+      value: 0n,
+      callType: DeltaCallType.FULL_TOKEN_BALANCE,
+      tokenAddress: currency as Address,
+      balanceOfInjectIndex: 1,
+    }
+
+    return [approveCall, ...sequenceCalls, sweepCall]
   },
 }
 
