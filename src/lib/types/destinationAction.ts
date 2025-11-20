@@ -37,6 +37,7 @@ export interface EncodedDestinationAction {
   value?: bigint
   callType?: number
   balanceOfInjectIndex?: number
+  tokenAddress?: Address
 }
 
 export interface DestinationActionBuildContext {

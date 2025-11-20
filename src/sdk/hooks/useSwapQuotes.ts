@@ -8,6 +8,7 @@ import { MOCK_RECEIVER_ADDRESS } from "../../lib/consts"
 import { useToast } from "../../components/common/ToastHost"
 import type { DestinationCall } from "../../lib/types/destinationAction"
 import type { DeltaCall } from "@1delta/trade-sdk"
+import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
 import { fetchAllBridgeTrades } from "../trade-helpers/bridgeSelector"
 
 type Quote = { label: string; trade: GenericTrade }
@@ -74,6 +75,9 @@ export function useSwapQuotes({
       dStart: c.calldata.slice(0, 10),
       dEnd: c.calldata.slice(-10),
       g: c.gasLimit ? c.gasLimit.toString() : "",
+      ct: typeof c.callType === "number" ? c.callType : 0,
+      ta: c.tokenAddress ? c.tokenAddress.toLowerCase() : "",
+      bi: typeof c.balanceOfInjectIndex === "number" ? c.balanceOfInjectIndex : 0,
     })),
   )
 
@@ -239,12 +243,25 @@ export function useSwapQuotes({
           let additionalCalls: DeltaCall[] | undefined
           let destinationGasLimit: bigint | undefined
           if (destinationCalls && destinationCalls.length > 0) {
-            additionalCalls = destinationCalls.map((c) => ({
-              callType: 0,
-              target: c.target,
-              value: c.value && c.value > 0n ? c.value : undefined,
-              callData: c.calldata,
-            }))
+            additionalCalls = destinationCalls.map((c) => {
+              const callType = c.callType ?? DeltaCallType.DEFAULT
+              const base: DeltaCall = {
+                callType,
+                target: c.target,
+                value: c.value && c.value > 0n ? c.value : undefined,
+                callData: c.calldata,
+              }
+
+              if (callType === DeltaCallType.FULL_TOKEN_BALANCE) {
+                return {
+                  ...base,
+                  tokenAddress: c.tokenAddress,
+                  balanceOfInjectIndex: typeof c.balanceOfInjectIndex === "number" ? c.balanceOfInjectIndex : 0,
+                }
+              }
+
+              return base
+            })
             destinationGasLimit = destinationCalls.reduce((acc, c) => acc + (c.gasLimit || 0n), 0n)
           }
 
