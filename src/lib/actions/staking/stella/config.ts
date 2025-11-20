@@ -1,67 +1,88 @@
-import { type Hex, type Address, type Abi } from "viem"
+import { type Hex, type Address, type Abi, encodeFunctionData, maxUint256, erc20Abi } from "viem"
 import type { DestinationActionConfig } from "../../../types/destinationAction"
-import { SupportedChainId, getDeltaComposerAddress } from "@1delta/lib-utils"
-import { XCDOT_ADDRESS, STELLA_STDOT_ADDRESS, CALL_PERMIT_PRECOMPILE, CALL_FORWARDER_ADDRESS } from "../../../consts"
+import { SupportedChainId } from "@1delta/lib-utils"
+import { XCDOT_ADDRESS, STELLA_STDOT_ADDRESS } from "../../../consts"
+import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
+import { ERC20_ABI } from "../../../abi"
 
 const PERMIT_DISPATCH_SELECTOR: Hex = "0xb5ea0966"
 
 const STAKING_ABI: Abi = [
-    {
-        type: "function",
-        name: "deposit",
-        inputs: [
-            {
-                name: "amount",
-                type: "uint256",
-                internalType: "uint256",
-            },
-        ],
-        outputs: [],
-        stateMutability: "nonpayable",
-    },
+  {
+    type: "function",
+    name: "deposit",
+    inputs: [
+      {
+        name: "amount",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
 ] as Abi
 
 const base: Omit<DestinationActionConfig, "functionSelectors" | "name" | "description" | "defaultFunctionSelector" | "address"> = {
-    abi: STAKING_ABI,
-    actionType: "staking",
-    group: "staking",
+  abi: STAKING_ABI,
+  actionType: "staking",
+  group: "staking",
 }
 
 export function getActions(opts?: { dstToken?: string; dstChainId?: string }): DestinationActionConfig[] {
-    if (opts?.dstChainId && opts.dstChainId !== SupportedChainId.MOONBEAM) {
-        return []
-    }
+  if (opts?.dstChainId && opts.dstChainId !== SupportedChainId.MOONBEAM) {
+    return []
+  }
 
-    const chainId = opts?.dstChainId || SupportedChainId.MOONBEAM
-    const composerAddress = getDeltaComposerAddress(chainId)
+  const items: DestinationActionConfig[] = []
 
-    if (!composerAddress) {
-        return []
-    }
-
-    const items: DestinationActionConfig[] = []
-
-    const action: DestinationActionConfig = {
-        ...base,
-        address: CALL_PERMIT_PRECOMPILE,
-        name: "Stake DOT",
-        description: "Stake DOT to StellaSwap using 1delta composer",
-        functionSelectors: [PERMIT_DISPATCH_SELECTOR],
-        defaultFunctionSelector: PERMIT_DISPATCH_SELECTOR,
-        meta: {
-            useComposer: true,
-            underlying: XCDOT_ADDRESS,
-            stakedToken: STELLA_STDOT_ADDRESS,
-            composerAddress: composerAddress as Address,
-            callForwarderAddress: CALL_FORWARDER_ADDRESS,
-            symbol: "DOT",
-            decimals: 10,
+  const action: DestinationActionConfig = {
+    ...base,
+    address: STELLA_STDOT_ADDRESS,
+    name: "Stake DOT",
+    description: "Stake DOT to StellaSwap using 1delta composer",
+    functionSelectors: [PERMIT_DISPATCH_SELECTOR],
+    defaultFunctionSelector: PERMIT_DISPATCH_SELECTOR,
+    meta: {
+      useComposer: true,
+      underlying: XCDOT_ADDRESS,
+      stakedToken: STELLA_STDOT_ADDRESS,
+      symbol: "DOT",
+      decimals: 10,
+      supportedChainIds: [SupportedChainId.MOONBEAM as string],
+    },
+    buildCalls: async (ctx) => {
+      return [
+        {
+          target: XCDOT_ADDRESS,
+          calldata: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [STELLA_STDOT_ADDRESS, maxUint256] }),
+          value: 0n,
+          callType: DeltaCallType.DEFAULT,
         },
-    }
+        {
+          target: STELLA_STDOT_ADDRESS,
+          calldata: encodeFunctionData({ abi: STAKING_ABI, functionName: "deposit", args: [0n] }),
+          value: 0n,
+          callType: DeltaCallType.FULL_TOKEN_BALANCE,
+          tokenAddress: XCDOT_ADDRESS,
+          balanceOfInjectIndex: 0,
+        },
+        {
+          // sweep call
+          target: STELLA_STDOT_ADDRESS,
+          calldata: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [ctx.userAddress, 0n] }),
+          value: 0n,
+          callType: DeltaCallType.FULL_TOKEN_BALANCE,
+          tokenAddress: STELLA_STDOT_ADDRESS,
+          balanceOfInjectIndex: 1,
+        },
+      ]
+    },
+  }
 
-    if (!opts?.dstToken || opts.dstToken.toLowerCase() === XCDOT_ADDRESS.toLowerCase()) {
-        items.push(action)
-    }
+  if (!opts?.dstToken || opts.dstToken.toLowerCase() === XCDOT_ADDRESS.toLowerCase()) {
+    items.push(action)
+  }
 
-    return items
+  return items
 }
