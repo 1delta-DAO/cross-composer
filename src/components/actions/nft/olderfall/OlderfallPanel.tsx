@@ -5,19 +5,19 @@ import type { Hex } from "viem"
 import type { DestinationActionConfig } from "../../../../lib/types/destinationAction"
 import { getAllActions } from "../../../../lib/actions/registry"
 import { useOlderfallListings } from "./hooks/useOlderfallListings"
-import { SupportedChainId } from "../../../../sdk/types"
+import { CurrencyHandler, SupportedChainId } from "../../../../sdk/types"
 import { DestinationActionHandler } from "../../shared/types"
 import { Chain } from "@1delta/chain-registry"
 import { OlderfallListingCard } from "./OlderfallCard"
 import { buildCurrencyMetaForListing, formatListingPriceLabel } from "./utils"
 import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from "./Generic"
+import { buildCalls } from "./callBuilder"
 
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
+type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
 interface OlderfallPanelProps {
   userAddress?: string
   tokenLists?: TokenListsMeta
-  onAdd?: (config: DestinationActionConfig, selector: Hex, args: any[], value?: string) => void
   setDestinationInfo?: DestinationActionHandler
 }
 
@@ -71,7 +71,7 @@ const OLDERFALL_OPTIONS = [
 
 /* ---------- Main unified panel with tabs ---------- */
 
-export function OlderfallPanel({ userAddress, tokenLists, onAdd }: OlderfallPanelProps) {
+export function OlderfallPanel({ userAddress, tokenLists, setDestinationInfo }: OlderfallPanelProps) {
   const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(0)
 
@@ -98,7 +98,7 @@ export function OlderfallPanel({ userAddress, tokenLists, onAdd }: OlderfallPane
     return null
   }
 
-  const handleAddClick = () => {
+  const handleAddClick = async () => {
     if (!selectedOlderfallOrderId || !userAddress) return
 
     // Pick the first Olderfall config (they all share the same group)
@@ -135,8 +135,24 @@ export function OlderfallPanel({ userAddress, tokenLists, onAdd }: OlderfallPane
         minDstAmountBufferBps: 30,
       } as any,
     }
+    // read selected option
+    const { chainId, token } = selectedOption
 
-    onAdd?.(cfgWithMeta, selector, args, "0")
+    // create calldata
+    const destinationCalls = await buildCalls({
+      chainId: chainId,
+      buyer: userAddress as any,
+      listing,
+    })
+    setDestinationInfo?.(
+      // define output amount
+      CurrencyHandler.fromRawAmount(
+        tokenLists?.[chainId]?.[token.toLowerCase()]!,
+        listing.pricePerToken // amount to pay
+      ),
+      undefined, // intermediate receiver: default
+      destinationCalls
+    )
     setSelectedOlderfallOrderId("")
   }
 
