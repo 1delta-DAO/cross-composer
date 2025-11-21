@@ -38,7 +38,6 @@ type Props = {
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
 }
 
-const DEFAULT_BUFFER_BPS = 50
 const DEFAULT_SRC_CHAIN_ID = SupportedChainId.BASE
 const DEFAULT_DST_CHAIN_ID = SupportedChainId.MOONBEAM
 
@@ -306,72 +305,16 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
   }, [priceImpact, setPriceImpact])
 
   const queryClient = useQueryClient()
-  const [actions, setActions] = useState<PendingAction[]>([])
   const [sellModalOpen, setSellModalOpen] = useState(false)
   const [buyModalOpen, setBuyModalOpen] = useState(false)
   const [modalSellQuery, setModalSellQuery] = useState("")
   const [modalBuyQuery, setModalBuyQuery] = useState("")
-  const lastAppliedActionIdRef = useRef<string | null>(null)
-
-  // Auto-adjust src/dst based on minDstAmount from actions (Olderfall etc)
-  useEffect(() => {
-    const pricedAction = actions.find((a) => {
-      const meta = (a.config as any).meta || {}
-      return meta.minDstAmount && meta.minDstAmount.currency && meta.minDstAmount.amount
-    })
-    if (!pricedAction) return
-    if (lastAppliedActionIdRef.current === pricedAction.id) return
-
-    const meta = (pricedAction.config as any).meta || {}
-    const minDstAmount = meta.minDstAmount as RawCurrencyAmount | undefined
-    const bufferBps = typeof meta.minDstAmountBufferBps === "number" ? meta.minDstAmountBufferBps : DEFAULT_BUFFER_BPS
-
-    if (!minDstAmount || !minDstAmount.currency || !minDstAmount.amount || typeof minDstAmount.currency.decimals !== "number") {
-      return
-    }
-
-    const minDstToken = minDstAmount.currency.address as Address
-
-    // sync dst currency
-    if (!dstCurrency || dstCurrency.chainId !== minDstAmount.currency.chainId || dstCurrency.address.toLowerCase() !== minDstToken.toLowerCase()) {
-      setDstCurrency(minDstAmount.currency as RawCurrency)
-    }
-
-    const srcPriceEntry =
-      srcCurrency && srcPricesMerged
-        ? srcPricesMerged[srcTokenPriceAddr?.toLowerCase() || ""] || srcPricesMerged[srcCurrency.address.toLowerCase()]
-        : undefined
-
-    const dstPriceEntry =
-      dstPricesMerged &&
-      (dstPricesMerged[minDstToken.toLowerCase()] || (dstTokenPriceAddr ? dstPricesMerged[dstTokenPriceAddr.toLowerCase()] : undefined))
-
-    const srcUsd = srcPriceEntry && typeof srcPriceEntry.usd === "number" ? srcPriceEntry.usd : undefined
-    const dstUsd = dstPriceEntry && typeof dstPriceEntry.usd === "number" ? dstPriceEntry.usd : undefined
-
-    if (!srcUsd || !dstUsd) return
-
-    const minDstAmountHuman = CurrencyHandler.toExactNumber(minDstAmount)
-    if (!isFinite(minDstAmountHuman) || minDstAmountHuman <= 0) return
-
-    const requiredUsd = minDstAmountHuman * dstUsd
-    if (!isFinite(requiredUsd) || requiredUsd <= 0) return
-
-    const bufferFactor = 1 + bufferBps / 10000
-    const srcAmountHuman = (requiredUsd / srcUsd) * bufferFactor
-    if (!isFinite(srcAmountHuman) || srcAmountHuman <= 0) return
-
-    const formatted = srcAmountHuman.toString()
-    setAmount(formatted)
-    lastAppliedActionIdRef.current = pricedAction.id
-  }, [actions, dstCurrency, srcCurrency, srcPricesMerged, dstPricesMerged, srcTokenPriceAddr, dstTokenPriceAddr])
 
   const handleReset = useCallback(() => {
     setAmount("")
     setSrcCurrency(undefined)
     setDstCurrency(undefined)
     setDestinationCalls([])
-    setActions([])
     setTxInProgress(false)
     abortQuotes()
   }, [abortQuotes])
@@ -556,8 +499,6 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
         dstCurrency={dstCurrency}
         userAddress={userAddress}
         currentChainId={currentChainId}
-        destinationCalls={destinationCalls}
-        onRefreshQuotes={refreshQuotes}
         tokenLists={lists}
         setDestinationInfo={setDestinationInfo}
       />
@@ -570,7 +511,6 @@ export function SwapTab({ userAddress, onResetStateChange }: Props) {
             dstCurrency={dstCurrency}
             userAddress={userAddress}
             amountWei={amountWei}
-            actions={actions}
             destinationCalls={destinationCalls}
             chains={chains}
             onDone={() => {
