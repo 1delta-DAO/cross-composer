@@ -5,7 +5,7 @@ import { RawCurrencyAmount } from "../../../types/currency"
 export type DestinationActionHandler = (
   currencyAmount: RawCurrencyAmount | undefined,
   receiverAddress: string | undefined,
-  destinationCalls: DestinationCall[]
+  destinationCalls: DestinationCall[],
 ) => void
 
 export type PendingAction = {
@@ -15,3 +15,5 @@ export type PendingAction = {
   args: any[]
   value?: string
 }
+
+export type DestinationCallBuilder<TParams> = (params: TParams) => Promise<DestinationCall[]>
