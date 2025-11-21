@@ -6,10 +6,11 @@ import type { DestinationActionConfig } from "../../../../lib/types/destinationA
 import { getAllActions } from "../../../../lib/actions/registry"
 import { useOlderfallListings } from "./hooks/useOlderfallListings"
 import { SupportedChainId } from "../../../../sdk/types"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
-import { getTokenFromCache } from "../../../../lib/data/tokenListsCache"
 import { DestinationActionHandler } from "../../shared/types"
 import { Chain } from "@1delta/chain-registry"
+import { OlderfallListingCard } from "./OlderfallCard"
+import { buildCurrencyMetaForListing, formatListingPriceLabel } from "./utils"
+import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from "./Generic"
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
 
@@ -18,115 +19,6 @@ interface OlderfallPanelProps {
   tokenLists?: TokenListsMeta
   onAdd?: (config: DestinationActionConfig, selector: Hex, args: any[], value?: string) => void
   setDestinationInfo?: DestinationActionHandler
-}
-
-/* ---------- helpers & subcomponents (same as before) ---------- */
-
-function formatListingPriceLabel(listing: any, tokenChainId: string | number | undefined, tokenLists?: TokenListsMeta): string {
-  const tokenMeta = tokenLists && tokenChainId && listing.currency ? tokenLists[String(tokenChainId)]?.[listing.currency.toLowerCase()] : undefined
-
-  const decimals = typeof tokenMeta?.decimals === "number" ? tokenMeta.decimals : listing.priceDecimals
-  const symbol = tokenMeta?.symbol || "TOKEN"
-
-  try {
-    const base = BigInt(listing.pricePerToken)
-    const d = BigInt(decimals >= 0 ? decimals : 0)
-    const denom = 10n ** d
-    const whole = base / denom
-    const frac = base % denom
-
-    let fracStr = decimals > 0 ? frac.toString().padStart(Number(d), "0") : ""
-    if (fracStr) {
-      fracStr = fracStr.replace(/0+$/, "")
-    }
-
-    const human = fracStr ? `${whole.toString()}.${fracStr}` : whole.toString()
-    return `${human} ${symbol}`
-  } catch {
-    return `${listing.pricePerToken} ${symbol}`
-  }
-}
-
-function buildCurrencyMetaForListing(listing: any, dstChainId?: string, tokenLists?: TokenListsMeta) {
-  const tokenChainId = dstChainId || String(SupportedChainId.MOONBEAM)
-  const tokenMeta = tokenLists && tokenChainId && listing.currency ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()] : undefined
-
-  const cachedToken = getTokenFromCache(tokenChainId, listing.currency)
-
-  const currency: {
-    chainId: string
-    address: string
-    symbol?: string
-    decimals: number
-  } = cachedToken
-    ? {
-        chainId: cachedToken.chainId,
-        address: cachedToken.address,
-        symbol: cachedToken.symbol,
-        decimals: cachedToken.decimals,
-      }
-    : tokenMeta
-    ? {
-        chainId: tokenChainId,
-        address: listing.currency,
-        symbol: tokenMeta.symbol,
-        decimals: tokenMeta.decimals ?? listing.priceDecimals,
-      }
-    : {
-        chainId: tokenChainId,
-        address: listing.currency,
-        decimals: listing.priceDecimals,
-      }
-
-  const minDstAmount = CurrencyHandler.fromRawAmount(currency, listing.pricePerToken)
-
-  return { currency, minDstAmount }
-}
-
-function OlderfallHeader() {
-  return <div className="font-semibold text-sm">Olderfall NFTs</div>
-}
-
-function OlderfallLoadingState() {
-  return (
-    <div className="flex items-center gap-2 text-xs opacity-70">
-      <span className="loading loading-spinner loading-xs" />
-      <span>Loading listings from Sequence…</span>
-    </div>
-  )
-}
-
-function OlderfallEmptyState() {
-  return <div className="text-xs opacity-70">No Olderfall listings found or Sequence API not configured.</div>
-}
-
-interface OlderfallListingCardProps {
-  listing: any
-  title: string
-  priceLabel: string
-  isSelected: boolean
-  onSelect: () => void
-}
-
-function OlderfallListingCard({ listing, title, priceLabel, isSelected, onSelect }: OlderfallListingCardProps) {
-  return (
-    <button
-      type="button"
-      className={`w-full flex items-center gap-3 p-2 rounded border ${isSelected ? "border-primary bg-primary/10" : "border-base-300"}`}
-      onClick={onSelect}
-    >
-      {listing.image && (
-        <div className="w-10 h-10 rounded overflow-hidden bg-base-300 shrink-0">
-          <img src={listing.image} alt={title} className="w-full h-full object-cover" />
-        </div>
-      )}
-      <div className="flex flex-col items-start text-left">
-        <div className="text-sm font-medium truncate max-w-[200px]">{title}</div>
-        <div className="text-xs opacity-70">#{listing.tokenId}</div>
-        <div className="text-xs font-semibold">{priceLabel}</div>
-      </div>
-    </button>
-  )
 }
 
 interface OlderfallListingsListProps {

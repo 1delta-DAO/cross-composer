@@ -59,9 +59,7 @@ export default function DestinationActionSelector({ dstCurrency, userAddress, to
       />
 
       {/* Olderfall is fully self-contained */}
-      <OlderfallPanel
-        dstToken={dstToken}
-        dstChainId={dstChainId} //
+      <OlderfallPanel //
         userAddress={userAddress}
         tokenLists={tokenLists}
         setDestinationInfo={setDestinationInfo}
