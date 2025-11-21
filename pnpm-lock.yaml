@@ -18,6 +18,9 @@ importers:
       '@1delta/calldatalib':
         specifier: 0.0.46
         version: 0.0.46(viem@2.39.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.12))
+      '@1delta/chain-registry':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@1delta/data-sdk':
         specifier: ^0.0.10
         version: 0.0.10

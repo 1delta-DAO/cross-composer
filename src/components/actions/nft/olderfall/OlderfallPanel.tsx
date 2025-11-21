@@ -1,6 +1,6 @@
 // ./actions/nft/olderfall/OlderfallPanel.tsx
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { Hex } from "viem"
 import type { DestinationActionConfig } from "../../../../lib/types/destinationAction"
 import { getAllActions } from "../../../../lib/actions/registry"
@@ -9,12 +9,11 @@ import { SupportedChainId } from "../../../../sdk/types"
 import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
 import { getTokenFromCache } from "../../../../lib/data/tokenListsCache"
 import { DestinationActionHandler } from "../../shared/types"
+import { Chain } from "@1delta/chain-registry"
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
 
 interface OlderfallPanelProps {
-  dstToken?: string
-  dstChainId?: string
   userAddress?: string
   tokenLists?: TokenListsMeta
   onAdd?: (config: DestinationActionConfig, selector: Hex, args: any[], value?: string) => void
@@ -24,7 +23,7 @@ interface OlderfallPanelProps {
 /* ---------- helpers & subcomponents (same as before) ---------- */
 
 function formatListingPriceLabel(listing: any, tokenChainId: string | number | undefined, tokenLists?: TokenListsMeta): string {
-  const tokenMeta = tokenLists && tokenChainId && listing.currency ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()] : undefined
+  const tokenMeta = tokenLists && tokenChainId && listing.currency ? tokenLists[String(tokenChainId)]?.[listing.currency.toLowerCase()] : undefined
 
   const decimals = typeof tokenMeta?.decimals === "number" ? tokenMeta.decimals : listing.priceDecimals
   const symbol = tokenMeta?.symbol || "TOKEN"
@@ -49,7 +48,7 @@ function formatListingPriceLabel(listing: any, tokenChainId: string | number | u
 }
 
 function buildCurrencyMetaForListing(listing: any, dstChainId?: string, tokenLists?: TokenListsMeta) {
-  const tokenChainId = dstChainId || SupportedChainId.MOONBEAM
+  const tokenChainId = dstChainId || String(SupportedChainId.MOONBEAM)
   const tokenMeta = tokenLists && tokenChainId && listing.currency ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()] : undefined
 
   const cachedToken = getTokenFromCache(tokenChainId, listing.currency)
@@ -163,12 +162,37 @@ function OlderfallListingsList({ listings, dstChainId, tokenLists, selectedOrder
   )
 }
 
-/* ---------- Main panel ---------- */
+/* ---------- Options that parameterize the panel ---------- */
 
-export function OlderfallPanel({ dstToken, dstChainId, userAddress, tokenLists, onAdd }: OlderfallPanelProps) {
+const OLDERFALL_OPTIONS = [
+  {
+    chainId: Chain.POLYGON_MAINNET,
+    token: "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+    label: "Polygon",
+  },
+  {
+    chainId: Chain.MOONBEAM,
+    token: "0xffffffff7d2b0b761af01ca8e25242976ac0ad7d",
+    label: "Moonbeam",
+  },
+]
+
+/* ---------- Main unified panel with tabs ---------- */
+
+export function OlderfallPanel({ userAddress, tokenLists, onAdd }: OlderfallPanelProps) {
   const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0)
 
-  // Get Olderfall actions fully inside this component
+  const selectedOption = OLDERFALL_OPTIONS[selectedOptionIndex]
+  const dstToken = selectedOption.token
+  const dstChainId = String(selectedOption.chainId)
+
+  // Reset selected listing when switching chain
+  useEffect(() => {
+    setSelectedOlderfallOrderId("")
+  }, [selectedOptionIndex])
+
+  // Get Olderfall actions for the currently selected option
   const allActions = useMemo(() => getAllActions({ dstToken, dstChainId }), [dstToken, dstChainId])
 
   const olderfallActions = useMemo(() => allActions.filter((a) => a.group === "olderfall_nft"), [allActions])
@@ -177,7 +201,7 @@ export function OlderfallPanel({ dstToken, dstChainId, userAddress, tokenLists, 
 
   const { listings: olderfallListings, loading: olderfallLoading } = useOlderfallListings(hasOlderfall, dstChainId)
 
-  // If no actions or no onAdd callback, don't render anything
+  // If no actions for this option, don't render anything at all
   if (!hasOlderfall) {
     return null
   }
@@ -221,13 +245,26 @@ export function OlderfallPanel({ dstToken, dstChainId, userAddress, tokenLists, 
     }
 
     onAdd?.(cfgWithMeta, selector, args, "0")
-    // setDestinationInfo(...)
     setSelectedOlderfallOrderId("")
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <OlderfallHeader />
+
+      {/* Chain tabs driven by OLDERFALL_OPTIONS */}
+      <div className="tabs tabs-boxed text-xs">
+        {OLDERFALL_OPTIONS.map((opt, idx) => (
+          <button
+            key={`${opt.chainId}-${opt.token}`}
+            type="button"
+            className={`tab ${idx === selectedOptionIndex ? "tab-active" : ""}`}
+            onClick={() => setSelectedOptionIndex(idx)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {olderfallLoading ? (
         <OlderfallLoadingState />
@@ -241,7 +278,7 @@ export function OlderfallPanel({ dstToken, dstChainId, userAddress, tokenLists, 
             onSelectOrderId={setSelectedOlderfallOrderId}
           />
 
-          <button className="btn btn-primary" disabled={!selectedOlderfallOrderId || !userAddress} onClick={handleAddClick}>
+          <button className="btn btn-primary btn-sm" disabled={!selectedOlderfallOrderId || !userAddress} onClick={handleAddClick}>
             Add
           </button>
         </div>
