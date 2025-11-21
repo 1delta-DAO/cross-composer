@@ -1,133 +1,22 @@
 // ./actions/nft/olderfall/OlderfallPanel.tsx
 
-import { useMemo, useState } from "react"
-import type { Hex } from "viem"
-import type { DestinationActionConfig } from "../../../../lib/types/destinationAction"
+import { useEffect, useMemo, useState } from "react"
 import { getAllActions } from "../../../../lib/actions/registry"
 import { useOlderfallListings } from "./hooks/useOlderfallListings"
-import { SupportedChainId } from "../../../../sdk/types"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
-import { getTokenFromCache } from "../../../../lib/data/tokenListsCache"
+import { CurrencyHandler, SupportedChainId } from "../../../../sdk/types"
 import { DestinationActionHandler } from "../../shared/types"
+import { Chain } from "@1delta/chain-registry"
+import { OlderfallListingCard } from "./OlderfallCard"
+import { formatListingPriceLabel } from "./utils"
+import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from "./Generic"
+import { buildCalls } from "./callBuilder"
 
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
+type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
 interface OlderfallPanelProps {
-  dstToken?: string
-  dstChainId?: string
   userAddress?: string
   tokenLists?: TokenListsMeta
-  onAdd?: (config: DestinationActionConfig, selector: Hex, args: any[], value?: string) => void
   setDestinationInfo?: DestinationActionHandler
-}
-
-/* ---------- helpers & subcomponents (same as before) ---------- */
-
-function formatListingPriceLabel(listing: any, tokenChainId: string | number | undefined, tokenLists?: TokenListsMeta): string {
-  const tokenMeta = tokenLists && tokenChainId && listing.currency ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()] : undefined
-
-  const decimals = typeof tokenMeta?.decimals === "number" ? tokenMeta.decimals : listing.priceDecimals
-  const symbol = tokenMeta?.symbol || "TOKEN"
-
-  try {
-    const base = BigInt(listing.pricePerToken)
-    const d = BigInt(decimals >= 0 ? decimals : 0)
-    const denom = 10n ** d
-    const whole = base / denom
-    const frac = base % denom
-
-    let fracStr = decimals > 0 ? frac.toString().padStart(Number(d), "0") : ""
-    if (fracStr) {
-      fracStr = fracStr.replace(/0+$/, "")
-    }
-
-    const human = fracStr ? `${whole.toString()}.${fracStr}` : whole.toString()
-    return `${human} ${symbol}`
-  } catch {
-    return `${listing.pricePerToken} ${symbol}`
-  }
-}
-
-function buildCurrencyMetaForListing(listing: any, dstChainId?: string, tokenLists?: TokenListsMeta) {
-  const tokenChainId = dstChainId || SupportedChainId.MOONBEAM
-  const tokenMeta = tokenLists && tokenChainId && listing.currency ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()] : undefined
-
-  const cachedToken = getTokenFromCache(tokenChainId, listing.currency)
-
-  const currency: {
-    chainId: string
-    address: string
-    symbol?: string
-    decimals: number
-  } = cachedToken
-    ? {
-        chainId: cachedToken.chainId,
-        address: cachedToken.address,
-        symbol: cachedToken.symbol,
-        decimals: cachedToken.decimals,
-      }
-    : tokenMeta
-    ? {
-        chainId: tokenChainId,
-        address: listing.currency,
-        symbol: tokenMeta.symbol,
-        decimals: tokenMeta.decimals ?? listing.priceDecimals,
-      }
-    : {
-        chainId: tokenChainId,
-        address: listing.currency,
-        decimals: listing.priceDecimals,
-      }
-
-  const minDstAmount = CurrencyHandler.fromRawAmount(currency, listing.pricePerToken)
-
-  return { currency, minDstAmount }
-}
-
-function OlderfallHeader() {
-  return <div className="font-semibold text-sm">Olderfall NFTs</div>
-}
-
-function OlderfallLoadingState() {
-  return (
-    <div className="flex items-center gap-2 text-xs opacity-70">
-      <span className="loading loading-spinner loading-xs" />
-      <span>Loading listings from Sequence…</span>
-    </div>
-  )
-}
-
-function OlderfallEmptyState() {
-  return <div className="text-xs opacity-70">No Olderfall listings found or Sequence API not configured.</div>
-}
-
-interface OlderfallListingCardProps {
-  listing: any
-  title: string
-  priceLabel: string
-  isSelected: boolean
-  onSelect: () => void
-}
-
-function OlderfallListingCard({ listing, title, priceLabel, isSelected, onSelect }: OlderfallListingCardProps) {
-  return (
-    <button
-      type="button"
-      className={`w-full flex items-center gap-3 p-2 rounded border ${isSelected ? "border-primary bg-primary/10" : "border-base-300"}`}
-      onClick={onSelect}
-    >
-      {listing.image && (
-        <div className="w-10 h-10 rounded overflow-hidden bg-base-300 shrink-0">
-          <img src={listing.image} alt={title} className="w-full h-full object-cover" />
-        </div>
-      )}
-      <div className="flex flex-col items-start text-left">
-        <div className="text-sm font-medium truncate max-w-[200px]">{title}</div>
-        <div className="text-xs opacity-70">#{listing.tokenId}</div>
-        <div className="text-xs font-semibold">{priceLabel}</div>
-      </div>
-    </button>
-  )
 }
 
 interface OlderfallListingsListProps {
@@ -163,71 +52,83 @@ function OlderfallListingsList({ listings, dstChainId, tokenLists, selectedOrder
   )
 }
 
-/* ---------- Main panel ---------- */
+/* ---------- Options that parameterize the panel ---------- */
 
-export function OlderfallPanel({ dstToken, dstChainId, userAddress, tokenLists, onAdd }: OlderfallPanelProps) {
+const OLDERFALL_OPTIONS = [
+  {
+    chainId: Chain.POLYGON_MAINNET,
+    token: "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+    label: "Polygon",
+  },
+  {
+    chainId: Chain.MOONBEAM,
+    token: "0xffffffff7d2b0b761af01ca8e25242976ac0ad7d",
+    label: "Moonbeam",
+  },
+]
+
+/* ---------- Main unified panel with tabs ---------- */
+
+export function OlderfallPanel({ userAddress, tokenLists, setDestinationInfo }: OlderfallPanelProps) {
   const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0)
 
-  // Get Olderfall actions fully inside this component
-  const allActions = useMemo(() => getAllActions({ dstToken, dstChainId }), [dstToken, dstChainId])
+  const selectedOption = OLDERFALL_OPTIONS[selectedOptionIndex]
+  const dstChainId = String(selectedOption.chainId)
 
-  const olderfallActions = useMemo(() => allActions.filter((a) => a.group === "olderfall_nft"), [allActions])
+  // Reset selected listing when switching chain
+  useEffect(() => {
+    setSelectedOlderfallOrderId("")
+  }, [selectedOptionIndex])
 
-  const hasOlderfall = olderfallActions.length > 0
+  const { listings: olderfallListings, loading: olderfallLoading } = useOlderfallListings(true, dstChainId)
 
-  const { listings: olderfallListings, loading: olderfallLoading } = useOlderfallListings(hasOlderfall, dstChainId)
-
-  // If no actions or no onAdd callback, don't render anything
-  if (!hasOlderfall) {
-    return null
-  }
-
-  const handleAddClick = () => {
+  const handleAddClick = async () => {
     if (!selectedOlderfallOrderId || !userAddress) return
 
     // Pick the first Olderfall config (they all share the same group)
-    const cfg = olderfallActions.find((a) => a.group === "olderfall_nft") ?? olderfallActions[0]
     const listing = olderfallListings.find((l) => l.orderId === selectedOlderfallOrderId)
 
-    if (!cfg || !listing) return
+    if (!listing) return
 
-    const selector = (cfg.defaultFunctionSelector as Hex) || (cfg.functionSelectors[0] as Hex) || ("0x" as Hex)
+    // read selected option
+    const { chainId, token } = selectedOption
 
-    const args: any[] = [
-      BigInt(selectedOlderfallOrderId),
-      1n,
-      userAddress,
-      [],
-      [],
-      BigInt(listing.tokenId),
-      listing.currency,
-      listing.pricePerToken,
-      listing.tokenContract,
-    ]
-
-    const { minDstAmount } = buildCurrencyMetaForListing(listing, dstChainId, tokenLists)
-
-    const cfgWithMeta: DestinationActionConfig = {
-      ...cfg,
-      meta: {
-        ...(cfg.meta || {}),
-        sequenceCurrency: listing.currency,
-        sequencePricePerToken: listing.pricePerToken,
-        sequenceTokenId: listing.tokenId,
-        sequencePriceDecimals: listing.priceDecimals,
-        minDstAmount,
-        minDstAmountBufferBps: 30,
-      } as any,
-    }
-
-    onAdd?.(cfgWithMeta, selector, args, "0")
-    // setDestinationInfo(...)
+    // create calldata
+    const destinationCalls = await buildCalls({
+      chainId: chainId,
+      buyer: userAddress as any,
+      listing,
+    })
+    setDestinationInfo?.(
+      // define output amount
+      CurrencyHandler.fromRawAmount(
+        tokenLists?.[chainId]?.[token.toLowerCase()]!,
+        listing.pricePerToken // amount to pay
+      ),
+      undefined, // intermediate receiver: default
+      destinationCalls
+    )
     setSelectedOlderfallOrderId("")
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <OlderfallHeader />
+
+      {/* Chain tabs driven by OLDERFALL_OPTIONS */}
+      <div className="tabs tabs-boxed text-xs">
+        {OLDERFALL_OPTIONS.map((opt, idx) => (
+          <button
+            key={`${opt.chainId}-${opt.token}`}
+            type="button"
+            className={`tab ${idx === selectedOptionIndex ? "tab-active" : ""}`}
+            onClick={() => setSelectedOptionIndex(idx)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {olderfallLoading ? (
         <OlderfallLoadingState />
@@ -241,7 +142,7 @@ export function OlderfallPanel({ dstToken, dstChainId, userAddress, tokenLists, 
             onSelectOrderId={setSelectedOlderfallOrderId}
           />
 
-          <button className="btn btn-primary" disabled={!selectedOlderfallOrderId || !userAddress} onClick={handleAddClick}>
+          <button className="btn btn-primary btn-sm" disabled={!selectedOlderfallOrderId || !userAddress} onClick={handleAddClick}>
             Add
           </button>
         </div>
