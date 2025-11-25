@@ -103,13 +103,13 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
       // - priceIn: source token price
       // - priceOut: DOT/xcDOT price
       const amountInWei = parseUnits(debouncedOutputAmount, xcDOTToken.decimals)
-      const inputAmount = reverseQuote(xcDOTToken.decimals, amountInWei.toString(), srcTokenPrice, xcDOTPrice)
+      const inputAmount = reverseQuote(xcDOTToken.decimals, amountInWei.toString(), srcTokenPrice, xcDOTPrice, slippage)
       return inputAmount
     } catch (error) {
       console.error("Error calculating reverse quote:", error)
       return undefined
     }
-  }, [debouncedOutputAmount, xcDOTToken, xcDOTPrice, srcTokenPrice])
+  }, [debouncedOutputAmount, xcDOTToken, xcDOTPrice, srcTokenPrice, slippage])
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -186,7 +186,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
         const outputAmountWei = parseUnits(debouncedOutputAmount, xcDOTToken.decimals)
         const currencyAmount = CurrencyHandler.fromRawAmount(xcDOTToken, outputAmountWei.toString())
 
-        setDestinationInfo(currencyAmount, undefined, destinationCalls)
+        setDestinationInfo(currencyAmount, undefined, destinationCalls, "Staked DOT")
         setIsSelected(true)
         setTimeout(() => setIsSelected(false), 1000)
       }
@@ -219,7 +219,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
       const outputAmountWei = parseUnits(debouncedOutputAmount, xcDOTToken.decimals)
       const currencyAmount = CurrencyHandler.fromRawAmount(xcDOTToken, outputAmountWei.toString())
 
-      setDestinationInfo(currencyAmount, undefined, destinationCalls)
+      setDestinationInfo(currencyAmount, undefined, destinationCalls, "Staked DOT")
       setIsSelected(true)
       setTimeout(() => setIsSelected(false), 1000)
     }

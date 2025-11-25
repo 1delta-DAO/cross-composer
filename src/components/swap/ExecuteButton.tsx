@@ -156,10 +156,10 @@ export default function ExecuteButton({
   const srcToken = useMemo(() => srcCurrency?.address as Address | undefined, [srcCurrency])
 
   useEffect(() => {
-    if (step === "error") {
+    if (step === "error" && !srcHash) {
       setStep("idle")
     }
-  }, [trade, step])
+  }, [trade, step, srcHash])
 
   const isBridge = useMemo(() => {
     return Boolean(srcChainId && dstChainId && srcChainId !== dstChainId)
@@ -249,8 +249,6 @@ export default function ExecuteButton({
       return
     }
 
-    onTransactionStart?.()
-
     try {
       const srcChainIdNum = Number(srcChainId)
       switchChain({ chainId: srcChainIdNum })
@@ -275,6 +273,8 @@ export default function ExecuteButton({
           await publicClient.waitForTransactionReceipt({ hash: approvalHash as any })
         }
       }
+
+      onTransactionStart?.()
 
       setStep("signing")
       const txData = await getTransactionData()

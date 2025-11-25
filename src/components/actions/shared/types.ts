@@ -6,6 +6,7 @@ export type DestinationActionHandler = (
   currencyAmount: RawCurrencyAmount | undefined,
   receiverAddress: string | undefined,
   destinationCalls: DestinationCall[],
+  actionLabel?: string
 ) => void
 
 export type PendingAction = {

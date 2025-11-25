@@ -40,7 +40,8 @@ export function DepositActionModal({
     })
     // parse amount
     const am = parseUnits(amount, underlying.decimals)
-    setDestinationInfo?.(CurrencyHandler.fromRawAmount(underlying, am), undefined, destinationCalls)
+    const mTokenSymbol = market.mTokenCurrency?.symbol || "mToken"
+    setDestinationInfo?.(CurrencyHandler.fromRawAmount(underlying, am), undefined, destinationCalls, `${mTokenSymbol} shares`)
 
     onClose()
   }

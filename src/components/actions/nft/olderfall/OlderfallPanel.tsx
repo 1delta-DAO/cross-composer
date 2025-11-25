@@ -121,6 +121,7 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
       listing,
     })
     console.log("listing.pricePerToken", listing.pricePerToken, setDestinationInfo)
+    const nftName = listing.name || `NFT #${listing.tokenId}`
     setDestinationInfo?.(
       // define output amount
       CurrencyHandler.fromRawAmount(
@@ -128,7 +129,8 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
         listing.pricePerToken // amount to pay
       ),
       undefined, // intermediate receiver: default
-      destinationCalls
+      destinationCalls,
+      nftName
     )
     setSelectedOlderfallOrderId("")
   }

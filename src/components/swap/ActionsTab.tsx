@@ -37,7 +37,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
   const [actionCurrency, setActionCurrency] = useState<RawCurrency | undefined>(undefined)
   const [amount, setAmount] = useState("")
   const [calculatedInputAmount, setCalculatedInputAmount] = useState<string>("")
-  const [destinationInfo, setDestinationInfoState] = useState<{ currencyAmount?: RawCurrencyAmount } | undefined>(undefined)
+  const [destinationInfo, setDestinationInfoState] = useState<{ currencyAmount?: RawCurrencyAmount; actionLabel?: string } | undefined>(undefined)
 
   const inputChainId = inputCurrency?.chainId ?? DEFAULT_INPUT_CHAIN_ID
   const actionChainId = actionCurrency?.chainId
@@ -164,7 +164,17 @@ export function ActionsTab({ onResetStateChange }: Props) {
     return Boolean(inputCurrency && actionCurrency)
   }, [inputCurrency, actionCurrency])
 
-  const { quotes, quoting, selectedQuoteIndex, setSelectedQuoteIndex, amountWei, refreshQuotes, abortQuotes } = useSwapQuotes({
+  const {
+    quotes,
+    quoting,
+    selectedQuoteIndex,
+    setSelectedQuoteIndex,
+    amountWei,
+    refreshQuotes,
+    abortQuotes,
+    highSlippageLossWarning,
+    currentBuffer,
+  } = useSwapQuotes({
     srcCurrency: inputCurrency,
     dstCurrency: actionCurrency,
     debouncedAmount,
@@ -173,9 +183,12 @@ export function ActionsTab({ onResetStateChange }: Props) {
     slippage,
     txInProgress,
     destinationCalls,
+    minRequiredAmount: destinationInfo?.currencyAmount,
   })
 
   const selectedTrade = quotes[selectedQuoteIndex]?.trade
+  const [preservedTrade, setPreservedTrade] = useState<typeof selectedTrade | undefined>(undefined)
+  const tradeToUse = preservedTrade || selectedTrade
 
   const quoteOut = useMemo(() => {
     if (!isSwapOrBridge || !selectedTrade?.outputAmount) return undefined
@@ -206,7 +219,12 @@ export function ActionsTab({ onResetStateChange }: Props) {
   const queryClient = useQueryClient()
 
   const setDestinationInfo = useCallback(
-    (currencyAmount: RawCurrencyAmount | undefined, receiverAddress: string | undefined, destinationCalls: DestinationCall[]) => {
+    (
+      currencyAmount: RawCurrencyAmount | undefined,
+      receiverAddress: string | undefined,
+      destinationCalls: DestinationCall[],
+      actionLabel?: string
+    ) => {
       if (!currencyAmount) {
         setDestinationInfoState(undefined)
         setCalculatedInputAmount("")
@@ -231,15 +249,15 @@ export function ActionsTab({ onResetStateChange }: Props) {
       const priceOut = actionTokenPrice ?? 1
 
       const decimalsOut = actionCur.decimals
-      const amountIn = reverseQuote(decimalsOut, currencyAmount.amount.toString(), priceIn, priceOut)
+      const amountIn = reverseQuote(decimalsOut, currencyAmount.amount.toString(), priceIn, priceOut, slippage)
 
       setCalculatedInputAmount(amountIn)
-      setDestinationInfoState({ currencyAmount })
+      setDestinationInfoState({ currencyAmount, actionLabel })
       setDestinationCalls(destinationCalls)
 
       setAmount(amountIn)
     },
-    [inputCurrency, inputPrice, actionTokenPrice]
+    [inputCurrency, inputPrice, actionTokenPrice, slippage]
   )
 
   return (
@@ -258,12 +276,27 @@ export function ActionsTab({ onResetStateChange }: Props) {
         onSrcCurrencyChange={setInputCurrency}
         calculatedInputAmount={calculatedInputAmount}
         destinationInfo={destinationInfo}
+        isRequoting={quoting}
       />
 
-      {quotes.length > 0 && selectedTrade && (
-        <div className="mt-4">
+      {tradeToUse && (
+        <div className="mt-4 space-y-3">
+          {highSlippageLossWarning && (
+            <div className="rounded-lg bg-warning/10 border border-warning p-3">
+              <div className="flex items-start gap-2">
+                <span className="text-warning text-lg">⚠️</span>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-warning">High Slippage Loss Warning</div>
+                  <div className="text-xs text-warning/80 mt-1">
+                    This trade has high slippage loss. Consider increasing your slippage tolerance to ensure the transaction succeeds.
+                  </div>
+                  {currentBuffer > 0.003 && <div className="text-xs text-warning/70 mt-1">Current buffer: {(currentBuffer * 100).toFixed(2)}%</div>}
+                </div>
+              </div>
+            </div>
+          )}
           <ExecuteButton
-            trade={selectedTrade}
+            trade={tradeToUse}
             srcCurrency={inputCurrency}
             dstCurrency={actionCurrency}
             amountWei={amountWei}
@@ -290,11 +323,14 @@ export function ActionsTab({ onResetStateChange }: Props) {
 
               if (hashes.src) {
                 setActionResetKey((prev) => prev + 1)
+                setPreservedTrade(undefined)
               }
             }}
             onTransactionStart={() => {
+              if (selectedTrade) {
+                setPreservedTrade(selectedTrade)
+              }
               setTxInProgress(true)
-              abortQuotes()
             }}
             onTransactionEnd={() => {
               setTxInProgress(false)
@@ -302,6 +338,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
             onReset={() => {
               setAmount("")
               setTxInProgress(false)
+              setPreservedTrade(undefined)
             }}
             onResetStateChange={onResetStateChange}
           />
