@@ -1,4 +1,4 @@
-type Tab = "swap" | "transactions"
+type Tab = 'swap' | 'transactions'
 
 interface TabSelectorProps {
   activeTab: Tab
@@ -10,17 +10,17 @@ export default function TabSelector({ activeTab, onTabChange }: TabSelectorProps
     <div role="tablist" className="tabs tabs-lifted tabs-lg w-full mb-8">
       <button
         role="tab"
-        className={`tab transition-all ${activeTab === "swap" ? "tab-active [--tab-bg:theme(colors.base-100)] font-semibold" : "text-base-content/60 hover:text-base-content"}`}
-        onClick={() => onTabChange("swap")}
-        aria-selected={activeTab === "swap"}
+        className={`tab transition-all ${activeTab === 'swap' ? 'tab-active [--tab-bg:theme(colors.base-100)] font-semibold' : 'text-base-content/60 hover:text-base-content'}`}
+        onClick={() => onTabChange('swap')}
+        aria-selected={activeTab === 'swap'}
       >
         Swap
       </button>
       <button
         role="tab"
-        className={`tab transition-all ${activeTab === "transactions" ? "tab-active [--tab-bg:theme(colors.base-100)] font-semibold" : "text-base-content/60 hover:text-base-content"}`}
-        onClick={() => onTabChange("transactions")}
-        aria-selected={activeTab === "transactions"}
+        className={`tab transition-all ${activeTab === 'transactions' ? 'tab-active [--tab-bg:theme(colors.base-100)] font-semibold' : 'text-base-content/60 hover:text-base-content'}`}
+        onClick={() => onTabChange('transactions')}
+        aria-selected={activeTab === 'transactions'}
       >
         Transactions
       </button>

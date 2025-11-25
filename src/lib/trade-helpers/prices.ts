@@ -1,7 +1,7 @@
-import type { useGeneralPricesCallbackType } from "@1delta/lib-utils/dist/types/priceQuery"
-import { zeroAddress } from "viem"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
-import { getTokenFromCache } from "../data/tokenListsCache"
+import type { useGeneralPricesCallbackType } from '@1delta/lib-utils/dist/types/priceQuery'
+import { zeroAddress } from 'viem'
+import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
+import { getTokenFromCache } from '../data/tokenListsCache'
 
 const pricesCache: Record<string, Record<string, number>> = {}
 
@@ -44,10 +44,10 @@ function resolvePriceAddress(chainId: string | undefined, address: string | unde
 function stablecoinFallbackPrice(chainId?: string, address?: string): number | undefined {
   if (!chainId || !address) return undefined
   const token = getTokenFromCache(chainId, address)
-  const symbol = (token as any)?.symbol?.toUpperCase?.() || ""
-  const assetGroup = (token as any)?.assetGroup || ""
-  if (assetGroup === "USDC") return 1
-  if (symbol === "USDC" || symbol === "USDT" || symbol === "DAI" || symbol === "USDBC" || symbol === "XCUSDC") return 1
+  const symbol = (token as any)?.symbol?.toUpperCase?.() || ''
+  const assetGroup = (token as any)?.assetGroup || ''
+  if (assetGroup === 'USDC') return 1
+  if (symbol === 'USDC' || symbol === 'USDT' || symbol === 'DAI' || symbol === 'USDBC' || symbol === 'XCUSDC') return 1
   return undefined
 }
 

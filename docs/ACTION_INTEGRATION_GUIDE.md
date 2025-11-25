@@ -194,25 +194,25 @@ Create a registration file and call `registerAction()`:
 **File**: `src/components/actions/myaction/registerMyAction.ts`
 
 ```typescript
-import { registerAction } from "../shared/actionRegistry"
-import { MyActionPanel } from "./MyActionPanel"
-import { MyActionIcon } from "./MyActionIcon"
-import type { ActionDefinition } from "../shared/actionDefinitions"
+import { registerAction } from '../shared/actionRegistry'
+import { MyActionPanel } from './MyActionPanel'
+import { MyActionIcon } from './MyActionIcon'
+import type { ActionDefinition } from '../shared/actionDefinitions'
 
 export function registerMyAction(): void {
   const myAction: ActionDefinition = {
-    id: "myaction",
-    label: "My Action",
-    category: "defi",
+    id: 'myaction',
+    label: 'My Action',
+    category: 'defi',
     icon: MyActionIcon,
     panel: MyActionPanel,
     priority: 6,
-    actionType: "lending",
+    actionType: 'lending',
     requiresSrcCurrency: false,
     buildPanelProps: (context) => ({
       tokenLists: context.tokenLists,
       setDestinationInfo: context.setDestinationInfo,
-      customProp: "custom value",
+      customProp: 'custom value',
     }),
   }
 
@@ -223,7 +223,7 @@ export function registerMyAction(): void {
 **Then add the registration function** to `src/components/actions/shared/registerActions.ts`:
 
 ```typescript
-import { registerMyAction } from "../myaction/registerMyAction"
+import { registerMyAction } from '../myaction/registerMyAction'
 
 export function registerActions(): void {
   registerSwapAction()
@@ -377,20 +377,20 @@ interface ActionReadinessContext {
 ### Example 1: Simple Action (No Custom Props)
 
 ```typescript
-import { registerAction } from "../shared/actionRegistry"
-import { SimplePanel } from "./SimplePanel"
-import { SimpleIcon } from "./SimpleIcon"
-import type { ActionDefinition } from "../shared/actionDefinitions"
+import { registerAction } from '../shared/actionRegistry'
+import { SimplePanel } from './SimplePanel'
+import { SimpleIcon } from './SimpleIcon'
+import type { ActionDefinition } from '../shared/actionDefinitions'
 
 export function registerSimpleAction(): void {
   const simpleAction: ActionDefinition = {
-    id: "simple",
-    label: "Simple Action",
-    category: "defi",
+    id: 'simple',
+    label: 'Simple Action',
+    category: 'defi',
     icon: SimpleIcon,
     panel: SimplePanel,
     priority: 7,
-    actionType: "lending",
+    actionType: 'lending',
   }
 
   registerAction(simpleAction)
@@ -401,13 +401,13 @@ export function registerSimpleAction(): void {
 
 ```typescript
 registerAction({
-  id: "custom",
-  label: "Custom Action",
-  category: "defi",
+  id: 'custom',
+  label: 'Custom Action',
+  category: 'defi',
   icon: CustomIcon,
   panel: CustomPanel,
   priority: 6,
-  actionType: "lending",
+  actionType: 'lending',
   requiresSrcCurrency: true,
   buildPanelProps: (context) => ({
     tokenLists: context.tokenLists,
@@ -424,13 +424,13 @@ registerAction({
 
 ```typescript
 registerAction({
-  id: "dataheavy",
-  label: "Data Heavy Action",
-  category: "gaming",
+  id: 'dataheavy',
+  label: 'Data Heavy Action',
+  category: 'gaming',
   icon: DataIcon,
   panel: DataPanel,
   priority: 3,
-  actionType: "game_token",
+  actionType: 'game_token',
   dataLoader: async (context) => {
     if (!context.chainId) return {}
     const listings = await fetchListings(context.chainId)
@@ -448,13 +448,13 @@ registerAction({
 
 ```typescript
 registerAction({
-  id: "conditional",
-  label: "Conditional Action",
-  category: "lending",
+  id: 'conditional',
+  label: 'Conditional Action',
+  category: 'lending',
   icon: ConditionalIcon,
   panel: ConditionalPanel,
   priority: 2,
-  actionType: "lending",
+  actionType: 'lending',
   requiresMarkets: true,
   isReady: (context) => {
     return context.marketsReady && !!context.srcCurrency
@@ -471,13 +471,13 @@ registerAction({
 
 ```typescript
 registerAction({
-  id: "bridge",
-  label: "Bridge",
-  category: "defi",
+  id: 'bridge',
+  label: 'Bridge',
+  category: 'defi',
   icon: BridgeIcon,
   panel: BridgePanel,
   priority: 3,
-  actionType: "lending",
+  actionType: 'lending',
   requiresSrcCurrency: true,
   buildPanelProps: (context) => ({
     tokenLists: context.tokenLists,

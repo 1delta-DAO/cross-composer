@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @plugin "daisyui" {
   themes:
@@ -13,11 +13,11 @@
 }
 
 @plugin "daisyui/theme" {
-  name: "terminal";
+  name: 'terminal';
   color-scheme: dark;
 
   /* Global font for this theme (optional, but nice for terminal feel) */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
   /* Base background + text */
   --color-base-100: #020617; /* main background (near black) */
@@ -63,20 +63,20 @@
 }
 
 @plugin "daisyui/theme" {
-  name: "moonbeam";
+  name: 'moonbeam';
   color-scheme: dark;
 
   /* Cosmic monospace */
   /* Universal: Inter (embedded) + system fallbacks */
   font-family:
-    "Inter",
+    'Inter',
     -apple-system,
     BlinkMacSystemFont,
-    "Segoe UI",
+    'Segoe UI',
     Roboto,
-    "Noto Sans",
-    "Ubuntu",
-    "DejaVu Sans",
+    'Noto Sans',
+    'Ubuntu',
+    'DejaVu Sans',
     sans-serif;
 
   /* Deep-space background with slight indigo tint */

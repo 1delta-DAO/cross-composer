@@ -1,8 +1,8 @@
-import { useState } from "react"
-import type { RawCurrency } from "../../../types/currency"
-import { zeroAddress } from "viem"
-import { Logo } from "../../common/Logo"
-import { TokenSelectorModal } from "../../modals/TokenSelectorModal"
+import { useState } from 'react'
+import type { RawCurrency } from '../../../types/currency'
+import { zeroAddress } from 'viem'
+import { Logo } from '../../common/Logo'
+import { TokenSelectorModal } from '../../modals/TokenSelectorModal'
 
 interface InputTokenSelectorProps {
   srcCurrency?: RawCurrency
@@ -14,7 +14,7 @@ interface InputTokenSelectorProps {
 
 export function InputTokenSelector({ srcCurrency, onCurrencyChange, onChainChange, tokenLists, chains }: InputTokenSelectorProps) {
   const [modalOpen, setModalOpen] = useState(false)
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState('')
 
   const chainName = srcCurrency?.chainId && chains?.[srcCurrency.chainId]?.data?.name
   const tokenInfo = srcCurrency?.chainId && srcCurrency?.address ? tokenLists?.[srcCurrency.chainId]?.[srcCurrency.address.toLowerCase()] : undefined
@@ -34,8 +34,8 @@ export function InputTokenSelector({ srcCurrency, onCurrencyChange, onChainChang
       <button type="button" className="btn btn-sm btn-outline flex items-center gap-2" onClick={() => setModalOpen(true)}>
         {srcCurrency ? (
           <>
-            <Logo src={tokenInfo?.logoURI} alt={srcCurrency.symbol || "Token"} size={16} fallbackText={srcCurrency.symbol?.[0] || "T"} />
-            <span className="text-sm">{srcCurrency.symbol || "Token"}</span>
+            <Logo src={tokenInfo?.logoURI} alt={srcCurrency.symbol || 'Token'} size={16} fallbackText={srcCurrency.symbol?.[0] || 'T'} />
+            <span className="text-sm">{srcCurrency.symbol || 'Token'}</span>
             {chainName && <span className="text-xs opacity-70">on {chainName}</span>}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

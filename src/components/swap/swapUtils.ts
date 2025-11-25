@@ -1,20 +1,20 @@
 // Helper function to get aggregator logo URL
 export function getAggregatorLogo(aggregatorName: string): string {
-  const normalizedName = aggregatorName.toLowerCase().replace(/\s+/g, "-")
+  const normalizedName = aggregatorName.toLowerCase().replace(/\s+/g, '-')
   return `https://raw.githubusercontent.com/1delta-DAO/protocol-icons/refs/heads/main/aggregator/${normalizedName}.webp`
 }
 
 export function getBridgeLogo(bridgeName: string): string {
-  const normalizedName = bridgeName.toLowerCase().replace(/\s+/g, "-")
+  const normalizedName = bridgeName.toLowerCase().replace(/\s+/g, '-')
   return `https://raw.githubusercontent.com/1delta-DAO/protocol-icons/refs/heads/main/bridge/${normalizedName}.webp`
 }
 
 export function filterNumeric(s: string): string {
   // Allow digits and a single dot
-  s = s.replace(/[^0-9.]/g, "")
-  const parts = s.split(".")
+  s = s.replace(/[^0-9.]/g, '')
+  const parts = s.split('.')
   if (parts.length <= 1) return s
-  return parts[0] + "." + parts.slice(1).join("").replace(/\./g, "")
+  return parts[0] + '.' + parts.slice(1).join('').replace(/\./g, '')
 }
 
 export function pickPreferredToken(map: Record<string, any>, native?: string): string | undefined {
@@ -31,10 +31,10 @@ export function pickPreferredToken(map: Record<string, any>, native?: string): s
 
 export function formatDisplayAmount(val: string): string {
   // Normalize
-  if (!val) return "0"
-  const [intPartRaw, fracRaw = ""] = val.split(".")
-  const intPart = intPartRaw.replace(/^0+/, "") || "0"
+  if (!val) return '0'
+  const [intPartRaw, fracRaw = ''] = val.split('.')
+  const intPart = intPartRaw.replace(/^0+/, '') || '0'
   const maxFrac = intPart.length >= 4 ? 2 : 10
-  const frac = fracRaw.slice(0, maxFrac).replace(/0+$/, "")
+  const frac = fracRaw.slice(0, maxFrac).replace(/0+$/, '')
   return frac ? `${intPart}.${frac}` : intPart
 }

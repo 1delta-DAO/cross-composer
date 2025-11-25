@@ -1,7 +1,7 @@
-import { useMemo } from "react"
-import type { ActionDefinition, ActionCategory, ActionType } from "./actionDefinitions"
-import { CATEGORIES, getPriorityActions, getRemainingActionsCount } from "./actionDefinitions"
-import type { RawCurrency } from "../../../types/currency"
+import { useMemo } from 'react'
+import type { ActionDefinition, ActionCategory, ActionType } from './actionDefinitions'
+import { CATEGORIES, getPriorityActions, getRemainingActionsCount } from './actionDefinitions'
+import type { RawCurrency } from '../../../types/currency'
 
 interface ActionIconGridProps {
   actions: ActionDefinition[]
@@ -31,7 +31,7 @@ export function ActionIconGrid({
   isActionLoading,
 }: ActionIconGridProps) {
   const filteredActions = useMemo(() => {
-    if (selectedCategory === "all") {
+    if (selectedCategory === 'all') {
       return actions
     }
     return actions.filter((action) => action.category === selectedCategory)
@@ -74,7 +74,7 @@ export function ActionIconGrid({
           <button
             key={category.id}
             type="button"
-            className={`tab ${selectedCategory === category.id ? "tab-active" : ""}`}
+            className={`tab ${selectedCategory === category.id ? 'tab-active' : ''}`}
             onClick={() => onCategoryChange(category.id)}
           >
             {category.label}
@@ -95,14 +95,14 @@ export function ActionIconGrid({
               <button
                 key={action.id}
                 type="button"
-                className={`btn btn-outline flex flex-col items-center gap-2 h-auto py-4 relative ${isSelected ? "btn-primary" : ""} ${
-                  !isReady ? "opacity-50" : ""
+                className={`btn btn-outline flex flex-col items-center gap-2 h-auto py-4 relative ${isSelected ? 'btn-primary' : ''} ${
+                  !isReady ? 'opacity-50' : ''
                 }`}
                 onClick={() => isReady && handleActionClick(action.id)}
                 disabled={!isReady}
               >
                 {isLoading && <span className="loading loading-spinner loading-xs absolute top-1 right-1"></span>}
-                <Icon className={isSelected ? "text-primary" : ""} />
+                <Icon className={isSelected ? 'text-primary' : ''} />
                 <span className="text-xs">{action.label}</span>
               </button>
             )
@@ -120,15 +120,15 @@ export function ActionIconGrid({
               <button
                 key={action.id}
                 type="button"
-                className={`btn btn-sm btn-outline flex items-center gap-2 relative ${isSelected ? "btn-primary" : ""} ${
-                  !isReady ? "opacity-50" : ""
+                className={`btn btn-sm btn-outline flex items-center gap-2 relative ${isSelected ? 'btn-primary' : ''} ${
+                  !isReady ? 'opacity-50' : ''
                 }`}
                 onClick={() => isReady && handleActionClick(action.id)}
                 disabled={!isReady}
                 title={action.label}
               >
                 {isLoading && <span className="loading loading-spinner loading-xs absolute -top-1 -right-1"></span>}
-                <Icon className={isSelected ? "text-primary" : ""} />
+                <Icon className={isSelected ? 'text-primary' : ''} />
                 <span className="text-xs">{action.label}</span>
               </button>
             )
@@ -138,7 +138,7 @@ export function ActionIconGrid({
               type="button"
               className="btn btn-sm btn-outline flex items-center gap-2"
               onClick={onToggleExpand}
-              title={`${remainingCount} more action${remainingCount > 1 ? "s" : ""}`}
+              title={`${remainingCount} more action${remainingCount > 1 ? 's' : ''}`}
             >
               <span className="text-xs">+{remainingCount}</span>
             </button>
@@ -151,8 +151,8 @@ export function ActionIconGrid({
         <button type="button" className="btn btn-sm btn-ghost" onClick={onReset}>
           Reset
         </button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onToggleExpand} title={isExpanded ? "Collapse" : "Expand"}>
-          {isExpanded ? "▲" : "▼"}
+        <button type="button" className="btn btn-sm btn-ghost" onClick={onToggleExpand} title={isExpanded ? 'Collapse' : 'Expand'}>
+          {isExpanded ? '▲' : '▼'}
         </button>
       </div>
     </div>

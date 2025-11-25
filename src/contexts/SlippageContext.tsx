@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
 type SlippageContextType = {
   slippage: number
@@ -27,7 +27,7 @@ export function SlippageProvider({ children }: { children: ReactNode }) {
 export function useSlippage() {
   const context = useContext(SlippageContext)
   if (!context) {
-    throw new Error("useSlippage must be used within SlippageProvider")
+    throw new Error('useSlippage must be used within SlippageProvider')
   }
   return context
 }

@@ -1,9 +1,9 @@
-import type { CSSProperties } from "react"
-import type { Address } from "viem"
-import { zeroAddress } from "viem"
-import { Logo } from "../common/Logo"
-import { CurrencyHandler } from "../../sdk/types"
-import type { RawCurrency } from "../../types/currency"
+import type { CSSProperties } from 'react'
+import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
+import { Logo } from '../common/Logo'
+import { CurrencyHandler } from '../../sdk/types'
+import type { RawCurrency } from '../../types/currency'
 
 type TokenRowProps = {
   addr: Address
@@ -35,7 +35,7 @@ export function TokenRow({
   const bal = balances?.[chainId]?.[addr.toLowerCase()]
   const wrapped = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
   const priceAddr = addr.toLowerCase() === zeroAddress.toLowerCase() ? wrapped : addr
-  const price = prices?.[chainId]?.[priceAddr?.toLowerCase() || ""]
+  const price = prices?.[chainId]?.[priceAddr?.toLowerCase() || '']
   const usd = bal && price ? Number(bal.value || 0) * price.usd : undefined
   const showBalanceLoading = balancesLoading && userAddress && !bal
   const showPriceLoading = pricesLoading && !price && !usd
@@ -44,7 +44,7 @@ export function TokenRow({
   return (
     <button style={style} className="w-full py-2 px-2 hover:bg-base-200 rounded flex items-center gap-3" onClick={onClick}>
       <div className="relative w-6 h-6">
-        <Logo src={token.logoURI} alt={token.symbol || ""} fallbackText={token.symbol || ""} />
+        <Logo src={token.logoURI} alt={token.symbol || ''} fallbackText={token.symbol || ''} />
         {chains?.[chainId]?.data?.icon && (
           <img src={chains[chainId].data.icon} alt="chain" className="w-3 h-3 rounded-full absolute -right-1 -bottom-1 border border-base-100" />
         )}

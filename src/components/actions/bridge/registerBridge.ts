@@ -1,17 +1,17 @@
-import { registerAction } from "../shared/actionRegistry"
-import { BridgePanel } from "./BridgePanel"
-import { BridgeIcon } from "./BridgeIcon"
-import type { ActionDefinition } from "../shared/actionDefinitions"
+import { registerAction } from '../shared/actionRegistry'
+import { BridgePanel } from './BridgePanel'
+import { BridgeIcon } from './BridgeIcon'
+import type { ActionDefinition } from '../shared/actionDefinitions'
 
 export function registerBridgeAction(): void {
   const bridgeAction: ActionDefinition = {
-    id: "bridge",
-    label: "Bridge",
-    category: "defi",
+    id: 'bridge',
+    label: 'Bridge',
+    category: 'defi',
     icon: BridgeIcon,
     panel: BridgePanel,
     priority: 3,
-    actionType: "lending",
+    actionType: 'lending',
     requiresSrcCurrency: true,
     buildPanelProps: (context) => ({
       tokenLists: context.tokenLists,

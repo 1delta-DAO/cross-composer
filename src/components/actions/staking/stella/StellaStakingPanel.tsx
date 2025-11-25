@@ -1,20 +1,20 @@
-import { useState, useMemo, useEffect, useRef } from "react"
-import { CurrencyHandler, SupportedChainId } from "../../../../sdk/types"
-import { DestinationActionHandler } from "../../shared/types"
-import { buildCalls } from "./callBuilder"
-import { XCDOT_ADDRESS, STELLA_STDOT_ADDRESS } from "../../../../lib/consts"
-import { StellaStakingCard } from "./StellaStakingCard"
-import type { RawCurrency } from "../../../../types/currency"
-import { parseUnits } from "viem"
-import { reverseQuote } from "../../../../lib/reverseQuote"
-import { useDebounce } from "../../../../hooks/useDebounce"
-import { fetchAllAggregatorTrades } from "../../../../lib/trade-helpers/aggregatorSelector"
-import { TradeType } from "@1delta/lib-utils"
-import type { Address } from "viem"
-import { useTokenPrice } from "../../../../hooks/prices/useTokenPrice"
-import { zeroAddress } from "viem"
-import { useConnection } from "wagmi"
-import { MOCK_RECEIVER_ADDRESS } from "../../../../lib/consts"
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { CurrencyHandler, SupportedChainId } from '../../../../sdk/types'
+import { DestinationActionHandler } from '../../shared/types'
+import { buildCalls } from './callBuilder'
+import { XCDOT_ADDRESS, STELLA_STDOT_ADDRESS } from '../../../../lib/consts'
+import { StellaStakingCard } from './StellaStakingCard'
+import type { RawCurrency } from '../../../../types/currency'
+import { parseUnits } from 'viem'
+import { reverseQuote } from '../../../../lib/reverseQuote'
+import { useDebounce } from '../../../../hooks/useDebounce'
+import { fetchAllAggregatorTrades } from '../../../../lib/trade-helpers/aggregatorSelector'
+import { TradeType } from '@1delta/lib-utils'
+import type { Address } from 'viem'
+import { useTokenPrice } from '../../../../hooks/prices/useTokenPrice'
+import { zeroAddress } from 'viem'
+import { useConnection } from 'wagmi'
+import { MOCK_RECEIVER_ADDRESS } from '../../../../lib/consts'
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
@@ -31,7 +31,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
   const { address } = useConnection()
   const receiverAddress = address || MOCK_RECEIVER_ADDRESS
 
-  const [outputAmount, setOutputAmount] = useState("")
+  const [outputAmount, setOutputAmount] = useState('')
   const [isSelected, setIsSelected] = useState(false)
   const [quote, setQuote] = useState<{ trade: any } | null>(null)
   const [loadingQuote, setLoadingQuote] = useState(false)
@@ -52,7 +52,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
       chainId: String(chainId),
       address: XCDOT_ADDRESS,
       decimals: xcDOTToken.decimals,
-      symbol: xcDOTToken.symbol || "XCDOT",
+      symbol: xcDOTToken.symbol || 'XCDOT',
     } as RawCurrency
   }, [xcDOTToken, chainId])
 
@@ -75,7 +75,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
   })
 
   const { price: srcTokenPrice, isLoading: isLoadingSrcTokenPrice } = useTokenPrice({
-    chainId: srcCurrency?.chainId || "",
+    chainId: srcCurrency?.chainId || '',
     tokenAddress: srcTokenPriceAddr,
     enabled: shouldFetchSrcTokenPrice,
   })
@@ -106,7 +106,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
       const inputAmount = reverseQuote(xcDOTToken.decimals, amountInWei.toString(), srcTokenPrice, xcDOTPrice, slippage)
       return inputAmount
     } catch (error) {
-      console.error("Error calculating reverse quote:", error)
+      console.error('Error calculating reverse quote:', error)
       return undefined
     }
   }, [debouncedOutputAmount, xcDOTToken, xcDOTPrice, srcTokenPrice, slippage])
@@ -154,11 +154,11 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
           setQuoteError(null)
         } else {
           setQuote(null)
-          setQuoteError("No quote available. Please try a different amount.")
+          setQuoteError('No quote available. Please try a different amount.')
         }
       } catch (error) {
-        console.error("Error fetching staking quote:", error)
-        const errorMessage = error instanceof Error ? error.message : "Failed to fetch quote"
+        console.error('Error fetching staking quote:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch quote'
         setQuote(null)
         setQuoteError(errorMessage)
       } finally {
@@ -186,7 +186,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
         const outputAmountWei = parseUnits(debouncedOutputAmount, xcDOTToken.decimals)
         const currencyAmount = CurrencyHandler.fromRawAmount(xcDOTToken, outputAmountWei.toString())
 
-        setDestinationInfo(currencyAmount, undefined, destinationCalls, "Staked DOT")
+        setDestinationInfo(currencyAmount, undefined, destinationCalls, 'Staked DOT')
         setIsSelected(true)
         setTimeout(() => setIsSelected(false), 1000)
       }
@@ -219,7 +219,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
       const outputAmountWei = parseUnits(debouncedOutputAmount, xcDOTToken.decimals)
       const currencyAmount = CurrencyHandler.fromRawAmount(xcDOTToken, outputAmountWei.toString())
 
-      setDestinationInfo(currencyAmount, undefined, destinationCalls, "Staked DOT")
+      setDestinationInfo(currencyAmount, undefined, destinationCalls, 'Staked DOT')
       setIsSelected(true)
       setTimeout(() => setIsSelected(false), 1000)
     }
@@ -227,7 +227,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
 
   useEffect(() => {
     if (resetKey !== undefined && resetKey > 0) {
-      setOutputAmount("")
+      setOutputAmount('')
       setIsSelected(false)
       setQuote(null)
       setQuoteError(null)
@@ -270,7 +270,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
             {/* Step 3: Show calculated input amount */}
             {calculatedInputAmount && srcCurrency && !isLoadingXcDOTPrice && !isLoadingSrcTokenPrice && (
               <div className="text-xs text-success">
-                ✓ Requires ~{Number(calculatedInputAmount).toFixed(6)} {srcCurrency.symbol || "tokens"}
+                ✓ Requires ~{Number(calculatedInputAmount).toFixed(6)} {srcCurrency.symbol || 'tokens'}
               </div>
             )}
 
@@ -296,7 +296,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
                 isSelected={isSelected}
                 onSelect={handleSelect}
                 outputAmount={debouncedOutputAmount}
-                outputTokenSymbol={xcDOTToken?.symbol || "DOT"}
+                outputTokenSymbol={xcDOTToken?.symbol || 'DOT'}
               />
             )}
           </div>

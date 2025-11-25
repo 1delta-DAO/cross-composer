@@ -10,7 +10,7 @@ export function StellaStakingCard({ isSelected, onSelect, outputAmount, outputTo
     <button
       type="button"
       className={`w-full flex items-center gap-3 p-4 rounded-lg border transition-colors ${
-        isSelected ? "border-primary bg-primary/10" : "border-base-300 hover:border-primary/50"
+        isSelected ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/50'
       }`}
       onClick={onSelect}
     >
@@ -20,7 +20,7 @@ export function StellaStakingCard({ isSelected, onSelect, outputAmount, outputTo
       <div className="flex flex-col items-start text-left flex-1">
         <div className="text-sm font-semibold">Stella Staking</div>
         <div className="text-xs opacity-70">
-          {outputAmount ? `${Number(outputAmount).toFixed(6)} ${outputTokenSymbol || "stDOT"}` : "Ready to stake"}
+          {outputAmount ? `${Number(outputAmount).toFixed(6)} ${outputTokenSymbol || 'stDOT'}` : 'Ready to stake'}
         </div>
       </div>
       {isSelected && (

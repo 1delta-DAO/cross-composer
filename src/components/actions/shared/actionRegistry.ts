@@ -1,4 +1,4 @@
-import type { ActionDefinition } from "./actionDefinitions"
+import type { ActionDefinition } from './actionDefinitions'
 
 const registeredActions: ActionDefinition[] = []
 

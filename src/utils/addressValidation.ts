@@ -1,7 +1,7 @@
-import { isAddress, type Address } from "viem"
+import { isAddress, type Address } from 'viem'
 
 export const isValidAddress = (address: string): address is Address => {
-  if (!address || typeof address !== "string") {
+  if (!address || typeof address !== 'string') {
     return false
   }
 
@@ -21,5 +21,5 @@ export const validateAndChecksumAddress = (address: string): Address | null => {
 }
 
 export const isEmptyAddress = (address: string): boolean => {
-  return !address || address.trim() === ""
+  return !address || address.trim() === ''
 }

@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react"
-import type { Abi, Hex } from "viem"
-import { formatUnits, toFunctionSelector } from "viem"
-import type { DestinationActionConfig } from "../../lib/types/destinationAction"
+import { useState, useEffect, useMemo } from 'react'
+import type { Abi, Hex } from 'viem'
+import { formatUnits, toFunctionSelector } from 'viem'
+import type { DestinationActionConfig } from '../../lib/types/destinationAction'
 
 type ActionEditorProps = {
   action: { id: string; config: DestinationActionConfig; selector: Hex; args: any[]; value?: string }
@@ -14,7 +14,7 @@ type ActionEditorProps = {
 }
 
 function findFunctionBySelector(abi: Abi, selector: Hex): any {
-  const fns = (abi as any[]).filter((it: any) => it?.type === "function")
+  const fns = (abi as any[]).filter((it: any) => it?.type === 'function')
   const lowerSel = selector.toLowerCase()
   for (const fn of fns) {
     try {
@@ -28,7 +28,7 @@ function findFunctionBySelector(abi: Abi, selector: Hex): any {
 export function ActionEditor({ action, onChange, onRemove, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: ActionEditorProps) {
   const fnAbi = useMemo(() => findFunctionBySelector(action.config.abi as Abi, action.selector), [action])
   const [localArgs, setLocalArgs] = useState<any[]>(action.args ?? [])
-  const [localValue, setLocalValue] = useState<string>(action.value ?? "")
+  const [localValue, setLocalValue] = useState<string>(action.value ?? '')
 
   useEffect(() => {
     onChange({ ...action, args: localArgs, value: localValue })
@@ -67,7 +67,7 @@ export function ActionEditor({ action, onChange, onRemove, canMoveUp, canMoveDow
                 </label>
                 <input
                   className="input input-bordered"
-                  value={localArgs[i] ?? ""}
+                  value={localArgs[i] ?? ''}
                   onChange={(e) =>
                     setLocalArgs((arr) => {
                       const copy = [...arr]
@@ -77,16 +77,16 @@ export function ActionEditor({ action, onChange, onRemove, canMoveUp, canMoveDow
                   }
                   placeholder={inp.type}
                 />
-                {action.config.group === "lending" &&
-                  inp.type === "uint256" &&
+                {action.config.group === 'lending' &&
+                  inp.type === 'uint256' &&
                   (() => {
                     const dec = action.config.meta?.underlying?.decimals
                     const raw = localArgs[i]
-                    if (!dec || raw === undefined || raw === "") return null
+                    if (!dec || raw === undefined || raw === '') return null
                     try {
                       const bn = BigInt(String(raw))
                       const human = formatUnits(bn, dec)
-                      const sym = action.config.meta?.underlying?.symbol || ""
+                      const sym = action.config.meta?.underlying?.symbol || ''
                       return (
                         <span className="label-text-alt opacity-70">
                           {human} {sym}
@@ -98,7 +98,7 @@ export function ActionEditor({ action, onChange, onRemove, canMoveUp, canMoveDow
                   })()}
               </div>
             ))}
-            {fnAbi?.stateMutability === "payable" && (
+            {fnAbi?.stateMutability === 'payable' && (
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">Value (ETH)</span>

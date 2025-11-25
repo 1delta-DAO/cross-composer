@@ -1,17 +1,17 @@
 // ./actions/nft/olderfall/OlderfallPanel.tsx
 
-import { useEffect, useState } from "react"
-import { CurrencyHandler, SupportedChainId } from "../../../../sdk/types"
-import { DestinationActionHandler } from "../../shared/types"
-import { Chain } from "@1delta/chain-registry"
-import { OlderfallListingCard } from "./OlderfallCard"
-import { formatListingPriceLabel } from "./utils"
-import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from "./Generic"
-import { buildCalls } from "./callBuilder"
-import type { OlderfallListing } from "./api"
-import { useConnection } from "wagmi"
-import { isValidAddress, isEmptyAddress } from "../../../../utils/addressValidation"
-import type { Address } from "viem"
+import { useEffect, useState } from 'react'
+import { CurrencyHandler, SupportedChainId } from '../../../../sdk/types'
+import { DestinationActionHandler } from '../../shared/types'
+import { Chain } from '@1delta/chain-registry'
+import { OlderfallListingCard } from './OlderfallCard'
+import { formatListingPriceLabel } from './utils'
+import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from './Generic'
+import { buildCalls } from './callBuilder'
+import type { OlderfallListing } from './api'
+import { useConnection } from 'wagmi'
+import { isValidAddress, isEmptyAddress } from '../../../../utils/addressValidation'
+import type { Address } from 'viem'
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
@@ -60,13 +60,13 @@ function OlderfallListingsList({ listings, dstChainId, tokenLists, selectedOrder
 const OLDERFALL_OPTIONS = [
   {
     chainId: Chain.POLYGON_MAINNET,
-    token: "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
-    label: "Polygon",
+    token: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+    label: 'Polygon',
   },
   {
     chainId: Chain.MOONBEAM,
-    token: "0xffffffff7d2b0b761af01ca8e25242976ac0ad7d",
-    label: "Moonbeam",
+    token: '0xffffffff7d2b0b761af01ca8e25242976ac0ad7d',
+    label: 'Moonbeam',
   },
 ]
 
@@ -74,9 +74,9 @@ const OLDERFALL_OPTIONS = [
 
 export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListings, resetKey }: OlderfallPanelProps) {
   const { address } = useConnection()
-  const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
+  const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>('')
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(0)
-  const [receiverAddress, setReceiverAddress] = useState<string>("")
+  const [receiverAddress, setReceiverAddress] = useState<string>('')
 
   const selectedOption = OLDERFALL_OPTIONS[selectedOptionIndex]
   const dstChainId = String(selectedOption.chainId)
@@ -86,14 +86,14 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
 
   // Reset selected listing when switching chain
   useEffect(() => {
-    setSelectedOlderfallOrderId("")
+    setSelectedOlderfallOrderId('')
   }, [selectedOptionIndex])
 
   useEffect(() => {
     if (resetKey !== undefined && resetKey > 0) {
-      setSelectedOlderfallOrderId("")
+      setSelectedOlderfallOrderId('')
       setSelectedOptionIndex(0)
-      setReceiverAddress("")
+      setReceiverAddress('')
       setDestinationInfo?.(undefined, undefined, [])
     }
   }, [resetKey])
@@ -120,19 +120,19 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
       buyer: finalReceiverAddress,
       listing,
     })
-    console.log("listing.pricePerToken", listing.pricePerToken, setDestinationInfo)
+    console.log('listing.pricePerToken', listing.pricePerToken, setDestinationInfo)
     const nftName = listing.name || `NFT #${listing.tokenId}`
     setDestinationInfo?.(
       // define output amount
       CurrencyHandler.fromRawAmount(
         tokenLists?.[chainId]?.[token.toLowerCase()]!,
-        listing.pricePerToken // amount to pay
+        listing.pricePerToken, // amount to pay
       ),
       undefined, // intermediate receiver: default
       destinationCalls,
-      nftName
+      nftName,
     )
-    setSelectedOlderfallOrderId("")
+    setSelectedOlderfallOrderId('')
   }
 
   return (
@@ -145,7 +145,7 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
           <button
             key={`${opt.chainId}-${opt.token}`}
             type="button"
-            className={`tab ${idx === selectedOptionIndex ? "tab-active" : ""}`}
+            className={`tab ${idx === selectedOptionIndex ? 'tab-active' : ''}`}
             onClick={() => setSelectedOptionIndex(idx)}
           >
             {opt.label}
@@ -161,8 +161,8 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
           type="text"
           value={receiverAddress}
           onChange={(e) => setReceiverAddress(e.target.value)}
-          placeholder={address || "0x..."}
-          className={`input input-bordered input-sm w-full ${!receiverAddressValid ? "input-error" : ""}`}
+          placeholder={address || '0x...'}
+          className={`input input-bordered input-sm w-full ${!receiverAddressValid ? 'input-error' : ''}`}
         />
         {!receiverAddressValid && (
           <label className="label">

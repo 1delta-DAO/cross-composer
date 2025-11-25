@@ -1,11 +1,11 @@
-import { useState } from "react"
-import type { GenericTrade } from "../../sdk/types"
-import { Logo } from "../common/Logo"
-import type { RawCurrency } from "../../types/currency"
-import type { Address } from "viem"
-import { useTokenPrice } from "../../hooks/prices/useTokenPrice"
-import { zeroAddress } from "viem"
-import { CurrencyHandler } from "../../sdk/types"
+import { useState } from 'react'
+import type { GenericTrade } from '../../sdk/types'
+import { Logo } from '../common/Logo'
+import type { RawCurrency } from '../../types/currency'
+import type { Address } from 'viem'
+import { useTokenPrice } from '../../hooks/prices/useTokenPrice'
+import { zeroAddress } from 'viem'
+import { CurrencyHandler } from '../../sdk/types'
 
 type QuoteSelectorProps = {
   quotes: Array<{ label: string; trade: GenericTrade }>
@@ -39,7 +39,7 @@ export function QuoteSelector({ quotes, selectedIndex, onSelect, amount, srcSymb
     : undefined
 
   const { price: dstPrice } = useTokenPrice({
-    chainId: dstCurrency?.chainId || "",
+    chainId: dstCurrency?.chainId || '',
     tokenAddress: dstTokenPriceAddr,
     enabled: Boolean(dstCurrency),
   })
@@ -67,7 +67,7 @@ export function QuoteSelector({ quotes, selectedIndex, onSelect, amount, srcSymb
               size={20}
               fallbackText={selectedQuote.label.slice(0, 2).toUpperCase()}
             />
-            <span className="text-xs opacity-60">{expanded ? "▼" : "▶"}</span>
+            <span className="text-xs opacity-60">{expanded ? '▼' : '▶'}</span>
           </div>
         </div>
       </div>
@@ -85,7 +85,7 @@ export function QuoteSelector({ quotes, selectedIndex, onSelect, amount, srcSymb
               <div
                 key={idx}
                 className={`flex items-center justify-between p-3 rounded border cursor-pointer transition-colors ${
-                  isSelected ? "border-primary bg-primary/10" : "border-base-300 hover:border-primary/50"
+                  isSelected ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/50'
                 }`}
                 onClick={() => {
                   onSelect(idx)

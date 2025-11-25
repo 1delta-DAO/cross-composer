@@ -1,5 +1,5 @@
-import type { Hex } from "viem"
-import type { MoonwellMarket } from "../../../../lib/moonwell/marketCache"
+import type { Hex } from 'viem'
+import type { MoonwellMarket } from '../../../../lib/moonwell/marketCache'
 
 type MarketTokenCardProps = {
   market: MoonwellMarket
@@ -10,7 +10,7 @@ function DepositCard({ market, onActionClick }: MarketTokenCardProps) {
   return (
     <div className="card bg-base-100 border border-base-300 hover:border-primary/50 transition-colors group">
       <div className="card-body p-3">
-        <div className="font-medium text-sm mb-2">{market.symbol || "Unknown"}</div>
+        <div className="font-medium text-sm mb-2">{market.symbol || 'Unknown'}</div>
         <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
           {!market.mintPaused && (
             <button

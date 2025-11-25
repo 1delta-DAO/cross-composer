@@ -1,7 +1,7 @@
-import { Address, Hex, Abi } from "viem"
-import type { RawCurrency, RawCurrencyAmount } from "../../types/currency"
+import { Address, Hex, Abi } from 'viem'
+import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 
-export type DestinationActionType = "game_token" | "buy_ticket" | "lending" | "staking"
+export type DestinationActionType = 'game_token' | 'buy_ticket' | 'lending' | 'staking'
 
 export interface DestinationActionMeta {
   underlying?: RawCurrency

@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
-type ToastType = "error" | "info" | "success" | "warning"
+type ToastType = 'error' | 'info' | 'success' | 'warning'
 
 type Toast = { id: number; message: string; type: ToastType }
 
@@ -22,26 +22,26 @@ const ToastContext = createContext<ToastContextType>({
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
-  const show = useCallback((message: string, type: ToastType = "info") => {
+  const show = useCallback((message: string, type: ToastType = 'info') => {
     const id = Date.now() + Math.random()
     setToasts((t) => [...t, { id, message, type }])
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000)
   }, [])
-  const showError = useCallback((message: string) => show(message, "error"), [show])
-  const showSuccess = useCallback((message: string) => show(message, "success"), [show])
-  const showInfo = useCallback((message: string) => show(message, "info"), [show])
-  const showWarning = useCallback((message: string) => show(message, "warning"), [show])
+  const showError = useCallback((message: string) => show(message, 'error'), [show])
+  const showSuccess = useCallback((message: string) => show(message, 'success'), [show])
+  const showInfo = useCallback((message: string) => show(message, 'info'), [show])
+  const showWarning = useCallback((message: string) => show(message, 'warning'), [show])
 
   const getAlertClass = (type: ToastType) => {
     switch (type) {
-      case "error":
-        return "alert-error"
-      case "success":
-        return "alert-success"
-      case "warning":
-        return "alert-warning"
+      case 'error':
+        return 'alert-error'
+      case 'success':
+        return 'alert-success'
+      case 'warning':
+        return 'alert-warning'
       default:
-        return "alert-info"
+        return 'alert-info'
     }
   }
 

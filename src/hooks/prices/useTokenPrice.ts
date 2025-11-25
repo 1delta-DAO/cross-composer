@@ -1,7 +1,7 @@
-import type { Address } from "viem"
-import { useMemo } from "react"
-import { usePriceQuery } from "./usePriceQuery"
-import { getCurrency } from "../../lib/trade-helpers/utils"
+import type { Address } from 'viem'
+import { useMemo } from 'react'
+import { usePriceQuery } from './usePriceQuery'
+import { getCurrency } from '../../lib/trade-helpers/utils'
 
 export function useTokenPrice(params: { chainId: string; tokenAddress?: Address; enabled?: boolean }) {
   const { chainId, tokenAddress, enabled = true } = params

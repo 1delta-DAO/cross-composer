@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react"
-import type { Address } from "viem"
-import { ChainSelector } from "../swap/ChainSelector"
-import { TokenSelector } from "../tokenSelector"
-import type { RawCurrency } from "../../types/currency"
-import { getCurrency } from "../../lib/trade-helpers/utils"
-import { Chain } from "@1delta/chain-registry"
-import { useConnection } from "wagmi"
+import { useState, useEffect } from 'react'
+import type { Address } from 'viem'
+import { ChainSelector } from '../swap/ChainSelector'
+import { TokenSelector } from '../tokenSelector'
+import type { RawCurrency } from '../../types/currency'
+import { getCurrency } from '../../lib/trade-helpers/utils'
+import { Chain } from '@1delta/chain-registry'
+import { useConnection } from 'wagmi'
 
 type Props = {
   open: boolean

@@ -1,17 +1,17 @@
-import { registerAction } from "../../shared/actionRegistry"
-import { DepositPanel } from "./DepositPanel"
-import { DepositIcon } from "./DepositIcon"
-import type { ActionDefinition } from "../../shared/actionDefinitions"
+import { registerAction } from '../../shared/actionRegistry'
+import { DepositPanel } from './DepositPanel'
+import { DepositIcon } from './DepositIcon'
+import type { ActionDefinition } from '../../shared/actionDefinitions'
 
 export function registerDepositAction(): void {
   const depositAction: ActionDefinition = {
-    id: "deposit",
-    label: "Deposit",
-    category: "lending",
+    id: 'deposit',
+    label: 'Deposit',
+    category: 'lending',
     icon: DepositIcon,
     panel: DepositPanel,
     priority: 1,
-    actionType: "lending",
+    actionType: 'lending',
     requiresMarkets: true,
     buildPanelProps: (context) => ({
       tokenLists: context.tokenLists,

@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo } from 'react'
 import {
   getCachedMarkets,
   isMarketsReady,
   isMarketsLoading,
   subscribeToCacheChanges,
   type MoonwellMarket,
-} from "../../../../lib/moonwell/marketCache"
-import { DepositActionModal } from "./DepositModal"
-import { DepositCard } from "./DepositCard"
-import { DestinationActionHandler } from "../../shared/types"
-import { useConnection } from "wagmi"
+} from '../../../../lib/moonwell/marketCache'
+import { DepositActionModal } from './DepositModal'
+import { DepositCard } from './DepositCard'
+import { DestinationActionHandler } from '../../shared/types'
+import { useConnection } from 'wagmi'
 
 type DepositPanelProps = {
   chainId?: string
@@ -85,7 +85,7 @@ export function DepositPanel({ chainId, setDestinationInfo, resetKey }: DepositP
         <div className="card-body p-4">
           <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
             <div className="font-medium">Lending Deposits</div>
-            <button className="btn btn-sm btn-ghost">{isExpanded ? "▼" : "▶"}</button>
+            <button className="btn btn-sm btn-ghost">{isExpanded ? '▼' : '▶'}</button>
           </div>
 
           {isExpanded && (

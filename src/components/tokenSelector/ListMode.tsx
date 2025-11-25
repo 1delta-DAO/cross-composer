@@ -1,7 +1,7 @@
-import { List, type RowComponentProps } from "react-window"
-import { RelevantTokensBar } from "./RelevantTokens"
-import { TokenRow } from "./TokenRow"
-import { CommonViewProps } from "./types"
+import { List, type RowComponentProps } from 'react-window'
+import { RelevantTokensBar } from './RelevantTokens'
+import { TokenRow } from './TokenRow'
+import { CommonViewProps } from './types'
 
 const ROW_HEIGHT = 56
 const LIST_HEIGHT = 620
@@ -54,7 +54,7 @@ export function TokenSelectorListMode({
           rowHeight={ROW_HEIGHT}
           rowComponent={renderRow}
           rowProps={{} as any}
-          style={{ width: "100%", height: LIST_HEIGHT }}
+          style={{ width: '100%', height: LIST_HEIGHT }}
         />
       </div>
     </div>

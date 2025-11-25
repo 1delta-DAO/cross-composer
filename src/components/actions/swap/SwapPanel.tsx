@@ -1,16 +1,16 @@
-import { useState, useMemo, useEffect, useRef } from "react"
-import type { RawCurrency } from "../../../types/currency"
-import { CurrencyHandler } from "../../../sdk/types"
-import { DestinationActionHandler } from "../shared/types"
-import { SwapCard } from "./SwapCard"
-import { TokenSelectorModal } from "../../modals/TokenSelectorModal"
-import { parseUnits } from "viem"
-import type { Address } from "viem"
-import { fetchAllAggregatorTrades } from "../../../lib/trade-helpers/aggregatorSelector"
-import { TradeType } from "@1delta/lib-utils"
-import { MOCK_RECEIVER_ADDRESS } from "../../../lib/consts"
-import { Logo } from "../../common/Logo"
-import { useConnection } from "wagmi"
+import { useState, useMemo, useEffect, useRef } from 'react'
+import type { RawCurrency } from '../../../types/currency'
+import { CurrencyHandler } from '../../../sdk/types'
+import { DestinationActionHandler } from '../shared/types'
+import { SwapCard } from './SwapCard'
+import { TokenSelectorModal } from '../../modals/TokenSelectorModal'
+import { parseUnits } from 'viem'
+import type { Address } from 'viem'
+import { fetchAllAggregatorTrades } from '../../../lib/trade-helpers/aggregatorSelector'
+import { TradeType } from '@1delta/lib-utils'
+import { MOCK_RECEIVER_ADDRESS } from '../../../lib/consts'
+import { Logo } from '../../common/Logo'
+import { useConnection } from 'wagmi'
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string; logoURI?: string }>>
 
@@ -35,9 +35,9 @@ export function SwapPanel({
   const receiverAddress = address || MOCK_RECEIVER_ADDRESS
 
   const [selectedDstCurrency, setSelectedDstCurrency] = useState<RawCurrency | undefined>(initialDstCurrency)
-  const [outputAmount, setOutputAmount] = useState("")
+  const [outputAmount, setOutputAmount] = useState('')
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
-  const [tokenModalQuery, setTokenModalQuery] = useState("")
+  const [tokenModalQuery, setTokenModalQuery] = useState('')
   const [selectedAggregator, setSelectedAggregator] = useState<string | null>(null)
   const [quotes, setQuotes] = useState<Array<{ label: string; trade: any }>>([])
   const [loadingQuotes, setLoadingQuotes] = useState(false)
@@ -58,7 +58,7 @@ export function SwapPanel({
       if (selectedDstCurrency && selectedDstCurrency.chainId !== srcCurrency.chainId) {
         setSelectedDstCurrency(undefined)
       }
-      setOutputAmount("")
+      setOutputAmount('')
       setSelectedAggregator(null)
       setQuotes([])
       setDestinationInfo?.(undefined, undefined, [])
@@ -103,7 +103,7 @@ export function SwapPanel({
 
         setQuotes(trades.map((t) => ({ label: t.aggregator.toString(), trade: t.trade })))
       } catch (error) {
-        console.error("Error fetching swap quotes:", error)
+        console.error('Error fetching swap quotes:', error)
         setQuotes([])
       } finally {
         setLoadingQuotes(false)
@@ -122,7 +122,7 @@ export function SwapPanel({
   const handleTokenSelect = (currency: RawCurrency | undefined, close: boolean = true) => {
     if (currency) {
       setSelectedDstCurrency(currency)
-      setOutputAmount("")
+      setOutputAmount('')
       setSelectedAggregator(null)
       setQuotes([])
     }
@@ -162,7 +162,7 @@ export function SwapPanel({
 
   useEffect(() => {
     if (resetKey !== undefined && resetKey > 0) {
-      setOutputAmount("")
+      setOutputAmount('')
       setSelectedDstCurrency(initialDstCurrency)
       setSelectedAggregator(null)
       setQuotes([])
@@ -188,8 +188,8 @@ export function SwapPanel({
           <button className="btn btn-outline flex items-center gap-2" onClick={() => setTokenModalOpen(true)} disabled={!srcCurrency}>
             {dstCurrency ? (
               <>
-                <Logo src={dstTokenInfo?.logoURI} alt={dstCurrency.symbol || "Token"} size={16} fallbackText={dstCurrency.symbol?.[0] || "T"} />
-                <span>{dstCurrency.symbol || "Select token"}</span>
+                <Logo src={dstTokenInfo?.logoURI} alt={dstCurrency.symbol || 'Token'} size={16} fallbackText={dstCurrency.symbol?.[0] || 'T'} />
+                <span>{dstCurrency.symbol || 'Select token'}</span>
               </>
             ) : (
               <span>Select token</span>
@@ -206,7 +206,7 @@ export function SwapPanel({
                 key={`${quote.label}-${index}`}
                 aggregator={quote.label}
                 trade={quote.trade}
-                outputTokenSymbol={dstCurrency?.symbol || "tokens"}
+                outputTokenSymbol={dstCurrency?.symbol || 'tokens'}
                 isSelected={selectedAggregator === quote.label}
                 onSelect={() => handleQuoteSelect(quote.label, quote.trade)}
               />

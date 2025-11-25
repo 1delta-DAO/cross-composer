@@ -1,10 +1,10 @@
-import { useMemo } from "react"
-import type { RawCurrency, RawCurrencyAmount } from "../../../types/currency"
-import { formatDisplayAmount } from "../../swap/swapUtils"
-import { CurrencyHandler } from "../../../sdk/types"
-import type { Address } from "viem"
-import { useTokenPrice } from "../../../hooks/prices/useTokenPrice"
-import { zeroAddress } from "viem"
+import { useMemo } from 'react'
+import type { RawCurrency, RawCurrencyAmount } from '../../../types/currency'
+import { formatDisplayAmount } from '../../swap/swapUtils'
+import { CurrencyHandler } from '../../../sdk/types'
+import type { Address } from 'viem'
+import { useTokenPrice } from '../../../hooks/prices/useTokenPrice'
+import { zeroAddress } from 'viem'
 
 interface TransactionSummaryProps {
   srcCurrency?: RawCurrency
@@ -51,7 +51,7 @@ export function TransactionSummary({
   }, [srcCurrency])
 
   const { price: srcPrice } = useTokenPrice({
-    chainId: srcCurrency?.chainId || "",
+    chainId: srcCurrency?.chainId || '',
     tokenAddress: srcTokenPriceAddr,
     enabled: Boolean(srcCurrency),
   })
@@ -65,7 +65,7 @@ export function TransactionSummary({
   }, [dstCurrency])
 
   const { price: dstPrice } = useTokenPrice({
-    chainId: dstCurrency?.chainId || "",
+    chainId: dstCurrency?.chainId || '',
     tokenAddress: dstTokenPriceAddr,
     enabled: Boolean(dstCurrency),
   })
@@ -92,8 +92,8 @@ export function TransactionSummary({
 
   if (!shouldShow) return null
 
-  const formattedInput = formatDisplayAmount(inputAmount || "0")
-  const formattedOutput = formatDisplayAmount(outputAmount || "0")
+  const formattedInput = formatDisplayAmount(inputAmount || '0')
+  const formattedOutput = formatDisplayAmount(outputAmount || '0')
 
   return (
     <div className="card bg-base-200 shadow-sm border border-base-300 mt-4">
@@ -110,7 +110,7 @@ export function TransactionSummary({
             <div className="flex justify-between items-center">
               <span className="text-xs opacity-50"></span>
               <div className="text-xs opacity-60">
-                {inputUsd !== undefined && isFinite(inputUsd) ? `$${inputUsd.toFixed(2)}` : ""}
+                {inputUsd !== undefined && isFinite(inputUsd) ? `$${inputUsd.toFixed(2)}` : ''}
                 {srcChainName && <span className="ml-2">({srcChainName})</span>}
               </div>
             </div>
@@ -127,7 +127,7 @@ export function TransactionSummary({
             <div className="flex justify-between items-center">
               <span className="text-xs opacity-50"></span>
               <div className="text-xs opacity-60">
-                {outputUsd !== undefined && isFinite(outputUsd) ? `$${outputUsd.toFixed(2)}` : ""}
+                {outputUsd !== undefined && isFinite(outputUsd) ? `$${outputUsd.toFixed(2)}` : ''}
                 {dstChainName && <span className="ml-2">({dstChainName})</span>}
               </div>
             </div>

@@ -1,10 +1,10 @@
-import { type Address, zeroAddress } from "viem"
-import { VenusLensAbi } from "../abi/compV2"
-import { erc20Abi } from "viem"
-import { getRpcSelectorEvmClient, SupportedChainId } from "@1delta/lib-utils"
-import { MOONWELL_LENS, MOONWELL_COMPTROLLER, MOONWELL_UNDERLYING_TO_MTOKEN } from "./consts"
-import type { RawCurrency } from "../../types/currency"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
+import { type Address, zeroAddress } from 'viem'
+import { VenusLensAbi } from '../abi/compV2'
+import { erc20Abi } from 'viem'
+import { getRpcSelectorEvmClient, SupportedChainId } from '@1delta/lib-utils'
+import { MOONWELL_LENS, MOONWELL_COMPTROLLER, MOONWELL_UNDERLYING_TO_MTOKEN } from './consts'
+import type { RawCurrency } from '../../types/currency'
+import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
 
 export type MoonwellMarket = {
   mTokenCurrency: RawCurrency
@@ -75,7 +75,7 @@ export async function initializeMoonwellMarkets(chainId: string = SupportedChain
   }
 
   if (chainId !== SupportedChainId.MOONBEAM) {
-    error = "Only moonbeam supported"
+    error = 'Only moonbeam supported'
     notifyListeners()
     return
   }
@@ -87,7 +87,7 @@ export async function initializeMoonwellMarkets(chainId: string = SupportedChain
   try {
     const client = await getRpcSelectorEvmClient(chainId)
     if (!client) {
-      throw new Error("No client for chain")
+      throw new Error('No client for chain')
     }
 
     const results: MoonwellMarket[] = []
@@ -99,11 +99,11 @@ export async function initializeMoonwellMarkets(chainId: string = SupportedChain
       const info = (await client.readContract({
         address: MOONWELL_LENS,
         abi: VenusLensAbi as any,
-        functionName: "getMarketInfo",
+        functionName: 'getMarketInfo',
         args: [mToken],
       })) as any
       const underlyingFromLens = (info?.[18]?.token || info?.underlying || info?.underlyingAssetAddress || undefined) as Address | undefined
-      const resolvedUnderlying = (underlying && underlying !== ("" as Address) ? underlying : underlyingFromLens) as Address
+      const resolvedUnderlying = (underlying && underlying !== ('' as Address) ? underlying : underlyingFromLens) as Address
 
       let symbol: string | undefined
       let decimals: number | undefined
@@ -112,19 +112,19 @@ export async function initializeMoonwellMarkets(chainId: string = SupportedChain
           symbol = (await client.readContract({
             address: resolvedUnderlying,
             abi: erc20Abi,
-            functionName: "symbol",
+            functionName: 'symbol',
           })) as string
           decimals = (await client.readContract({
             address: resolvedUnderlying,
             abi: erc20Abi,
-            functionName: "decimals",
+            functionName: 'decimals',
           })) as number
         } else {
           // fallback to mToken symbol
           symbol = (await client.readContract({
             address: mToken,
             abi: erc20Abi,
-            functionName: "symbol",
+            functionName: 'symbol',
           })) as string
           decimals = 18
         }
@@ -136,12 +136,12 @@ export async function initializeMoonwellMarkets(chainId: string = SupportedChain
         mTokenSymbol = (await client.readContract({
           address: mToken,
           abi: erc20Abi,
-          functionName: "symbol",
+          functionName: 'symbol',
         })) as string
         mTokenDecimals = (await client.readContract({
           address: mToken,
           abi: erc20Abi,
-          functionName: "decimals",
+          functionName: 'decimals',
         })) as number
       } catch {}
 
@@ -149,16 +149,16 @@ export async function initializeMoonwellMarkets(chainId: string = SupportedChain
         chainId,
         mToken,
         mTokenDecimals ?? 18,
-        mTokenSymbol || "mToken",
-        mTokenSymbol || "Moonwell Market Token",
+        mTokenSymbol || 'mToken',
+        mTokenSymbol || 'Moonwell Market Token',
       )
 
       const underlyingCurrency = CurrencyHandler.Currency(
         chainId,
         resolvedUnderlying || underlying,
         decimals ?? 18,
-        symbol || "Token",
-        symbol || "Token",
+        symbol || 'Token',
+        symbol || 'Token',
       )
 
       results.push({
@@ -176,7 +176,7 @@ export async function initializeMoonwellMarkets(chainId: string = SupportedChain
     isInitialized = true
     error = undefined
   } catch (e) {
-    error = e instanceof Error ? e.message : "Failed to fetch Moonwell markets"
+    error = e instanceof Error ? e.message : 'Failed to fetch Moonwell markets'
     cachedMarkets = undefined
   } finally {
     isLoading = false

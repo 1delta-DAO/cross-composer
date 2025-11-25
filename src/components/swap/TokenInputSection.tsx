@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from "react"
-import type { Address } from "viem"
-import { Logo } from "../common/Logo"
-import { filterNumeric } from "./swapUtils"
-import type { RawCurrency, RawCurrencyAmount } from "../../types/currency"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
-import { useTokenPrice } from "../../hooks/prices/useTokenPrice"
-import { zeroAddress } from "viem"
-import { CurrencyHandler as CurrencyHandlerSDK } from "../../sdk/types"
-import { useDebounce } from "../../hooks/useDebounce"
+import { useState, useEffect, useRef } from 'react'
+import type { Address } from 'viem'
+import { Logo } from '../common/Logo'
+import { filterNumeric } from './swapUtils'
+import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
+import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
+import { useTokenPrice } from '../../hooks/prices/useTokenPrice'
+import { zeroAddress } from 'viem'
+import { CurrencyHandler as CurrencyHandlerSDK } from '../../sdk/types'
+import { useDebounce } from '../../hooks/useDebounce'
 
 type TokenInputSectionProps = {
   amount: string
@@ -70,8 +70,8 @@ export function TokenInputSection({
   const balance = srcTokenBalance
     ? CurrencyHandler.toExactNumber(srcTokenBalance).toString()
     : srcToken && srcChainId
-    ? srcBalances?.[srcChainId]?.[srcToken.toLowerCase()]?.value
-    : undefined
+      ? srcBalances?.[srcChainId]?.[srcToken.toLowerCase()]?.value
+      : undefined
 
   const srcTokenPriceAddr = srcCurrency
     ? srcCurrency.address.toLowerCase() === zeroAddress.toLowerCase()
@@ -80,7 +80,7 @@ export function TokenInputSection({
     : undefined
 
   const { price } = useTokenPrice({
-    chainId: srcCurrency?.chainId || "",
+    chainId: srcCurrency?.chainId || '',
     tokenAddress: srcTokenPriceAddr,
     enabled: Boolean(srcCurrency),
   })
@@ -96,7 +96,7 @@ export function TokenInputSection({
             type="button"
             className="btn btn-xs btn-ghost"
             onClick={handleEditableToggle}
-            title={isEditable ? "Disable editing (use reverse quote)" : "Enable editing"}
+            title={isEditable ? 'Disable editing (use reverse quote)' : 'Enable editing'}
           >
             {isEditable ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -141,12 +141,12 @@ export function TokenInputSection({
                   className="btn btn-xs join-item"
                   onClick={() => {
                     const n = balance ? Number(balance) : 0
-                    const newAmount = n > 0 ? ((n * p) / 100).toString() : ""
+                    const newAmount = n > 0 ? ((n * p) / 100).toString() : ''
                     isUserInputRef.current = true
                     setLocalAmount(newAmount)
                   }}
                 >
-                  {p === 100 ? "Max" : `${p}%`}
+                  {p === 100 ? 'Max' : `${p}%`}
                 </button>
               ))}
             </div>
@@ -166,7 +166,7 @@ export function TokenInputSection({
           }}
           readOnly={!isEditable}
           placeholder="0"
-          style={{ cursor: isEditable ? "text" : "default" }}
+          style={{ cursor: isEditable ? 'text' : 'default' }}
         />
         <div>
           <button className="btn btn-outline rounded-2xl flex items-center gap-2 border-[0.5px]" onClick={onTokenClick}>
@@ -174,11 +174,11 @@ export function TokenInputSection({
               <>
                 <Logo
                   src={srcToken && srcChainId ? lists?.[srcChainId]?.[srcToken.toLowerCase()]?.logoURI : undefined}
-                  alt={srcCurrency.symbol || "Token"}
+                  alt={srcCurrency.symbol || 'Token'}
                   size={20}
-                  fallbackText={srcCurrency.symbol?.[0] || "T"}
+                  fallbackText={srcCurrency.symbol?.[0] || 'T'}
                 />
-                <span>{srcCurrency.symbol || "Token"}</span>
+                <span>{srcCurrency.symbol || 'Token'}</span>
               </>
             ) : (
               <span>Select token</span>
@@ -187,9 +187,9 @@ export function TokenInputSection({
         </div>
       </div>
       <div className="flex items-center justify-between text-xs mt-2">
-        <div className="opacity-70">{usd !== undefined ? `$${usd.toFixed(2)}` : "$0"}</div>
-        <div className={balance && localAmount && Number(localAmount) > Number(balance) ? "text-error" : "opacity-70"}>
-          {balance ? `${Number(balance).toFixed(4)} ${srcCurrency?.symbol || ""}` : ""}
+        <div className="opacity-70">{usd !== undefined ? `$${usd.toFixed(2)}` : '$0'}</div>
+        <div className={balance && localAmount && Number(localAmount) > Number(balance) ? 'text-error' : 'opacity-70'}>
+          {balance ? `${Number(balance).toFixed(4)} ${srcCurrency?.symbol || ''}` : ''}
         </div>
       </div>
     </div>

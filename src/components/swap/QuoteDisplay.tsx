@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react"
-import type { GenericTrade } from "../../sdk/types"
-import { Logo } from "../common/Logo"
-import { getAggregatorLogo, getBridgeLogo } from "./swapUtils"
-import type { RawCurrency } from "../../types/currency"
-import type { Address } from "viem"
-import { useTokenPrice } from "../../hooks/prices/useTokenPrice"
-import { zeroAddress } from "viem"
-import { CurrencyHandler } from "../../sdk/types"
+import { useState, useMemo } from 'react'
+import type { GenericTrade } from '../../sdk/types'
+import { Logo } from '../common/Logo'
+import { getAggregatorLogo, getBridgeLogo } from './swapUtils'
+import type { RawCurrency } from '../../types/currency'
+import type { Address } from 'viem'
+import { useTokenPrice } from '../../hooks/prices/useTokenPrice'
+import { zeroAddress } from 'viem'
+import { CurrencyHandler } from '../../sdk/types'
 
 type QuoteDisplayProps = {
   quotes: Array<{ label: string; trade: GenericTrade }>
@@ -45,7 +45,7 @@ export function QuoteDisplay({
   }, [dstCurrency])
 
   const { price: dstPrice } = useTokenPrice({
-    chainId: dstCurrency?.chainId || "",
+    chainId: dstCurrency?.chainId || '',
     tokenAddress: dstTokenPriceAddr,
     enabled: Boolean(dstCurrency),
   })
@@ -94,7 +94,7 @@ export function QuoteDisplay({
               size={20}
               fallbackText={selectedQuote.label.slice(0, 2).toUpperCase()}
             />
-            <span className="text-xs opacity-60">{quotesExpanded ? "▼" : "▶"}</span>
+            <span className="text-xs opacity-60">{quotesExpanded ? '▼' : '▶'}</span>
           </div>
         </div>
       </div>
@@ -113,7 +113,7 @@ export function QuoteDisplay({
               <div
                 key={idx}
                 className={`flex items-center justify-between p-3 rounded border cursor-pointer transition-colors ${
-                  isSelected ? "border-primary bg-primary/10" : "border-base-300 hover:border-primary/50"
+                  isSelected ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/50'
                 }`}
                 onClick={() => {
                   onSelectQuote(idx)

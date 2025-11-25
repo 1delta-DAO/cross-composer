@@ -1,18 +1,18 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
-import type { Address } from "viem"
-import { zeroAddress } from "viem"
-import { useTokenLists } from "../../hooks/useTokenLists"
-import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
-import { usePriceQuery } from "../../hooks/prices/usePriceQuery"
-import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
-import { CurrencyHandler, SupportedChainId } from "../../sdk/types"
-import { getTokenFromCache } from "../../lib/data/tokenListsCache"
-import { getCurrency } from "../../lib/trade-helpers/utils"
-import type { RawCurrency } from "../../types/currency"
-import { TokenSelectorDropdownMode } from "./Dropdown"
-import { TokenSelectorListMode } from "./ListMode"
-import type { TokenRowData } from "./types"
-import { useConnection } from "wagmi"
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
+import { useTokenLists } from '../../hooks/useTokenLists'
+import { useEvmBalances } from '../../hooks/balances/useEvmBalances'
+import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
+import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
+import { CurrencyHandler, SupportedChainId } from '../../sdk/types'
+import { getTokenFromCache } from '../../lib/data/tokenListsCache'
+import { getCurrency } from '../../lib/trade-helpers/utils'
+import type { RawCurrency } from '../../types/currency'
+import { TokenSelectorDropdownMode } from './Dropdown'
+import { TokenSelectorListMode } from './ListMode'
+import type { TokenRowData } from './types'
+import { useConnection } from 'wagmi'
 
 type Props = {
   chainId: string
@@ -26,13 +26,13 @@ type Props = {
 }
 
 // Stablecoin symbols (common stablecoins)
-const STABLECOIN_SYMBOLS = new Set(["USDC", "USDT", "DAI", "BUSD", "FRAX", "USDD", "USDE", "TUSD", "LUSD", "SUSD", "GUSD", "MIM", "DOLA"])
+const STABLECOIN_SYMBOLS = new Set(['USDC', 'USDT', 'DAI', 'BUSD', 'FRAX', 'USDD', 'USDE', 'TUSD', 'LUSD', 'SUSD', 'GUSD', 'MIM', 'DOLA'])
 
 // LST (Liquid Staking Token) patterns - common LST symbols
-const LST_SYMBOLS = new Set(["STETH", "RETH", "CBETH", "SFRXETH", "WBETH", "STSOL", "MSOL", "JITOSOL"])
+const LST_SYMBOLS = new Set(['STETH', 'RETH', 'CBETH', 'SFRXETH', 'WBETH', 'STSOL', 'MSOL', 'JITOSOL'])
 
 // Bitcoin tokens
-const BITCOIN_SYMBOLS = new Set(["WBTC", "BTCB", "HBTC", "RENBTC", "TBTC"])
+const BITCOIN_SYMBOLS = new Set(['WBTC', 'BTCB', 'HBTC', 'RENBTC', 'TBTC'])
 
 export function TokenSelector({
   chainId,
@@ -48,7 +48,7 @@ export function TokenSelector({
   const { data: lists, isLoading: listsLoading } = useTokenLists()
   const { data: chains } = useChainsRegistry()
   const [open, setOpen] = useState(false)
-  const [internalQuery, setInternalQuery] = useState("")
+  const [internalQuery, setInternalQuery] = useState('')
   const searchQuery = externalQuery !== undefined ? externalQuery : internalQuery
   const setSearchQuery = onQueryChange || setInternalQuery
   const dropdownRef = useRef<HTMLDivElement | null>(null)
@@ -56,24 +56,24 @@ export function TokenSelector({
   useEffect(() => {
     if (listMode) return // No dropdown behavior in list mode
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false)
+      if (e.key === 'Escape') setOpen(false)
     }
     function onDocClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false)
     }
     if (open) {
-      document.addEventListener("keydown", onKey)
-      document.addEventListener("mousedown", onDocClick)
+      document.addEventListener('keydown', onKey)
+      document.addEventListener('mousedown', onDocClick)
     }
     return () => {
-      document.removeEventListener("keydown", onKey)
-      document.removeEventListener("mousedown", onDocClick)
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onDocClick)
     }
   }, [open, listMode])
 
   const tokensMap = lists?.[chainId] || {}
   const allAddrs = useMemo(() => Object.keys(tokensMap) as Address[], [tokensMap])
-  const nativeCurrencySymbol = chains?.[chainId]?.data?.nativeCurrency?.symbol?.toUpperCase() || ""
+  const nativeCurrencySymbol = chains?.[chainId]?.data?.nativeCurrency?.symbol?.toUpperCase() || ''
 
   // Include zero address for native token balance
   const addressesWithNative = useMemo(() => {
@@ -131,45 +131,45 @@ export function TokenSelector({
     }
 
     // USDC selection logic
-    const usdcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === "USDC")
+    const usdcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === 'USDC')
     addTokenIfNotIncluded(usdcCandidates, (candidates) => {
       const isMoonbeam = chainId === SupportedChainId.MOONBEAM
       if (isMoonbeam) {
         // On moonbeam, prefer xc tokens
         const xcUsdc = candidates.find(([, t]: [string, any]) => {
-          const symbolUpper = t?.symbol?.toUpperCase() || ""
-          return symbolUpper.startsWith("XC") && symbolUpper.includes("USDC")
+          const symbolUpper = t?.symbol?.toUpperCase() || ''
+          return symbolUpper.startsWith('XC') && symbolUpper.includes('USDC')
         })
         if (xcUsdc) return xcUsdc
       }
-      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === "USDC") || candidates[0]
+      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'USDC') || candidates[0]
     })
 
     // USDT selection logic
-    const usdtCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === "USDT")
+    const usdtCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === 'USDT')
     addTokenIfNotIncluded(usdtCandidates, (candidates) => {
       const isMoonbeam = chainId === SupportedChainId.MOONBEAM
       if (isMoonbeam) {
         // On moonbeam, prefer xc tokens
         const xcUsdt = candidates.find(([, t]: [string, any]) => {
-          const symbolUpper = t?.symbol?.toUpperCase() || ""
-          return symbolUpper.startsWith("XC") && symbolUpper.includes("USDT")
+          const symbolUpper = t?.symbol?.toUpperCase() || ''
+          return symbolUpper.startsWith('XC') && symbolUpper.includes('USDT')
         })
         if (xcUsdt) return xcUsdt
       }
-      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === "USDT") || candidates[0]
+      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'USDT') || candidates[0]
     })
 
     // WBTC selection logic
     const wbtcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => {
-      const symbolUpper = t?.symbol?.toUpperCase() || ""
-      const assetGroupUpper = t?.assetGroup?.toUpperCase() || ""
+      const symbolUpper = t?.symbol?.toUpperCase() || ''
+      const assetGroupUpper = t?.assetGroup?.toUpperCase() || ''
       return (
-        symbolUpper.includes("WBTC") || assetGroupUpper.includes("WBTC") || (assetGroupUpper.includes("BTC") && !assetGroupUpper.includes("INTER"))
+        symbolUpper.includes('WBTC') || assetGroupUpper.includes('WBTC') || (assetGroupUpper.includes('BTC') && !assetGroupUpper.includes('INTER'))
       )
     })
     addTokenIfNotIncluded(wbtcCandidates, (candidates) => {
-      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === "WBTC") || candidates[0]
+      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'WBTC') || candidates[0]
     })
 
     return relevantTokens
@@ -178,10 +178,10 @@ export function TokenSelector({
   const getStablecoinFallbackPrice = useCallback((chainId: string, address: string): number | undefined => {
     const token = getTokenFromCache(chainId, address)
     if (!token) return undefined
-    const symbol = (token as any)?.symbol?.toUpperCase?.() || ""
-    const assetGroup = (token as any)?.assetGroup || ""
-    if (assetGroup === "USDC") return 1
-    if (symbol === "USDC" || symbol === "USDT" || symbol === "DAI" || symbol === "USDBC" || symbol === "XCUSDC" || symbol === "XCUSDT") return 1
+    const symbol = (token as any)?.symbol?.toUpperCase?.() || ''
+    const assetGroup = (token as any)?.assetGroup || ''
+    if (assetGroup === 'USDC') return 1
+    if (symbol === 'USDC' || symbol === 'USDT' || symbol === 'DAI' || symbol === 'USDBC' || symbol === 'XCUSDC' || symbol === 'XCUSDT') return 1
     return undefined
   }, [])
 
@@ -234,7 +234,7 @@ export function TokenSelector({
         return 1
       }
 
-      if (LST_SYMBOLS.has(symbolUpper) || symbolUpper.includes("ST") || (symbolUpper.includes("ETH") && symbolUpper.includes("S"))) {
+      if (LST_SYMBOLS.has(symbolUpper) || symbolUpper.includes('ST') || (symbolUpper.includes('ETH') && symbolUpper.includes('S'))) {
         return 2
       }
 
@@ -242,13 +242,13 @@ export function TokenSelector({
         return 3
       }
 
-      if (BITCOIN_SYMBOLS.has(symbolUpper) || symbolUpper.includes("BTC")) {
+      if (BITCOIN_SYMBOLS.has(symbolUpper) || symbolUpper.includes('BTC')) {
         return 4
       }
 
       return 5
     },
-    [nativeCurrencySymbol]
+    [nativeCurrencySymbol],
   )
 
   const rows: TokenRowData[] = useMemo(() => {

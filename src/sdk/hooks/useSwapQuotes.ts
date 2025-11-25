@@ -1,18 +1,18 @@
-import { useState, useEffect, useRef, useMemo } from "react"
-import type { Address } from "viem"
-import type { GenericTrade } from "@1delta/lib-utils"
-import { TradeType } from "@1delta/lib-utils"
-import { convertAmountToWei } from "../../lib/trade-helpers/utils"
-import { fetchAllAggregatorTrades } from "../../lib/trade-helpers/aggregatorSelector"
-import { MOCK_RECEIVER_ADDRESS } from "../../lib/consts"
-import { useToast } from "../../components/common/ToastHost"
-import type { DestinationCall } from "../../lib/types/destinationAction"
-import type { DeltaCall } from "@1delta/trade-sdk"
-import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
-import { fetchAllBridgeTrades } from "../trade-helpers/bridgeSelector"
-import type { RawCurrency, RawCurrencyAmount } from "../../types/currency"
-import { useConnection } from "wagmi"
-import { validateQuoteOutput, calculateAdjustedBuffer, calculateReverseQuoteBuffer } from "../../lib/reverseQuote"
+import { useState, useEffect, useRef, useMemo } from 'react'
+import type { Address } from 'viem'
+import type { GenericTrade } from '@1delta/lib-utils'
+import { TradeType } from '@1delta/lib-utils'
+import { convertAmountToWei } from '../../lib/trade-helpers/utils'
+import { fetchAllAggregatorTrades } from '../../lib/trade-helpers/aggregatorSelector'
+import { MOCK_RECEIVER_ADDRESS } from '../../lib/consts'
+import { useToast } from '../../components/common/ToastHost'
+import type { DestinationCall } from '../../lib/types/destinationAction'
+import type { DeltaCall } from '@1delta/trade-sdk'
+import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
+import { fetchAllBridgeTrades } from '../trade-helpers/bridgeSelector'
+import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
+import { useConnection } from 'wagmi'
+import { validateQuoteOutput, calculateAdjustedBuffer, calculateReverseQuoteBuffer } from '../../lib/reverseQuote'
 
 type Quote = { label: string; trade: GenericTrade }
 
@@ -65,7 +65,7 @@ export function useSwapQuotes({
   const prevSrcKeyRef = useRef<string>(debouncedSrcKey)
   const prevDstKeyRef = useRef<string>(debouncedDstKey)
   const prevIsSameChainRef = useRef<boolean | null>(null)
-  const prevDestinationCallsKeyRef = useRef<string>("")
+  const prevDestinationCallsKeyRef = useRef<string>('')
 
   useEffect(() => {
     if (prevSrcKeyRef.current !== debouncedSrcKey || prevDstKeyRef.current !== debouncedDstKey) {
@@ -79,15 +79,15 @@ export function useSwapQuotes({
 
   const destinationCallsKey = JSON.stringify(
     (destinationCalls || []).map((c) => ({
-      t: c.target ? c.target.toLowerCase() : "",
-      v: c.value ? c.value.toString() : "",
-      dStart: c.calldata ? c.calldata.slice(0, 10) : "",
-      dEnd: c.calldata ? c.calldata.slice(-10) : "",
-      g: c.gasLimit ? c.gasLimit.toString() : "",
-      ct: typeof c.callType === "number" ? c.callType : 0,
-      ta: c.tokenAddress ? c.tokenAddress.toLowerCase() : "",
-      bi: typeof c.balanceOfInjectIndex === "number" ? c.balanceOfInjectIndex : 0,
-    }))
+      t: c.target ? c.target.toLowerCase() : '',
+      v: c.value ? c.value.toString() : '',
+      dStart: c.calldata ? c.calldata.slice(0, 10) : '',
+      dEnd: c.calldata ? c.calldata.slice(-10) : '',
+      g: c.gasLimit ? c.gasLimit.toString() : '',
+      ct: typeof c.callType === 'number' ? c.callType : 0,
+      ta: c.tokenAddress ? c.tokenAddress.toLowerCase() : '',
+      bi: typeof c.balanceOfInjectIndex === 'number' ? c.balanceOfInjectIndex : 0,
+    })),
   )
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export function useSwapQuotes({
 
   useEffect(() => {
     if (txInProgress) {
-      console.debug("Skipping quote fetch: transaction in progress")
+      console.debug('Skipping quote fetch: transaction in progress')
       setQuoting(false)
       requestInProgressRef.current = false
       if (abortControllerRef.current) {
@@ -118,7 +118,7 @@ export function useSwapQuotes({
     }
 
     if (prevTxInProgressRef.current && !txInProgress) {
-      console.debug("Transaction completed, resetting quote cache")
+      console.debug('Transaction completed, resetting quote cache')
       lastQuotedKeyRef.current = null
       requestInProgressRef.current = false
       setQuoting(false)
@@ -135,7 +135,7 @@ export function useSwapQuotes({
     const transitionedBetweenBridgeAndSwap = wasSameChain !== null && wasSameChain !== isSameChain
 
     if (transitionedBetweenBridgeAndSwap) {
-      console.debug("Transitioned between bridge and swap, clearing quote cache")
+      console.debug('Transitioned between bridge and swap, clearing quote cache')
       lastQuotedKeyRef.current = null
       requestInProgressRef.current = false
       setQuoting(false)
@@ -168,7 +168,7 @@ export function useSwapQuotes({
     }
 
     if (requestInProgressRef.current) {
-      console.debug("Request already in progress, skipping...")
+      console.debug('Request already in progress, skipping...')
       return
     }
 
@@ -183,7 +183,7 @@ export function useSwapQuotes({
     }
 
     if (sameAsLast && !transitionedBetweenBridgeAndSwap && elapsed < 30000 && isRefreshTrigger) {
-      console.debug("Skipping re-quote: inputs unchanged and refresh interval not reached")
+      console.debug('Skipping re-quote: inputs unchanged and refresh interval not reached')
       return
     }
 
@@ -211,14 +211,14 @@ export function useSwapQuotes({
         const toCurrency = dstCurrency
 
         if (!fromCurrency || !toCurrency) {
-          throw new Error("Failed to convert tokens to SDK format")
+          throw new Error('Failed to convert tokens to SDK format')
         }
 
         const amountInWei = convertAmountToWei(debouncedAmount, fromCurrency.decimals)
         setAmountWei(amountInWei)
         const isSameChain = sc === dc
 
-        console.debug("Fetching quote:", {
+        console.debug('Fetching quote:', {
           isSameChain,
           chainId: sc,
           fromCurrency: fromCurrency.symbol,
@@ -245,7 +245,7 @@ export function useSwapQuotes({
               flashSwap: false,
               usePermit: true,
             } as any,
-            controller
+            controller,
           )
           allQuotes = trades.map((t) => ({ label: t.aggregator.toString(), trade: t.trade }))
         } else {
@@ -265,7 +265,7 @@ export function useSwapQuotes({
                 return {
                   ...base,
                   tokenAddress: c.tokenAddress,
-                  balanceOfInjectIndex: typeof c.balanceOfInjectIndex === "number" ? c.balanceOfInjectIndex : 0,
+                  balanceOfInjectIndex: typeof c.balanceOfInjectIndex === 'number' ? c.balanceOfInjectIndex : 0,
                 }
               }
 
@@ -283,24 +283,24 @@ export function useSwapQuotes({
               swapAmount: amountInWei,
               caller: receiverAddress,
               receiver: receiverAddress,
-              order: "CHEAPEST",
+              order: 'CHEAPEST',
               usePermit: true,
               ...(additionalCalls ? { additionalCalls } : {}),
               destinationGasLimit,
             } as any,
-            controller
+            controller,
           )
-          console.log("All bridges received from trade-sdk:", { bridges: bridgeTrades.map((t) => t.bridge), bridgeTrades })
+          console.log('All bridges received from trade-sdk:', { bridges: bridgeTrades.map((t) => t.bridge), bridgeTrades })
           allQuotes = bridgeTrades.map((t) => ({ label: t.bridge, trade: t.trade }))
         }
 
         if (cancel || controller.signal.aborted) {
-          console.debug("Request cancelled or aborted")
+          console.debug('Request cancelled or aborted')
           return
         }
 
         if (allQuotes.length > 0) {
-          console.debug("Quotes received:", allQuotes.length)
+          console.debug('Quotes received:', allQuotes.length)
 
           if (minRequiredAmount && allQuotes.length > 0) {
             const bestQuote = allQuotes[0]
@@ -308,7 +308,7 @@ export function useSwapQuotes({
             const validation = validateQuoteOutput(outputAmount, minRequiredAmount)
 
             if (!validation.isValid) {
-              console.debug("Quote validation failed:", validation)
+              console.debug('Quote validation failed:', validation)
 
               if (validation.hasHighSlippageLoss) {
                 setHighSlippageLossWarning(true)
@@ -321,7 +321,7 @@ export function useSwapQuotes({
                 setHighSlippageLossWarning(false)
 
                 if (adjustedBuffer > currentBuffer) {
-                  console.debug("Buffer adjusted, but quotes already fetched. Validation warning may apply.")
+                  console.debug('Buffer adjusted, but quotes already fetched. Validation warning may apply.')
                 }
 
                 setQuotes(allQuotes)
@@ -338,17 +338,17 @@ export function useSwapQuotes({
             setSelectedQuoteIndex(0)
           }
         } else {
-          throw new Error("No quote available from any aggregator/bridge")
+          throw new Error('No quote available from any aggregator/bridge')
         }
       } catch (error) {
         if (cancel || controller.signal.aborted) {
-          console.debug("Request cancelled during error handling")
+          console.debug('Request cancelled during error handling')
           return
         }
-        const errorMessage = error instanceof Error ? error.message : "Failed to fetch quote"
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch quote'
         toast.showError(errorMessage)
         setQuotes([])
-        console.error("Quote fetch error:", error)
+        console.error('Quote fetch error:', error)
       } finally {
         if (!cancel && !controller.signal.aborted) {
           setQuoting(false)

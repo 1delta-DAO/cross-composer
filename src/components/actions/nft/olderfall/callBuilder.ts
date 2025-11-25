@@ -1,10 +1,10 @@
-import { encodeFunctionData, type Address } from "viem"
-import type { DestinationCall } from "../../../../lib/types/destinationAction"
-import { SEQUENCE_MARKET_ADDRESS } from "./constants"
-import { generateOlderfallBuySteps, type OlderfallListing } from "./api"
-import { ERC20_ABI } from "../../../../lib/abi"
-import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
-import type { DestinationCallBuilder } from "../../shared/types"
+import { encodeFunctionData, type Address } from 'viem'
+import type { DestinationCall } from '../../../../lib/types/destinationAction'
+import { SEQUENCE_MARKET_ADDRESS } from './constants'
+import { generateOlderfallBuySteps, type OlderfallListing } from './api'
+import { ERC20_ABI } from '../../../../lib/abi'
+import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
+import type { DestinationCallBuilder } from '../../shared/types'
 
 export type OlderfallCallBuilderParams = {
   chainId: string
@@ -13,11 +13,11 @@ export type OlderfallCallBuilderParams = {
 }
 
 export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = async ({ chainId, buyer, listing }) => {
-  const orderId = String(listing.orderId || "")
-  const tokenId = String(listing.tokenId || "")
-  const currency = String(listing.currency || "")
-  const priceRaw = String(listing.pricePerToken || "")
-  const collectionAddress = String(listing.tokenContract || "")
+  const orderId = String(listing.orderId || '')
+  const tokenId = String(listing.tokenId || '')
+  const currency = String(listing.currency || '')
+  const priceRaw = String(listing.pricePerToken || '')
+  const collectionAddress = String(listing.tokenContract || '')
 
   if (!chainId || !buyer || !orderId || !tokenId || !currency || !priceRaw || !collectionAddress) {
     return []
@@ -27,7 +27,7 @@ export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = as
 
   const approveCalldata = encodeFunctionData({
     abi: ERC20_ABI,
-    functionName: "approve",
+    functionName: 'approve',
     args: [SEQUENCE_MARKET_ADDRESS, priceAmount],
   })
 
@@ -42,13 +42,13 @@ export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = as
     buyer,
     orderId,
     tokenId,
-    quantity: "1",
+    quantity: '1',
     collectionAddress,
   })
 
   const sequenceCalls: DestinationCall[] = steps.map((step) => {
-    const rawValue = step.value || ""
-    const v = rawValue && rawValue !== "0" ? BigInt(rawValue) : 0n
+    const rawValue = step.value || ''
+    const v = rawValue && rawValue !== '0' ? BigInt(rawValue) : 0n
     return {
       target: step.to as Address,
       calldata: step.data as `0x${string}`,
@@ -58,7 +58,7 @@ export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = as
 
   const sweepCalldata = encodeFunctionData({
     abi: ERC20_ABI,
-    functionName: "transfer",
+    functionName: 'transfer',
     args: [buyer, 0n],
   })
 

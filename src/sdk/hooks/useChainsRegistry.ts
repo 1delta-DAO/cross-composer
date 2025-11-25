@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from "react"
-import { chains as getChains } from "@1delta/data-sdk"
-import { getReadySnapshot, subscribeReady } from "@1delta/trade-sdk/dist/data/readinessStore"
+import { useMemo, useState, useEffect } from 'react'
+import { chains as getChains } from '@1delta/data-sdk'
+import { getReadySnapshot, subscribeReady } from '@1delta/trade-sdk/dist/data/readinessStore'
 
 export type ExplorerInfo = {
   name?: string
@@ -52,7 +52,7 @@ export function useChainsRegistry() {
         const explorersArray = (chain.explorers ?? []) as ExplorerInfo[]
         const explorers: Record<string, ExplorerInfo> = {}
         for (const exp of explorersArray) {
-          const key = (exp?.name || exp?.url || "explorer") as string
+          const key = (exp?.name || exp?.url || 'explorer') as string
           explorers[key] = { ...exp }
         }
         normalized[chainId] = {

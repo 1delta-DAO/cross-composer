@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react"
-import { getReadySnapshot, subscribeReady } from "@1delta/trade-sdk/dist/data/readinessStore"
+import { useState, useEffect } from 'react'
+import { getReadySnapshot, subscribeReady } from '@1delta/trade-sdk/dist/data/readinessStore'
 
 /**
  * Hook that resolves when data-sdk chain data is ready.

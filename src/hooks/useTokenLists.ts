@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from "react"
-import { loadTokenLists, getTokenListsCache } from "../lib/data/tokenListsCache"
+import { useMemo, useState, useEffect } from 'react'
+import { loadTokenLists, getTokenListsCache } from '../lib/data/tokenListsCache'
 
 export type TokenListsRecord = Record<string, Record<string, any>>
 
@@ -32,7 +32,7 @@ export function useTokenLists() {
         setIsLoading(false)
       })
       .catch((e) => {
-        console.error("Failed to load token lists:", e)
+        console.error('Failed to load token lists:', e)
         setIsLoading(false)
       })
   }, [])

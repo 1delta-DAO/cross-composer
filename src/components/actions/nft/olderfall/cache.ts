@@ -1,4 +1,4 @@
-import type { OlderfallListing } from "./api"
+import type { OlderfallListing } from './api'
 
 type CacheEntry = {
   data: OlderfallListing[]

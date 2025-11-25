@@ -1,4 +1,4 @@
-import type { GenericTrade } from "@1delta/lib-utils"
+import type { GenericTrade } from '@1delta/lib-utils'
 
 interface SwapCardProps {
   aggregator: string
@@ -10,13 +10,13 @@ interface SwapCardProps {
 
 export function SwapCard({ aggregator, trade, outputTokenSymbol, isSelected, onSelect }: SwapCardProps) {
   const outputAmount = trade.outputAmountRealized
-  const formattedOutput = outputAmount > 0 ? outputAmount.toFixed(6) : "0"
+  const formattedOutput = outputAmount > 0 ? outputAmount.toFixed(6) : '0'
 
   return (
     <button
       type="button"
       className={`w-full flex items-center gap-3 p-4 rounded-lg border transition-colors ${
-        isSelected ? "border-primary bg-primary/10" : "border-base-300 hover:border-primary/50"
+        isSelected ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/50'
       }`}
       onClick={onSelect}
     >
@@ -26,7 +26,7 @@ export function SwapCard({ aggregator, trade, outputTokenSymbol, isSelected, onS
       <div className="flex flex-col items-start text-left flex-1">
         <div className="text-sm font-semibold">{aggregator}</div>
         <div className="text-xs opacity-70">
-          {formattedOutput} {outputTokenSymbol || "tokens"}
+          {formattedOutput} {outputTokenSymbol || 'tokens'}
         </div>
       </div>
       {isSelected && (
@@ -43,7 +43,3 @@ export function SwapCard({ aggregator, trade, outputTokenSymbol, isSelected, onS
     </button>
   )
 }
-
-
-
-

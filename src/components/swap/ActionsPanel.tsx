@@ -1,11 +1,11 @@
-import DestinationActionSelector from "../DestinationActionSelector"
-import type { RawCurrency, RawCurrencyAmount } from "../../types/currency"
-import { DestinationActionHandler } from "../actions/shared/types"
-import type { GenericTrade } from "@1delta/lib-utils"
-import { InputTokenSelector } from "../actions/shared/InputTokenSelector"
-import { TransactionSummary } from "../actions/shared/TransactionSummary"
-import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
-import { useTokenLists } from "../../hooks/useTokenLists"
+import DestinationActionSelector from '../DestinationActionSelector'
+import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
+import { DestinationActionHandler } from '../actions/shared/types'
+import type { GenericTrade } from '@1delta/lib-utils'
+import { InputTokenSelector } from '../actions/shared/InputTokenSelector'
+import { TransactionSummary } from '../actions/shared/TransactionSummary'
+import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
+import { useTokenLists } from '../../hooks/useTokenLists'
 
 type ActionsPanelProps = {
   srcCurrency?: RawCurrency

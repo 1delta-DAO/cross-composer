@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo } from "react"
-import type { Abi, Hex, Address } from "viem"
-import { formatUnits, toFunctionSelector, parseUnits, parseUnits as parseUnitsFn } from "viem"
-import type { DestinationActionConfig } from "../../../lib/types/destinationAction"
-import { useTokenBalance } from "../../../hooks/balances/useTokenBalance"
-import { useBorrowBalance } from "../../../hooks/balances/useBorrowBalance"
-import { SupportedChainId } from "../../../sdk/types"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
-import { useAccountLiquidity } from "../../../hooks/balances/useAccountLiquidity"
+import { useState, useEffect, useMemo } from 'react'
+import type { Abi, Hex, Address } from 'viem'
+import { formatUnits, toFunctionSelector, parseUnits, parseUnits as parseUnitsFn } from 'viem'
+import type { DestinationActionConfig } from '../../../lib/types/destinationAction'
+import { useTokenBalance } from '../../../hooks/balances/useTokenBalance'
+import { useBorrowBalance } from '../../../hooks/balances/useBorrowBalance'
+import { SupportedChainId } from '../../../sdk/types'
+import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
+import { useAccountLiquidity } from '../../../hooks/balances/useAccountLiquidity'
 
 type LendingActionModalProps = {
   open: boolean
@@ -21,7 +21,7 @@ type LendingActionModalProps = {
 }
 
 function findFunctionBySelector(abi: Abi, selector: Hex): any {
-  const fns = (abi as any[]).filter((it: any) => it?.type === "function")
+  const fns = (abi as any[]).filter((it: any) => it?.type === 'function')
   const lowerSel = selector.toLowerCase()
   for (const fn of fns) {
     try {
@@ -55,7 +55,7 @@ export function GenericActionModal({
   onConfirm,
 }: LendingActionModalProps) {
   const [args, setArgs] = useState<any[]>([])
-  const [value, setValue] = useState<string>("")
+  const [value, setValue] = useState<string>('')
   const [useMax, setUseMax] = useState<boolean>(false)
 
   const fnAbi = useMemo(() => {
@@ -64,11 +64,11 @@ export function GenericActionModal({
   }, [actionConfig, selector])
 
   // Determine which token balance to fetch - always compute these values
-  const isWithdraw = useMemo(() => actionConfig?.name?.startsWith("Withdraw") || false, [actionConfig?.name])
-  const isDeposit = useMemo(() => actionConfig?.name?.startsWith("Deposit") || false, [actionConfig?.name])
-  const isRepay = useMemo(() => actionConfig?.name?.startsWith("Repay") || false, [actionConfig?.name])
-  const isBorrow = useMemo(() => actionConfig?.name?.startsWith("Borrow") || false, [actionConfig?.name])
-  const isStaking = useMemo(() => actionConfig?.group === "staking" || (actionConfig?.meta as any)?.useComposer === true, [actionConfig])
+  const isWithdraw = useMemo(() => actionConfig?.name?.startsWith('Withdraw') || false, [actionConfig?.name])
+  const isDeposit = useMemo(() => actionConfig?.name?.startsWith('Deposit') || false, [actionConfig?.name])
+  const isRepay = useMemo(() => actionConfig?.name?.startsWith('Repay') || false, [actionConfig?.name])
+  const isBorrow = useMemo(() => actionConfig?.name?.startsWith('Borrow') || false, [actionConfig?.name])
+  const isStaking = useMemo(() => actionConfig?.group === 'staking' || (actionConfig?.meta as any)?.useComposer === true, [actionConfig])
 
   // For withdraw: fetch mToken balance (actionConfig.address is the mToken)
   // For deposit/repay/staking: fetch underlying token balance
@@ -79,10 +79,10 @@ export function GenericActionModal({
     } else if (isDeposit || isRepay || isStaking) {
       const underlying = (actionConfig.meta as any)?.underlying
       if (!underlying) return undefined
-      if (typeof underlying === "string") {
+      if (typeof underlying === 'string') {
         return underlying as Address
       }
-      if (typeof underlying === "object" && underlying !== null && "address" in underlying) {
+      if (typeof underlying === 'object' && underlying !== null && 'address' in underlying) {
         return underlying.address as Address
       }
       return undefined
@@ -119,7 +119,7 @@ export function GenericActionModal({
     if (!fnAbi) return -1
     const inputs = fnAbi.inputs || []
     // Find the first uint256 input (usually the amount)
-    return inputs.findIndex((inp: any) => inp.type === "uint256")
+    return inputs.findIndex((inp: any) => inp.type === 'uint256')
   }, [fnAbi])
 
   useEffect(() => {
@@ -129,24 +129,24 @@ export function GenericActionModal({
         // Pre-fill with existing args, pad with empty strings if needed
         const paddedArgs = [...initialArgs]
         while (paddedArgs.length < (fnAbi.inputs?.length || 0)) {
-          paddedArgs.push("")
+          paddedArgs.push('')
         }
         setArgs(paddedArgs.slice(0, fnAbi.inputs?.length || 0))
         // Check if initial arg is 0 for staking (max mode)
-        if (isStaking && amountInputIndex >= 0 && paddedArgs[amountInputIndex] === "0") {
+        if (isStaking && amountInputIndex >= 0 && paddedArgs[amountInputIndex] === '0') {
           setUseMax(true)
         } else {
           setUseMax(false)
         }
       } else {
-        setArgs(new Array(fnAbi.inputs?.length || 0).fill(""))
+        setArgs(new Array(fnAbi.inputs?.length || 0).fill(''))
         setUseMax(false)
       }
-      setValue(initialValue || "")
+      setValue(initialValue || '')
     } else if (!open) {
       // Reset when modal closes
       setArgs([])
-      setValue("")
+      setValue('')
       setUseMax(false)
     }
   }, [open, fnAbi, initialArgs, initialValue, isStaking, amountInputIndex])
@@ -161,7 +161,7 @@ export function GenericActionModal({
       try {
         const fullFormatted = formatUnits(BigInt(borrowBalance.raw), decimals)
         const formatted = formatBalanceWithDecimals(fullFormatted)
-        const symbol = actionConfig.meta?.underlying?.symbol || ""
+        const symbol = actionConfig.meta?.underlying?.symbol || ''
         return { formatted, symbol, raw: borrowBalance.raw, isDebt: true }
       } catch {
         return null
@@ -173,7 +173,7 @@ export function GenericActionModal({
       try {
         const fullFormatted = CurrencyHandler.toExactNumber(tokenBalance)
         const formatted = formatBalanceWithDecimals(fullFormatted.toString())
-        const symbol = tokenBalance.currency.symbol || ""
+        const symbol = tokenBalance.currency.symbol || ''
         return { formatted, symbol, raw: tokenBalance.amount.toString(), isDebt: false }
       } catch {
         return null
@@ -226,7 +226,7 @@ export function GenericActionModal({
     const finalArgs = [...args]
     // For staking with max checkbox, set amount to 0
     if (isStaking && useMax && amountInputIndex >= 0) {
-      finalArgs[amountInputIndex] = "0"
+      finalArgs[amountInputIndex] = '0'
     }
     onConfirm(actionConfig, selector, finalArgs, value)
     onClose()
@@ -253,9 +253,9 @@ export function GenericActionModal({
       setArgs((prevArgs) => {
         const newArgs = [...prevArgs]
         if (useMax) {
-          newArgs[amountInputIndex] = "0"
-        } else if (newArgs[amountInputIndex] === "0") {
-          newArgs[amountInputIndex] = ""
+          newArgs[amountInputIndex] = '0'
+        } else if (newArgs[amountInputIndex] === '0') {
+          newArgs[amountInputIndex] = ''
         }
         return newArgs
       })
@@ -265,11 +265,11 @@ export function GenericActionModal({
   // Early return after ALL hooks are called
   if (!open || !actionConfig || !selector) return null
 
-  const inputCount = (fnAbi?.inputs?.length || 0) + (fnAbi?.stateMutability === "payable" ? 1 : 0)
+  const inputCount = (fnAbi?.inputs?.length || 0) + (fnAbi?.stateMutability === 'payable' ? 1 : 0)
   const useSingleColumn = inputCount === 1
 
   return (
-    <div className={`modal ${open ? "modal-open" : ""}`} onClick={onClose}>
+    <div className={`modal ${open ? 'modal-open' : ''}`} onClick={onClose}>
       <div className="modal-box max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-lg">{actionConfig.name}</h3>
@@ -280,9 +280,9 @@ export function GenericActionModal({
         {actionConfig.description && <div className="text-sm opacity-70 mb-4">{actionConfig.description}</div>}
         {fnAbi ? (
           <div className="space-y-4">
-            <div className={useSingleColumn ? "space-y-4" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
+            <div className={useSingleColumn ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}>
               {fnAbi.inputs?.map((inp: any, i: number) => {
-                const isAmountInput = i === amountInputIndex && inp.type === "uint256"
+                const isAmountInput = i === amountInputIndex && inp.type === 'uint256'
                 const showMaxButton =
                   isAmountInput &&
                   ((isRepay && borrowBalance?.raw && BigInt(borrowBalance.raw) > 0n) ||
@@ -299,14 +299,14 @@ export function GenericActionModal({
                       {isAmountInput && (
                         <div className="flex items-center gap-2 flex-wrap">
                           {displayBalance && (
-                            <span className={`text-xs ${displayBalance.isDebt ? "text-warning" : "opacity-70"}`}>
-                              {displayBalance.isDebt ? "Debt: " : "Balance: "}
+                            <span className={`text-xs ${displayBalance.isDebt ? 'text-warning' : 'opacity-70'}`}>
+                              {displayBalance.isDebt ? 'Debt: ' : 'Balance: '}
                               {displayBalance.formatted} {displayBalance.symbol}
                             </span>
                           )}
                           {isBorrow && canBorrow !== null && (
-                            <span className={`text-xs ${canBorrow ? "text-success" : "text-error"}`}>
-                              {canBorrow ? "✓ Can borrow" : "✗ Insufficient collateral"}
+                            <span className={`text-xs ${canBorrow ? 'text-success' : 'text-error'}`}>
+                              {canBorrow ? '✓ Can borrow' : '✗ Insufficient collateral'}
                             </span>
                           )}
                           {isRepay && hasDebt !== null && !hasDebt && <span className="text-xs text-warning">No debt to repay</span>}
@@ -334,13 +334,13 @@ export function GenericActionModal({
                           </label>
                         </div>
                         <input
-                          className={`input input-bordered w-full ${exceedsBalance ? "input-warning" : ""}`}
-                          value={args[i] ?? ""}
+                          className={`input input-bordered w-full ${exceedsBalance ? 'input-warning' : ''}`}
+                          value={args[i] ?? ''}
                           onChange={(e) => {
                             const newArgs = [...args]
                             newArgs[i] = e.target.value
                             setArgs(newArgs)
-                            if (e.target.value !== "0" && useMax) {
+                            if (e.target.value !== '0' && useMax) {
                               setUseMax(false)
                             }
                           }}
@@ -350,8 +350,8 @@ export function GenericActionModal({
                       </div>
                     ) : (
                       <input
-                        className={`input input-bordered w-full ${isAmountInput && exceedsBalance ? "input-warning" : ""}`}
-                        value={args[i] ?? ""}
+                        className={`input input-bordered w-full ${isAmountInput && exceedsBalance ? 'input-warning' : ''}`}
+                        value={args[i] ?? ''}
                         onChange={(e) => {
                           const newArgs = [...args]
                           newArgs[i] = e.target.value
@@ -370,20 +370,20 @@ export function GenericActionModal({
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                           />
                         </svg>
-                        Amount exceeds available {isRepay ? "debt" : "balance"}
+                        Amount exceeds available {isRepay ? 'debt' : 'balance'}
                       </span>
                     )}
-                    {actionConfig.group === "lending" &&
-                      inp.type === "uint256" &&
+                    {actionConfig.group === 'lending' &&
+                      inp.type === 'uint256' &&
                       (() => {
                         const dec = actionConfig.meta?.underlying?.decimals
                         const raw = args[i]
-                        if (!dec || raw === undefined || raw === "") return null
+                        if (!dec || raw === undefined || raw === '') return null
                         try {
                           const bn = BigInt(String(raw))
                           const fullHuman = formatUnits(bn, dec)
                           const human = formatBalanceWithDecimals(fullHuman)
-                          const sym = actionConfig.meta?.underlying?.symbol || ""
+                          const sym = actionConfig.meta?.underlying?.symbol || ''
                           return (
                             <span className="label-text-alt opacity-70 mt-1">
                               {human} {sym}
@@ -396,7 +396,7 @@ export function GenericActionModal({
                   </div>
                 )
               })}
-              {fnAbi?.stateMutability === "payable" && (
+              {fnAbi?.stateMutability === 'payable' && (
                 <div className="form-control">
                   <label className="label py-1">
                     <span className="label-text text-sm font-medium">Value (ETH)</span>
@@ -416,7 +416,7 @@ export function GenericActionModal({
                 Cancel
               </button>
               <button className="btn btn-primary btn-sm" onClick={handleConfirm}>
-                {initialArgs ? "Update Action" : "Add Action"}
+                {initialArgs ? 'Update Action' : 'Add Action'}
               </button>
             </div>
           </div>

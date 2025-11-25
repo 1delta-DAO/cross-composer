@@ -1,6 +1,6 @@
-import { formatUnits } from "viem"
-import type { RawCurrencyAmount } from "../types/currency"
-import { CurrencyHandler } from "../sdk/types"
+import { formatUnits } from 'viem'
+import type { RawCurrencyAmount } from '../types/currency'
+import { CurrencyHandler } from '../sdk/types'
 
 export function calculateReverseQuoteBuffer(slippage?: number): number {
   const slippageDecimal = slippage ? slippage / 100 : 0
@@ -14,7 +14,7 @@ export function reverseQuote(
   priceIn: number,
   priceOut: number,
   slippage?: number,
-  customBuffer?: number
+  customBuffer?: number,
 ) {
   const buffer = customBuffer !== undefined ? customBuffer : calculateReverseQuoteBuffer(slippage)
   const amOutNr = Number(formatUnits(BigInt(amountOut ?? 0), decimalsOut))

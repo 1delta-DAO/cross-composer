@@ -1,25 +1,25 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"
-import type { Address } from "viem"
-import { zeroAddress } from "viem"
-import { useChainId, useConnection } from "wagmi"
-import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
-import { useTokenLists } from "../../hooks/useTokenLists"
-import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
-import { usePriceQuery } from "../../hooks/prices/usePriceQuery"
-import { useTokenPrice } from "../../hooks/prices/useTokenPrice"
-import { useDebounce } from "../../hooks/useDebounce"
-import { CurrencyHandler, SupportedChainId } from "../../sdk/types"
-import type { RawCurrency, RawCurrencyAmount } from "../../types/currency"
-import { getCurrency } from "../../lib/trade-helpers/utils"
-import { useQueryClient } from "@tanstack/react-query"
-import { useSlippage } from "../../contexts/SlippageContext"
-import { useSwapQuotes } from "../../sdk/hooks/useSwapQuotes"
-import { usePriceImpact } from "../../hooks/usePriceImpact"
-import ExecuteButton from "./ExecuteButton"
-import { ActionsPanel } from "./ActionsPanel"
-import { formatDisplayAmount, pickPreferredToken } from "./swapUtils"
-import type { DestinationCall } from "../../lib/types/destinationAction"
-import { reverseQuote } from "../../lib/reverseQuote"
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
+import { useChainId, useConnection } from 'wagmi'
+import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
+import { useTokenLists } from '../../hooks/useTokenLists'
+import { useEvmBalances } from '../../hooks/balances/useEvmBalances'
+import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
+import { useTokenPrice } from '../../hooks/prices/useTokenPrice'
+import { useDebounce } from '../../hooks/useDebounce'
+import { CurrencyHandler, SupportedChainId } from '../../sdk/types'
+import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
+import { getCurrency } from '../../lib/trade-helpers/utils'
+import { useQueryClient } from '@tanstack/react-query'
+import { useSlippage } from '../../contexts/SlippageContext'
+import { useSwapQuotes } from '../../sdk/hooks/useSwapQuotes'
+import { usePriceImpact } from '../../hooks/usePriceImpact'
+import ExecuteButton from './ExecuteButton'
+import { ActionsPanel } from './ActionsPanel'
+import { formatDisplayAmount, pickPreferredToken } from './swapUtils'
+import type { DestinationCall } from '../../lib/types/destinationAction'
+import { reverseQuote } from '../../lib/reverseQuote'
 
 type Props = {
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
@@ -35,8 +35,8 @@ export function ActionsTab({ onResetStateChange }: Props) {
 
   const [inputCurrency, setInputCurrency] = useState<RawCurrency | undefined>(undefined)
   const [actionCurrency, setActionCurrency] = useState<RawCurrency | undefined>(undefined)
-  const [amount, setAmount] = useState("")
-  const [calculatedInputAmount, setCalculatedInputAmount] = useState<string>("")
+  const [amount, setAmount] = useState('')
+  const [calculatedInputAmount, setCalculatedInputAmount] = useState<string>('')
   const [destinationInfo, setDestinationInfoState] = useState<{ currencyAmount?: RawCurrencyAmount; actionLabel?: string } | undefined>(undefined)
 
   const inputChainId = inputCurrency?.chainId ?? DEFAULT_INPUT_CHAIN_ID
@@ -48,7 +48,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
   useEffect(() => {
     if (inputCurrency || !lists || !chains) return
     const native = chains?.[DEFAULT_INPUT_CHAIN_ID]?.data?.nativeCurrency?.symbol
-    const force = DEFAULT_INPUT_CHAIN_ID === SupportedChainId.BASE ? "USDC" : undefined
+    const force = DEFAULT_INPUT_CHAIN_ID === SupportedChainId.BASE ? 'USDC' : undefined
     const tokensMap = lists[DEFAULT_INPUT_CHAIN_ID] || {}
     const pick = pickPreferredToken(tokensMap, force || native)
     if (!pick) return
@@ -138,19 +138,19 @@ export function ActionsTab({ onResetStateChange }: Props) {
   }, [actionCurrency])
 
   const { price: actionTokenPrice } = useTokenPrice({
-    chainId: actionCurrency?.chainId || actionChainId || "",
+    chainId: actionCurrency?.chainId || actionChainId || '',
     tokenAddress: actionTokenPriceAddr,
     enabled: Boolean(actionCurrency),
   })
 
   const debouncedAmount = useDebounce(amount, 1000)
   const inputKey = useMemo(
-    () => `${inputCurrency?.chainId || inputChainId}|${(inputCurrency?.address || "").toLowerCase()}`,
-    [inputCurrency, inputChainId]
+    () => `${inputCurrency?.chainId || inputChainId}|${(inputCurrency?.address || '').toLowerCase()}`,
+    [inputCurrency, inputChainId],
   )
   const actionKey = useMemo(
-    () => `${actionCurrency?.chainId || actionChainId}|${(actionCurrency?.address || "").toLowerCase()}`,
-    [actionCurrency, actionChainId]
+    () => `${actionCurrency?.chainId || actionChainId}|${(actionCurrency?.address || '').toLowerCase()}`,
+    [actionCurrency, actionChainId],
   )
   const debouncedInputKey = useDebounce(inputKey, 1000)
   const debouncedActionKey = useDebounce(actionKey, 1000)
@@ -223,11 +223,11 @@ export function ActionsTab({ onResetStateChange }: Props) {
       currencyAmount: RawCurrencyAmount | undefined,
       receiverAddress: string | undefined,
       destinationCalls: DestinationCall[],
-      actionLabel?: string
+      actionLabel?: string,
     ) => {
       if (!currencyAmount) {
         setDestinationInfoState(undefined)
-        setCalculatedInputAmount("")
+        setCalculatedInputAmount('')
         setDestinationCalls([])
         setActionCurrency(undefined)
         return
@@ -239,7 +239,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       const amountHuman = CurrencyHandler.toExactNumber(currencyAmount)
       if (!amountHuman || amountHuman <= 0) {
         setDestinationInfoState(undefined)
-        setCalculatedInputAmount("")
+        setCalculatedInputAmount('')
         setDestinationCalls([])
         setActionCurrency(undefined)
         return
@@ -257,7 +257,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
 
       setAmount(amountIn)
     },
-    [inputCurrency, inputPrice, actionTokenPrice, slippage]
+    [inputCurrency, inputPrice, actionTokenPrice, slippage],
   )
 
   return (
@@ -305,18 +305,18 @@ export function ActionsTab({ onResetStateChange }: Props) {
             onDone={(hashes) => {
               if (inputCurrency?.chainId && address) {
                 queryClient.invalidateQueries({
-                  queryKey: ["balances", inputCurrency.chainId, address],
+                  queryKey: ['balances', inputCurrency.chainId, address],
                 })
                 queryClient.invalidateQueries({
-                  queryKey: ["tokenBalance", inputCurrency.chainId, address],
+                  queryKey: ['tokenBalance', inputCurrency.chainId, address],
                 })
               }
               if (actionCurrency?.chainId && address) {
                 queryClient.invalidateQueries({
-                  queryKey: ["balances", actionCurrency.chainId, address],
+                  queryKey: ['balances', actionCurrency.chainId, address],
                 })
                 queryClient.invalidateQueries({
-                  queryKey: ["tokenBalance", actionCurrency.chainId, address],
+                  queryKey: ['tokenBalance', actionCurrency.chainId, address],
                 })
               }
               setDestinationInfo(undefined, undefined, [])
@@ -336,7 +336,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
               setTxInProgress(false)
             }}
             onReset={() => {
-              setAmount("")
+              setAmount('')
               setTxInProgress(false)
               setPreservedTrade(undefined)
             }}

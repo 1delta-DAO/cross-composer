@@ -1,9 +1,9 @@
-import { useMemo } from "react"
-import type { Address } from "viem"
-import type { GenericTrade } from "../sdk/types"
-import { useTokenPrice } from "./prices/useTokenPrice"
-import { zeroAddress } from "viem"
-import { CurrencyHandler } from "../sdk/types"
+import { useMemo } from 'react'
+import type { Address } from 'viem'
+import type { GenericTrade } from '../sdk/types'
+import { useTokenPrice } from './prices/useTokenPrice'
+import { zeroAddress } from 'viem'
+import { CurrencyHandler } from '../sdk/types'
 
 export function usePriceImpact({
   selectedTrade,
@@ -31,7 +31,7 @@ export function usePriceImpact({
   }, [srcToken, srcChainId])
 
   const { price: srcPrice } = useTokenPrice({
-    chainId: srcChainId || "",
+    chainId: srcChainId || '',
     tokenAddress: srcTokenPriceAddr,
     enabled: Boolean(srcToken && srcChainId),
   })
@@ -45,7 +45,7 @@ export function usePriceImpact({
   }, [dstToken, dstChainId])
 
   const { price: dstPrice } = useTokenPrice({
-    chainId: dstChainId || "",
+    chainId: dstChainId || '',
     tokenAddress: dstTokenPriceAddr,
     enabled: Boolean(dstToken && dstChainId),
   })

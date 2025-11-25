@@ -1,27 +1,27 @@
-import { useQuery } from "@tanstack/react-query"
-import type { Address } from "viem"
-import { useEffect, useMemo } from "react"
-import { zeroAddress } from "viem"
-import { setPricesFromDexscreener } from "../../lib/trade-helpers/prices"
-import type { RawCurrency } from "../../types/currency"
-import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
+import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
+import { useEffect, useMemo } from 'react'
+import { zeroAddress } from 'viem'
+import { setPricesFromDexscreener } from '../../lib/trade-helpers/prices'
+import type { RawCurrency } from '../../types/currency'
+import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
 
 export type PricesRecord = Record<string, Record<string, { usd: number }>>
 
 const DEXSCREENER_TOKEN_URL = (chainId: string, tokenAddress: string) => `https://api.dexscreener.com/token-pairs/v1/${chainId}/${tokenAddress}`
 
 const CHAIN_ID_MAP: Record<string, string> = {
-  "1": "ethereum",
-  "10": "optimism",
-  "56": "bsc",
-  "137": "polygon",
-  "42161": "arbitrum",
-  "43114": "avalanche",
-  "8453": "base",
-  "5000": "mantle",
-  "1284": "moonbeam",
-  "1285": "moonriver",
-  "9745": "opbnb",
+  '1': 'ethereum',
+  '10': 'optimism',
+  '56': 'bsc',
+  '137': 'polygon',
+  '42161': 'arbitrum',
+  '43114': 'avalanche',
+  '8453': 'base',
+  '5000': 'mantle',
+  '1284': 'moonbeam',
+  '1285': 'moonriver',
+  '9745': 'opbnb',
 }
 
 export function getDexscreenerChainId(chainId: string): string {
@@ -173,13 +173,13 @@ export function usePriceQuery(params: { currencies: RawCurrency[]; enabled?: boo
 
   const queryKey = useMemo(
     () => [
-      "prices",
+      'prices',
       currencies
         .map((c) => `${c.chainId}:${c.address.toLowerCase()}`)
         .sort()
-        .join(","),
+        .join(','),
     ],
-    [currencies]
+    [currencies],
   )
 
   const query = useQuery({

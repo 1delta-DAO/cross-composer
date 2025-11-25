@@ -1,8 +1,8 @@
-import { useMemo, useState, useEffect, useRef } from "react"
-import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from "../lib/moonwell/marketCache"
-import type { RawCurrency } from "../types/currency"
-import { ActionIconGrid } from "./actions/shared/ActionIconGrid"
-import { SelectedActionHeader } from "./actions/shared/SelectedActionHeader"
+import { useMemo, useState, useEffect, useRef } from 'react'
+import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from '../lib/moonwell/marketCache'
+import type { RawCurrency } from '../types/currency'
+import { ActionIconGrid } from './actions/shared/ActionIconGrid'
+import { SelectedActionHeader } from './actions/shared/SelectedActionHeader'
 import {
   getRegisteredActions,
   getActionsByCategory,
@@ -10,9 +10,9 @@ import {
   type ActionCategory,
   type ActionLoaderContext,
   type ActionReadinessContext,
-} from "./actions/shared/actionDefinitions"
-import { DestinationActionHandler } from "./actions/shared/types"
-import type { GenericTrade } from "@1delta/lib-utils"
+} from './actions/shared/actionDefinitions'
+import { DestinationActionHandler } from './actions/shared/types'
+import type { GenericTrade } from '@1delta/lib-utils'
 
 interface DestinationActionSelectorProps {
   srcCurrency?: RawCurrency
@@ -40,7 +40,7 @@ export default function DestinationActionSelector({
   const [marketsReady, setMarketsReady] = useState(isMarketsReady())
   const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<ActionCategory>("all")
+  const [selectedCategory, setSelectedCategory] = useState<ActionCategory>('all')
   const [isExpanded, setIsExpanded] = useState(true)
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [actionData, setActionData] = useState<Record<string, any>>({})
@@ -176,7 +176,7 @@ export default function DestinationActionSelector({
 
   const handleReset = () => {
     setSelectedAction(null)
-    setSelectedCategory("all")
+    setSelectedCategory('all')
     setIsExpanded(true)
     setIsPanelExpanded(true)
 

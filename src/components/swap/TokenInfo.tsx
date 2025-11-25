@@ -1,7 +1,7 @@
-import type { Address } from "viem"
-import { zeroAddress } from "viem"
-import { buildTokenUrl } from "../../lib/explorer"
-import type { RawCurrency } from "../../types/currency"
+import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
+import { buildTokenUrl } from '../../lib/explorer'
+import type { RawCurrency } from '../../types/currency'
 
 export function ExplorerLink({ chains, currency }: { chains?: any; currency: RawCurrency }) {
   const href = chains ? buildTokenUrl(chains, currency.chainId, currency.address as Address) : undefined
@@ -36,7 +36,7 @@ export function SelectedTokenInfo({
   return (
     <div className="text-xs mt-1 flex items-center justify-between">
       <div className="opacity-70 flex items-center gap-2">
-        Balance: {balanceLoading ? <span className="loading loading-spinner loading-xs" /> : (balance ?? "-")}
+        Balance: {balanceLoading ? <span className="loading loading-spinner loading-xs" /> : (balance ?? '-')}
       </div>
       <div className="flex items-center gap-3">
         {priceLoading ? (
