@@ -1,7 +1,9 @@
 import { useMemo } from "react"
 import type { Address } from "viem"
 import type { GenericTrade } from "../sdk/types"
-import { getTokenPrice } from "../components/swap/swapUtils"
+import { useTokenPrice } from "./prices/useTokenPrice"
+import { zeroAddress } from "viem"
+import { CurrencyHandler } from "../sdk/types"
 
 export function usePriceImpact({
   selectedTrade,
@@ -11,8 +13,6 @@ export function usePriceImpact({
   dstToken,
   srcChainId,
   dstChainId,
-  srcPricesMerged,
-  dstPricesMerged,
 }: {
   selectedTrade?: GenericTrade
   amount: string
@@ -21,18 +21,40 @@ export function usePriceImpact({
   dstToken?: Address
   srcChainId?: string
   dstChainId?: string
-  srcPricesMerged?: Record<string, { usd: number }>
-  dstPricesMerged?: Record<string, { usd: number }>
 }): number | undefined {
+  const srcTokenPriceAddr = useMemo(() => {
+    if (!srcToken || !srcChainId) return undefined
+    if (srcToken.toLowerCase() === zeroAddress.toLowerCase()) {
+      return CurrencyHandler.wrappedAddressFromAddress(srcChainId, zeroAddress) as Address | undefined
+    }
+    return srcToken
+  }, [srcToken, srcChainId])
+
+  const { price: srcPrice } = useTokenPrice({
+    chainId: srcChainId || "",
+    tokenAddress: srcTokenPriceAddr,
+    enabled: Boolean(srcToken && srcChainId),
+  })
+
+  const dstTokenPriceAddr = useMemo(() => {
+    if (!dstToken || !dstChainId) return undefined
+    if (dstToken.toLowerCase() === zeroAddress.toLowerCase()) {
+      return CurrencyHandler.wrappedAddressFromAddress(dstChainId, zeroAddress) as Address | undefined
+    }
+    return dstToken
+  }, [dstToken, dstChainId])
+
+  const { price: dstPrice } = useTokenPrice({
+    chainId: dstChainId || "",
+    tokenAddress: dstTokenPriceAddr,
+    enabled: Boolean(dstToken && dstChainId),
+  })
+
   return useMemo(() => {
     if (!selectedTrade || !amount || !quoteOut || !srcToken || !dstToken || !srcChainId || !dstChainId) {
       return undefined
     }
     try {
-      // Get token prices
-      const srcPrice = getTokenPrice(srcChainId, srcToken, srcPricesMerged)
-      const dstPrice = getTokenPrice(dstChainId, dstToken, dstPricesMerged)
-
       if (!srcPrice || !dstPrice) return undefined
 
       // Calculate expected output based on spot price
@@ -50,5 +72,5 @@ export function usePriceImpact({
     } catch {
       return undefined
     }
-  }, [selectedTrade, amount, quoteOut, srcToken, dstToken, srcChainId, dstChainId, srcPricesMerged, dstPricesMerged])
+  }, [selectedTrade, amount, quoteOut, srcToken, dstToken, srcChainId, dstChainId, srcPrice, dstPrice])
 }

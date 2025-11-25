@@ -1,21 +1,23 @@
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import type { Address } from "viem"
 import { ChainSelector } from "../swap/ChainSelector"
 import { TokenSelector } from "../tokenSelector"
 import type { RawCurrency } from "../../types/currency"
 import { getCurrency } from "../../lib/trade-helpers/utils"
 import { Chain } from "@1delta/chain-registry"
+import { useConnection } from "wagmi"
 
 type Props = {
   open: boolean
   onClose: () => void
   currency?: RawCurrency
-  onCurrencyChange: (currency: RawCurrency | undefined) => void
+  onCurrencyChange: (currency: RawCurrency) => void
   onChainChange?: (chainId: string) => void
   query: string
   onQueryChange: (query: string) => void
-  userAddress?: Address
   excludeAddresses?: Address[]
+  showChainSelector?: boolean
+  initialChainId?: string
 }
 
 export function TokenSelectorModal({
@@ -26,11 +28,20 @@ export function TokenSelectorModal({
   onChainChange,
   query,
   onQueryChange,
-  userAddress,
   excludeAddresses,
+  showChainSelector = true,
+  initialChainId,
 }: Props) {
-  // internal chainId, defaulting from currency when opening / changing
-  const [chainId, setChainId] = useState<string | undefined>(currency?.chainId ?? Chain.POLYGON_MAINNET)
+  const { address } = useConnection()
+  const [chainId, setChainId] = useState<string | undefined>(initialChainId ?? currency?.chainId ?? Chain.POLYGON_MAINNET)
+
+  useEffect(() => {
+    if (open && initialChainId) {
+      setChainId(initialChainId)
+    } else if (open && currency?.chainId) {
+      setChainId(currency.chainId)
+    }
+  }, [open, initialChainId, currency?.chainId])
 
   const tokenValue = currency?.address as Address | undefined
 
@@ -46,7 +57,6 @@ export function TokenSelectorModal({
   const handleChainChange = (cid: string) => {
     setChainId(cid)
     onChainChange?.(cid)
-    onCurrencyChange(undefined)
   }
 
   if (!open) return null
@@ -71,9 +81,11 @@ export function TokenSelectorModal({
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
             />
-            <div className="min-w-40">
-              <ChainSelector value={chainId} onChange={handleChainChange} />
-            </div>
+            {showChainSelector && (
+              <div className="min-w-40">
+                <ChainSelector value={chainId} onChange={handleChainChange} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -83,7 +95,6 @@ export function TokenSelectorModal({
             <div className="h-full">
               <TokenSelector
                 chainId={chainId}
-                userAddress={userAddress}
                 value={tokenValue}
                 onChange={handleTokenSelect}
                 excludeAddresses={excludeAddresses}

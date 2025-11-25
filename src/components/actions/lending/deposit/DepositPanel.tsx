@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react"
-import type { DestinationActionConfig } from "../../../../lib/types/destinationAction"
 import {
   getCachedMarkets,
   isMarketsReady,
@@ -7,37 +6,19 @@ import {
   subscribeToCacheChanges,
   type MoonwellMarket,
 } from "../../../../lib/moonwell/marketCache"
-import { getActionsForMarket } from "../../../../lib/actions/lending/moonwell/config"
 import { DepositActionModal } from "./DepositModal"
 import { DepositCard } from "./DepositCard"
 import { DestinationActionHandler } from "../../shared/types"
-
-function DepositCardWithBalance({
-  market,
-  depositAction,
-  onActionClick,
-}: {
-  market: MoonwellMarket
-  depositAction: DestinationActionConfig | undefined
-  onActionClick: () => void
-}) {
-  const shouldShowDeposit = true
-
-  // Nothing to do if no deposit action or we shouldn't show this row
-  if (!shouldShowDeposit || !depositAction) {
-    return null
-  }
-
-  return <DepositCard market={market} onActionClick={onActionClick} />
-}
+import { useConnection } from "wagmi"
 
 type DepositPanelProps = {
-  userAddress?: string
   chainId?: string
   setDestinationInfo?: DestinationActionHandler
+  resetKey?: number
 }
 
-export function DepositPanel({ userAddress, chainId, setDestinationInfo }: DepositPanelProps) {
+export function DepositPanel({ chainId, setDestinationInfo, resetKey }: DepositPanelProps) {
+  const { address } = useConnection()
   const [isExpanded, setIsExpanded] = useState(false)
   const [marketsReady, setMarketsReady] = useState(isMarketsReady())
   const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
@@ -59,15 +40,18 @@ export function DepositPanel({ userAddress, chainId, setDestinationInfo }: Depos
 
   // Only listed markets can be used for deposits
   const depositMarkets = useMemo(() => {
-    return markets.filter((m) => m.isListed)
+    return markets.filter((m) => m.isListed && !m.mintPaused)
   }, [markets])
 
-  const getDepositAction = (market: (typeof markets)[0]) => {
-    const allActions = getActionsForMarket(market, undefined)
-    return allActions.find((a) => a.name.startsWith("Deposit"))
-  }
-
   const [selectedMarket, setSelectedMarket] = useState<undefined | MoonwellMarket>(undefined)
+
+  useEffect(() => {
+    if (resetKey !== undefined && resetKey > 0) {
+      setSelectedMarket(undefined)
+      setIsExpanded(false)
+      setDestinationInfo?.(undefined, undefined, [])
+    }
+  }, [resetKey])
 
   // Loading / empty states
   if (marketsLoading && !marketsReady) {
@@ -111,21 +95,9 @@ export function DepositPanel({ userAddress, chainId, setDestinationInfo }: Depos
                 {depositMarkets.length === 0 ? (
                   <div className="text-sm opacity-50 text-center py-4">No markets available</div>
                 ) : (
-                  depositMarkets
-                    .map((market) => {
-                      const depositAction = getDepositAction(market)
-                      if (!depositAction) return null
-
-                      return (
-                        <DepositCardWithBalance
-                          key={market.mTokenCurrency.address}
-                          market={market}
-                          depositAction={depositAction}
-                          onActionClick={() => setSelectedMarket(market)}
-                        />
-                      )
-                    })
-                    .filter(Boolean)
+                  depositMarkets.map((market) => (
+                    <DepositCard key={market.mTokenCurrency.address} market={market} onActionClick={() => setSelectedMarket(market)} />
+                  ))
                 )}
               </div>
             </div>
@@ -138,7 +110,7 @@ export function DepositPanel({ userAddress, chainId, setDestinationInfo }: Depos
           open={!!selectedMarket}
           market={selectedMarket}
           onClose={() => setSelectedMarket(undefined)}
-          userAddress={userAddress as any}
+          userAddress={address as any}
           chainId={chainId}
           setDestinationInfo={setDestinationInfo}
         />

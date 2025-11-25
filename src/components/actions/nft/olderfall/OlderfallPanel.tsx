@@ -1,7 +1,6 @@
 // ./actions/nft/olderfall/OlderfallPanel.tsx
 
 import { useEffect, useMemo, useState } from "react"
-import { getAllActions } from "../../../../lib/actions/registry"
 import { useOlderfallListings } from "./hooks/useOlderfallListings"
 import { CurrencyHandler, SupportedChainId } from "../../../../sdk/types"
 import { DestinationActionHandler } from "../../shared/types"
@@ -10,13 +9,16 @@ import { OlderfallListingCard } from "./OlderfallCard"
 import { formatListingPriceLabel } from "./utils"
 import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from "./Generic"
 import { buildCalls } from "./callBuilder"
+import type { OlderfallListing } from "../../../../lib/sequence/marketplace"
+import { useConnection } from "wagmi"
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
 interface OlderfallPanelProps {
-  userAddress?: string
   tokenLists?: TokenListsMeta
   setDestinationInfo?: DestinationActionHandler
+  preloadedListings?: Record<string, OlderfallListing[]>
+  resetKey?: number
 }
 
 interface OlderfallListingsListProps {
@@ -69,7 +71,8 @@ const OLDERFALL_OPTIONS = [
 
 /* ---------- Main unified panel with tabs ---------- */
 
-export function OlderfallPanel({ userAddress, tokenLists, setDestinationInfo }: OlderfallPanelProps) {
+export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListings, resetKey }: OlderfallPanelProps) {
+  const { address } = useConnection()
   const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(0)
 
@@ -81,10 +84,21 @@ export function OlderfallPanel({ userAddress, tokenLists, setDestinationInfo }: 
     setSelectedOlderfallOrderId("")
   }, [selectedOptionIndex])
 
-  const { listings: olderfallListings, loading: olderfallLoading } = useOlderfallListings(true, dstChainId)
+  useEffect(() => {
+    if (resetKey !== undefined && resetKey > 0) {
+      setSelectedOlderfallOrderId("")
+      setSelectedOptionIndex(0)
+      setDestinationInfo?.(undefined, undefined, [])
+    }
+  }, [resetKey])
+
+  const { listings: hookListings, loading: hookLoading } = useOlderfallListings(!preloadedListings, dstChainId)
+
+  const olderfallListings = preloadedListings?.[dstChainId] ?? hookListings
+  const olderfallLoading = preloadedListings ? false : hookLoading
 
   const handleAddClick = async (selectedOlderfallOrderId: string) => {
-    if (!selectedOlderfallOrderId || !userAddress) return
+    if (!selectedOlderfallOrderId || !address) return
 
     // Pick the first Olderfall config (they all share the same group)
     const listing = olderfallListings.find((l) => l.orderId === selectedOlderfallOrderId)
@@ -97,7 +111,7 @@ export function OlderfallPanel({ userAddress, tokenLists, setDestinationInfo }: 
     // create calldata
     const destinationCalls = await buildCalls({
       chainId: chainId,
-      buyer: userAddress as any,
+      buyer: address as any,
       listing,
     })
     console.log("listing.pricePerToken", listing.pricePerToken, setDestinationInfo)

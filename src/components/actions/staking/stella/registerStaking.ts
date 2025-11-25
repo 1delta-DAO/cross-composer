@@ -1,0 +1,22 @@
+import { registerAction } from "../../shared/actionRegistry"
+import { StellaStakingPanel } from "./StellaStakingPanel"
+import { StakingIcon } from "./StakingIcon"
+import type { ActionDefinition } from "../../shared/actionDefinitions"
+
+export function registerStakingAction(): void {
+  const stakingAction: ActionDefinition = {
+    id: "staking",
+    label: "Staking",
+    category: "yield",
+    icon: StakingIcon,
+    panel: StellaStakingPanel,
+    priority: 5,
+    actionType: "staking",
+    buildPanelProps: (context) => ({
+      tokenLists: context.tokenLists,
+      setDestinationInfo: context.setDestinationInfo,
+    }),
+  }
+
+  registerAction(stakingAction)
+}
