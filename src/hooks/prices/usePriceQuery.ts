@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import type { Address } from "viem"
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
+import { zeroAddress } from "viem"
 import { setPricesFromDexscreener } from "../../lib/trade-helpers/prices"
+import type { RawCurrency } from "../../types/currency"
+import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
 
 export type PricesRecord = Record<string, Record<string, { usd: number }>>
 
@@ -92,9 +95,9 @@ async function fetchTokenPrice(chainId: string, tokenAddress: string): Promise<n
   }
 }
 
-export async function fetchPrices(chainId: string, addresses: Address[]): Promise<PricesRecord> {
+async function fetchPricesForChain(chainId: string, addresses: Address[]): Promise<Record<string, { usd: number }>> {
   const out: Record<string, { usd: number }> = {}
-  if (addresses.length === 0) return { [chainId]: out }
+  if (addresses.length === 0) return out
 
   const uniq = Array.from(new Set(addresses.map((a) => a.toLowerCase())))
 
@@ -111,22 +114,78 @@ export async function fetchPrices(chainId: string, addresses: Address[]): Promis
     }
   }
 
-  return { [chainId]: out }
+  return out
 }
 
-export function useDexscreenerPrices(params: { chainId: string; addresses: Address[]; enabled?: boolean }) {
-  const { chainId, addresses, enabled = true } = params
-  const query = useQuery({
-    queryKey: [
+export async function fetchPrices(currencies: RawCurrency[]): Promise<PricesRecord> {
+  if (currencies.length === 0) return {}
+
+  const currenciesByChain: Record<string, Array<{ currency: RawCurrency; priceAddress: Address }>> = {}
+
+  for (const currency of currencies) {
+    if (!currency?.chainId || !currency?.address) continue
+
+    const chainId = currency.chainId
+    const addr = currency.address.toLowerCase()
+
+    const priceAddress =
+      addr === zeroAddress.toLowerCase()
+        ? (CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress) as Address | undefined) || (zeroAddress as Address)
+        : (currency.address as Address)
+
+    if (!currenciesByChain[chainId]) {
+      currenciesByChain[chainId] = []
+    }
+
+    currenciesByChain[chainId].push({ currency, priceAddress })
+  }
+
+  const chainPromises = Object.entries(currenciesByChain).map(async ([chainId, items]) => {
+    const uniqueAddresses = Array.from(new Set(items.map((item) => item.priceAddress.toLowerCase()))) as Address[]
+
+    const prices = await fetchPricesForChain(chainId, uniqueAddresses)
+
+    const result: Record<string, { usd: number }> = {}
+    for (const { currency, priceAddress } of items) {
+      const priceKey = priceAddress.toLowerCase()
+      const price = prices[priceKey]
+      if (price) {
+        const currencyKey = currency.address.toLowerCase()
+        result[currencyKey] = price
+      }
+    }
+
+    return { chainId, prices: result }
+  })
+
+  const results = await Promise.all(chainPromises)
+
+  const output: PricesRecord = {}
+  for (const { chainId, prices } of results) {
+    output[chainId] = prices
+  }
+
+  return output
+}
+
+export function usePriceQuery(params: { currencies: RawCurrency[]; enabled?: boolean }) {
+  const { currencies, enabled = true } = params
+
+  const queryKey = useMemo(
+    () => [
       "prices",
-      chainId,
-      addresses
-        .map((a) => a.toLowerCase())
+      currencies
+        .map((c) => `${c.chainId}:${c.address.toLowerCase()}`)
         .sort()
         .join(","),
     ],
-    enabled: enabled && Boolean(chainId && addresses && addresses.length > 0),
-    queryFn: () => fetchPrices(chainId, addresses),
+    [currencies]
+  )
+
+  const query = useQuery({
+    queryKey,
+    enabled: enabled && Boolean(currencies && currencies.length > 0),
+    queryFn: () => fetchPrices(currencies),
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   })

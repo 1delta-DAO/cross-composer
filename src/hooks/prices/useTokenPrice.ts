@@ -1,16 +1,22 @@
 import type { Address } from "viem"
-import { useDexscreenerPrices } from "./useDexscreenerPrices"
+import { useMemo } from "react"
+import { usePriceQuery } from "./usePriceQuery"
+import { getCurrency } from "../../lib/trade-helpers/utils"
 
 export function useTokenPrice(params: { chainId: string; tokenAddress?: Address; enabled?: boolean }) {
   const { chainId, tokenAddress, enabled = true } = params
 
-  const { data, isLoading, ...rest } = useDexscreenerPrices({
-    chainId,
-    addresses: tokenAddress ? [tokenAddress] : [],
-    enabled: enabled && Boolean(chainId && tokenAddress),
+  const currency = useMemo(() => {
+    if (!chainId || !tokenAddress) return undefined
+    return getCurrency(chainId, tokenAddress)
+  }, [chainId, tokenAddress])
+
+  const { data, isLoading, ...rest } = usePriceQuery({
+    currencies: currency ? [currency] : [],
+    enabled: enabled && Boolean(currency),
   })
 
-  const price = tokenAddress && data?.[chainId]?.[tokenAddress.toLowerCase()]?.usd
+  const price = tokenAddress && currency && data?.[currency.chainId]?.[currency.address.toLowerCase()]?.usd
 
   return {
     price,
