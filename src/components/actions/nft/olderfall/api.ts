@@ -1,4 +1,4 @@
-import { OLDERFALL_COLLECTIONS, OLDERFALL_ARMORS_ADDRESS, SEQUENCE_MARKETPLACE_API_URL, SEQUENCE_PROJECT_ACCESS_KEY } from "./market"
+import { OLDERFALL_COLLECTIONS, SEQUENCE_MARKETPLACE_API_URL, SEQUENCE_PROJECT_ACCESS_KEY } from "./constants"
 
 export type OlderfallListing = {
   orderId: string
@@ -137,7 +137,7 @@ export async function generateOlderfallBuySteps(args: {
 
   const body: any = {
     chainId: args.chainId,
-    collectionAddress: args.collectionAddress || OLDERFALL_ARMORS_ADDRESS,
+    collectionAddress: args.collectionAddress,
     buyer: args.buyer,
     marketplace: "sequence_marketplace_v2",
     ordersData: [

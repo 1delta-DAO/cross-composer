@@ -13,8 +13,6 @@ export const OLDERFALL_COLLECTIONS: Record<string, Address[]> = {
   "1284": ["0x502042347a577732704b8a16570d808ebbbb58d6"],
 }
 
-export const OLDERFALL_ARMORS_ADDRESS: Address = OLDERFALL_COLLECTIONS["137"][0]
-
 export const SEQUENCE_MARKET_ABI: Abi = [
   {
     inputs: [
@@ -83,22 +81,8 @@ export const SEQUENCE_MARKET_ABI: Abi = [
   },
 ] as Abi
 
-export type SequenceRequest = {
-  creator: Address
-  isListing: boolean
-  isERC1155: boolean
-  tokenContract: Address
-  tokenId: bigint
-  quantity: bigint
-  expiry: bigint
-  currency: Address
-  pricePerToken: bigint
-}
-
 export const SEQUENCE_PROJECT_ACCESS_KEY = import.meta.env.VITE_SEQUENCE_PROJECT_ACCESS_KEY as string | undefined
 
 export const SEQUENCE_PROJECT_ID = import.meta.env.VITE_SEQUENCE_PROJECT_ID as string | undefined
 
 export const SEQUENCE_MARKETPLACE_API_URL = import.meta.env.VITE_SEQUENCE_MARKETPLACE_API_URL as string | undefined
-
-export const SEQUENCE_INDEXER_API_URL = import.meta.env.VITE_SEQUENCE_INDEXER_API_URL as string | undefined

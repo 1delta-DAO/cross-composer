@@ -1,7 +1,6 @@
 // ./actions/nft/olderfall/OlderfallPanel.tsx
 
-import { useEffect, useMemo, useState } from "react"
-import { useOlderfallListings } from "./hooks/useOlderfallListings"
+import { useEffect, useState } from "react"
 import { CurrencyHandler, SupportedChainId } from "../../../../sdk/types"
 import { DestinationActionHandler } from "../../shared/types"
 import { Chain } from "@1delta/chain-registry"
@@ -9,7 +8,7 @@ import { OlderfallListingCard } from "./OlderfallCard"
 import { formatListingPriceLabel } from "./utils"
 import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from "./Generic"
 import { buildCalls } from "./callBuilder"
-import type { OlderfallListing } from "../../../../lib/sequence/marketplace"
+import type { OlderfallListing } from "./api"
 import { useConnection } from "wagmi"
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
@@ -92,10 +91,8 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
     }
   }, [resetKey])
 
-  const { listings: hookListings, loading: hookLoading } = useOlderfallListings(!preloadedListings, dstChainId)
-
-  const olderfallListings = preloadedListings?.[dstChainId] ?? hookListings
-  const olderfallLoading = preloadedListings ? false : hookLoading
+  const olderfallListings = preloadedListings?.[dstChainId] ?? []
+  const olderfallLoading = !preloadedListings
 
   const handleAddClick = async (selectedOlderfallOrderId: string) => {
     if (!selectedOlderfallOrderId || !address) return

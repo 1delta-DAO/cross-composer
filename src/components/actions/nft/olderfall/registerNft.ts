@@ -3,9 +3,10 @@ import { OlderfallPanel } from "./OlderfallPanel"
 import { NftIcon } from "./NftIcon"
 import type { ActionDefinition } from "../../shared/actionDefinitions"
 import { Chain } from "@1delta/chain-registry"
-import { fetchOlderfallListings } from "../../../../lib/sequence/marketplace"
-import type { OlderfallListing } from "../../../../lib/sequence/marketplace"
+import { fetchOlderfallListings } from "./api"
+import type { OlderfallListing } from "./api"
 import type { ActionLoaderContext } from "../../shared/actionDefinitions"
+import { getCachedListings, setCachedListings } from "./cache"
 
 export function registerNftAction(): void {
   const nftAction: ActionDefinition = {
@@ -23,7 +24,14 @@ export function registerNftAction(): void {
       await Promise.all(
         supportedChains.map(async (chainId) => {
           try {
+            const cached = getCachedListings(chainId)
+            if (cached) {
+              results[chainId] = cached
+              return
+            }
+
             const listings = await fetchOlderfallListings(chainId)
+            setCachedListings(chainId, listings)
             results[chainId] = listings
           } catch (error) {
             console.error(`Failed to load Olderfall listings for chain ${chainId}:`, error)
