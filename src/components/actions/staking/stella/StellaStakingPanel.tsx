@@ -14,7 +14,7 @@ import type { Address } from 'viem'
 import { useTokenPrice } from '../../../../hooks/prices/useTokenPrice'
 import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
-import { MOCK_RECEIVER_ADDRESS } from '../../../../lib/consts'
+import { DUMMY_ADDRESS } from '../../../../lib/consts'
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
@@ -29,7 +29,7 @@ interface StellaStakingPanelProps {
 
 export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency, dstCurrency, slippage = 0.5, resetKey }: StellaStakingPanelProps) {
   const { address } = useConnection()
-  const receiverAddress = address || MOCK_RECEIVER_ADDRESS
+  const receiverAddress = address || DUMMY_ADDRESS
 
   const [outputAmount, setOutputAmount] = useState('')
   const [isSelected, setIsSelected] = useState(false)

@@ -8,7 +8,7 @@ import { parseUnits } from 'viem'
 import type { Address } from 'viem'
 import { fetchAllAggregatorTrades } from '../../../lib/trade-helpers/aggregatorSelector'
 import { TradeType } from '@1delta/lib-utils'
-import { MOCK_RECEIVER_ADDRESS } from '../../../lib/consts'
+import { DUMMY_ADDRESS } from '../../../lib/consts'
 import { Logo } from '../../common/Logo'
 import { useConnection } from 'wagmi'
 
@@ -32,7 +32,7 @@ export function SwapPanel({
   resetKey,
 }: SwapPanelProps) {
   const { address } = useConnection()
-  const receiverAddress = address || MOCK_RECEIVER_ADDRESS
+  const receiverAddress = address || DUMMY_ADDRESS
 
   const [selectedDstCurrency, setSelectedDstCurrency] = useState<RawCurrency | undefined>(initialDstCurrency)
   const [outputAmount, setOutputAmount] = useState('')

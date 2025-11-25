@@ -4,7 +4,7 @@ import type { GenericTrade } from '@1delta/lib-utils'
 import { TradeType } from '@1delta/lib-utils'
 import { convertAmountToWei } from '../../lib/trade-helpers/utils'
 import { fetchAllAggregatorTrades } from '../../lib/trade-helpers/aggregatorSelector'
-import { MOCK_RECEIVER_ADDRESS } from '../../lib/consts'
+import { DUMMY_ADDRESS } from '../../lib/consts'
 import { useToast } from '../../components/common/ToastHost'
 import type { DestinationCall } from '../../lib/types/destinationAction'
 import type { DeltaCall } from '@1delta/trade-sdk'
@@ -38,7 +38,7 @@ export function useSwapQuotes({
   minRequiredAmount?: RawCurrencyAmount
 }) {
   const { address: userAddress } = useConnection()
-  const receiverAddress = userAddress || MOCK_RECEIVER_ADDRESS
+  const receiverAddress = userAddress || DUMMY_ADDRESS
 
   const [quoting, setQuoting] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])

@@ -1,14 +1,14 @@
-import { useState, useEffect, useMemo } from 'react'
-import type { Abi, Hex, Address } from 'viem'
-import { toFunctionSelector, parseUnits, formatUnits } from 'viem'
-import type { DestinationActionConfig } from '../../../../lib/types/destinationAction'
-import type { RawCurrencyAmount } from '../../../../types/currency'
+import { useState } from 'react'
+import type { Address } from 'viem'
+import { parseUnits } from 'viem'
 import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
 import { DestinationActionHandler } from '../../shared/types'
 import { buildCalls } from './callBuilder'
 import { MoonwellMarket } from '../../../../hooks/useMoonwellMarkets'
 import { getForwarderAddress } from '@1delta/lib-utils'
 import { getComposerAddress } from '@1delta/calldata-sdk'
+import { useConnection } from 'wagmi'
+import { DUMMY_ADDRESS } from '../../../../lib/consts'
 
 type DepositActionModalProps = {
   open: boolean
@@ -19,14 +19,10 @@ type DepositActionModalProps = {
   setDestinationInfo?: DestinationActionHandler
 }
 
-export function DepositActionModal({
-  open,
-  onClose,
-  market,
-  userAddress, // kept for API compatibility, unused for now
-  setDestinationInfo,
-}: DepositActionModalProps) {
+export function DepositActionModal({ open, onClose, market, setDestinationInfo }: DepositActionModalProps) {
   const [amount, setAmount] = useState<string>('')
+  const { address } = useConnection()
+  const userAddress = address ?? DUMMY_ADDRESS
   const underlying = market.underlyingCurrency
 
   const handleConfirm = async () => {
