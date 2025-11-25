@@ -1,9 +1,10 @@
 import { useMemo } from "react"
 import type { RawCurrency, RawCurrencyAmount } from "../../../types/currency"
 import { formatDisplayAmount } from "../../swap/swapUtils"
-import { getTokenPrice } from "../../swap/swapUtils"
 import { CurrencyHandler } from "../../../sdk/types"
 import type { Address } from "viem"
+import { useTokenPrice } from "../../../hooks/prices/useTokenPrice"
+import { zeroAddress } from "viem"
 
 interface TransactionSummaryProps {
   srcCurrency?: RawCurrency
@@ -11,8 +12,6 @@ interface TransactionSummaryProps {
   inputAmount?: string
   outputAmount?: string
   currencyAmount?: RawCurrencyAmount
-  srcPricesMerged?: Record<string, { usd: number }>
-  dstPricesMerged?: Record<string, { usd: number }>
   route?: string
   chains?: Record<string, { data?: { name?: string } }>
 }
@@ -23,8 +22,6 @@ export function TransactionSummary({
   inputAmount,
   outputAmount: outputAmountProp,
   currencyAmount,
-  srcPricesMerged,
-  dstPricesMerged,
   route,
   chains,
 }: TransactionSummaryProps) {
@@ -41,15 +38,33 @@ export function TransactionSummary({
     return srcCurrency && dstCurrency && inputAmount && Number(inputAmount) > 0 && outputAmount && Number(outputAmount) > 0
   }, [srcCurrency, dstCurrency, inputAmount, outputAmount])
 
-  const srcPrice = useMemo(() => {
+  const srcTokenPriceAddr = useMemo(() => {
     if (!srcCurrency) return undefined
-    return getTokenPrice(srcCurrency.chainId, srcCurrency.address as Address, srcPricesMerged)
-  }, [srcCurrency, srcPricesMerged])
+    if (srcCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
+      return CurrencyHandler.wrappedAddressFromAddress(srcCurrency.chainId, zeroAddress) as Address | undefined
+    }
+    return srcCurrency.address as Address
+  }, [srcCurrency])
 
-  const dstPrice = useMemo(() => {
+  const { price: srcPrice } = useTokenPrice({
+    chainId: srcCurrency?.chainId || "",
+    tokenAddress: srcTokenPriceAddr,
+    enabled: Boolean(srcCurrency),
+  })
+
+  const dstTokenPriceAddr = useMemo(() => {
     if (!dstCurrency) return undefined
-    return getTokenPrice(dstCurrency.chainId, dstCurrency.address as Address, dstPricesMerged)
-  }, [dstCurrency, dstPricesMerged])
+    if (dstCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
+      return CurrencyHandler.wrappedAddressFromAddress(dstCurrency.chainId, zeroAddress) as Address | undefined
+    }
+    return dstCurrency.address as Address
+  }, [dstCurrency])
+
+  const { price: dstPrice } = useTokenPrice({
+    chainId: dstCurrency?.chainId || "",
+    tokenAddress: dstTokenPriceAddr,
+    enabled: Boolean(dstCurrency),
+  })
 
   const inputUsd = useMemo(() => {
     if (!inputAmount || !srcPrice) return undefined

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import type { Address, Hex } from "viem"
 import { zeroAddress } from "viem"
-import { useSendTransaction, useWriteContract, usePublicClient, useReadContract, useAccount } from "wagmi"
+import { useSendTransaction, useWriteContract, usePublicClient, useReadContract, useConnection, useSwitchChain } from "wagmi"
 import type { GenericTrade } from "../../sdk/types"
 import { SupportedChainId } from "../../sdk/types"
 import { buildTransactionUrl } from "../../lib/explorer"
 import { ERC20_ABI } from "../../lib/abi"
-import type { DestinationActionConfig, DestinationCall } from "../../lib/types/destinationAction"
+import type { DestinationCall } from "../../lib/types/destinationAction"
 import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { useToast } from "../common/ToastHost"
 import { WalletConnect } from "../connect"
@@ -111,7 +111,6 @@ type ExecuteButtonProps = {
   trade: GenericTrade
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
-  userAddress?: Address
   amountWei?: string
   onDone: (hashes: { src?: string; dst?: string; completed?: boolean }) => void
   chains?: ReturnType<typeof useChainsRegistry>["data"]
@@ -126,7 +125,6 @@ export default function ExecuteButton({
   trade,
   srcCurrency,
   dstCurrency,
-  userAddress,
   amountWei,
   onDone,
   chains,
@@ -136,7 +134,9 @@ export default function ExecuteButton({
   onTransactionEnd,
   destinationCalls,
 }: ExecuteButtonProps) {
-  const { isConnected } = useAccount()
+  const { address } = useConnection()
+  const { isConnected } = useConnection()
+  const { switchChain } = useSwitchChain()
   const [step, setStep] = useState<"idle" | "approving" | "signing" | "broadcast" | "confirmed" | "error">("idle")
   const [srcHash, setSrcHash] = useState<string | undefined>()
   const [dstHash, setDstHash] = useState<string | undefined>()
@@ -155,7 +155,6 @@ export default function ExecuteButton({
   const dstChainId = useMemo(() => dstCurrency?.chainId, [dstCurrency])
   const srcToken = useMemo(() => srcCurrency?.address as Address | undefined, [srcCurrency])
 
-  // Reset error state when trade changes (user selected different quote/aggregator)
   useEffect(() => {
     if (step === "error") {
       setStep("idle")
@@ -173,9 +172,9 @@ export default function ExecuteButton({
     address: srcToken && srcToken.toLowerCase() !== zeroAddress.toLowerCase() ? srcToken : undefined,
     abi: ERC20_ABI,
     functionName: "allowance",
-    args: userAddress && spender ? [userAddress, spender] : undefined,
+    args: address && spender ? [address, spender] : undefined,
     query: {
-      enabled: Boolean(srcToken && userAddress && spender && srcToken.toLowerCase() !== zeroAddress.toLowerCase() && !skipApprove),
+      enabled: Boolean(srcToken && address && spender && srcToken.toLowerCase() !== zeroAddress.toLowerCase() && !skipApprove),
     },
   })
 
@@ -184,7 +183,7 @@ export default function ExecuteButton({
       return false
     }
     if (!amountWei) return false
-    if (currentAllowance === undefined) return true // Still loading, assume approval needed
+    if (currentAllowance === undefined) return true
     const requiredAmount = BigInt(amountWei)
     return currentAllowance < requiredAmount
   }, [srcToken, spender, amountWei, currentAllowance, skipApprove])
@@ -245,15 +244,17 @@ export default function ExecuteButton({
   }, [trade])
 
   const execute = useCallback(async () => {
-    if (!userAddress || !srcChainId) {
+    if (!address || !srcChainId) {
       toast.showError("Missing required parameters")
       return
     }
 
-    // Notify parent that transaction is starting to stop quote refetching
     onTransactionStart?.()
 
     try {
+      const srcChainIdNum = Number(srcChainId)
+      switchChain({ chainId: srcChainIdNum })
+
       let approvalHash: Address | undefined
 
       if (
@@ -355,7 +356,7 @@ export default function ExecuteButton({
               dstChainId === SupportedChainId.MOONBEAM &&
               destinationCalls &&
               destinationCalls.length > 0 &&
-              userAddress
+              address
             ) {
               ;(async () => {
                 try {
@@ -424,7 +425,7 @@ export default function ExecuteButton({
     srcToken,
     amountWei,
     spender,
-    userAddress,
+    address,
     srcChainId,
     dstChainId,
     destinationCalls,
@@ -440,6 +441,9 @@ export default function ExecuteButton({
     trade,
     createEntry,
     updateEntry,
+    srcChainId,
+    switchChain,
+    toast,
   ])
 
   const shouldShow = (name: "approving" | "signing" | "broadcast" | "confirmed") => {

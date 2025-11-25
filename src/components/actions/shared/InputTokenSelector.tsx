@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { RawCurrency } from "../../../types/currency"
-import { zeroAddress, type Address } from "viem"
+import { zeroAddress } from "viem"
 import { Logo } from "../../common/Logo"
 import { TokenSelectorModal } from "../../modals/TokenSelectorModal"
 
@@ -9,11 +9,10 @@ interface InputTokenSelectorProps {
   onCurrencyChange: (currency: RawCurrency) => void
   onChainChange?: (chainId: string) => void
   tokenLists?: Record<string, Record<string, RawCurrency>>
-  userAddress?: Address
   chains?: Record<string, { data?: { name?: string } }>
 }
 
-export function InputTokenSelector({ srcCurrency, onCurrencyChange, onChainChange, tokenLists, userAddress, chains }: InputTokenSelectorProps) {
+export function InputTokenSelector({ srcCurrency, onCurrencyChange, onChainChange, tokenLists, chains }: InputTokenSelectorProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [query, setQuery] = useState("")
 
@@ -60,7 +59,6 @@ export function InputTokenSelector({ srcCurrency, onCurrencyChange, onChainChang
         onChainChange={handleChainSelect}
         query={query}
         onQueryChange={setQuery}
-        userAddress={userAddress}
         showChainSelector={true}
       />
     </>

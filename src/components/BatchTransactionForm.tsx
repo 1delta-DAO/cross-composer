@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react"
-import { useAccount, useChainId, useSwitchChain } from "wagmi"
+import { useConnection, useChainId, useSwitchChain } from "wagmi"
 import { type Address } from "viem"
 import { usePermitBatch } from "../sdk/hooks/usePermitBatch"
 import { useDebounce } from "../hooks/useDebounce"
@@ -12,7 +12,7 @@ import { BatchTransactionFormProps, Operation, ERC20Operation, ArbitraryCallOper
 const MOONBEAM_CHAIN_ID = 1284
 
 export default function BatchTransactionForm({ onTransactionExecuted }: BatchTransactionFormProps) {
-  const { address } = useAccount()
+  const { address } = useConnection()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
   const { executeSelfTransmit, createBatchCalls, isLoading, error } = usePermitBatch()
@@ -37,7 +37,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
     async (tokenAddress: Address): Promise<number | null> => {
       return fetchDecimals(tokenAddress, String(chainId), localDecimalsCache, localLoadingDecimals, setLocalDecimalsCache, setLocalLoadingDecimals)
     },
-    [chainId, localDecimalsCache, localLoadingDecimals],
+    [chainId, localDecimalsCache, localLoadingDecimals]
   )
 
   const addERC20Operation = useCallback(() => {
@@ -135,8 +135,8 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
               tokenAddress,
               decimals: DEFAULT_DECIMALS[tokenAddress] || (op as ERC20Operation).decimals,
             }
-          : op,
-      ),
+          : op
+      )
     )
   }, [])
 
@@ -163,7 +163,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
         operation.operationType === "erc20" &&
         operation.tokenAddress &&
         !localDecimalsCache[operation.tokenAddress] &&
-        !localLoadingDecimals.has(operation.tokenAddress),
+        !localLoadingDecimals.has(operation.tokenAddress)
     )
 
     if (operationsToUpdate.length === 0) return
@@ -230,7 +230,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
         setIsSubmitting(false)
       }
     },
-    [address, operations, deadline, createBatchCalls, executeSelfTransmit, onTransactionExecuted],
+    [address, operations, deadline, createBatchCalls, executeSelfTransmit, onTransactionExecuted]
   )
 
   const isMoonbeam = chainId === MOONBEAM_CHAIN_ID

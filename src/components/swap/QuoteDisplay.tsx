@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react"
 import type { GenericTrade } from "../../sdk/types"
 import { Logo } from "../common/Logo"
-import { getAggregatorLogo, getBridgeLogo, getTokenPrice } from "./swapUtils"
+import { getAggregatorLogo, getBridgeLogo } from "./swapUtils"
 import type { RawCurrency } from "../../types/currency"
 import type { Address } from "viem"
+import { useTokenPrice } from "../../hooks/prices/useTokenPrice"
+import { zeroAddress } from "viem"
+import { CurrencyHandler } from "../../sdk/types"
 
 type QuoteDisplayProps = {
   quotes: Array<{ label: string; trade: GenericTrade }>
@@ -14,7 +17,6 @@ type QuoteDisplayProps = {
   dstSymbol: string
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
-  dstPricesMerged?: Record<string, { usd: number }>
   quoting: boolean
   isBridge: boolean
 }
@@ -28,15 +30,25 @@ export function QuoteDisplay({
   dstSymbol,
   srcCurrency,
   dstCurrency,
-  dstPricesMerged,
   quoting,
   isBridge,
 }: QuoteDisplayProps) {
   const [quotesExpanded, setQuotesExpanded] = useState(false)
   const getLogo = isBridge ? getBridgeLogo : getAggregatorLogo
 
-  const dstChainId = useMemo(() => dstCurrency?.chainId, [dstCurrency])
-  const dstToken = useMemo(() => (dstCurrency?.address as Address | undefined), [dstCurrency])
+  const dstTokenPriceAddr = useMemo(() => {
+    if (!dstCurrency) return undefined
+    if (dstCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
+      return CurrencyHandler.wrappedAddressFromAddress(dstCurrency.chainId, zeroAddress) as Address | undefined
+    }
+    return dstCurrency.address as Address
+  }, [dstCurrency])
+
+  const { price: dstPrice } = useTokenPrice({
+    chainId: dstCurrency?.chainId || "",
+    tokenAddress: dstTokenPriceAddr,
+    enabled: Boolean(dstCurrency),
+  })
 
   if (quotes.length === 0) {
     if (quoting) {
@@ -95,13 +107,7 @@ export function QuoteDisplay({
             const isSelected = idx === selectedQuoteIndex
             const isBestQuote = idx === 0
             const diffPercent = bestOutput > 0 && idx > 0 ? ((output - bestOutput) / bestOutput) * 100 : 0
-            const outputUsd =
-              dstToken && dstChainId
-                ? (() => {
-                    const price = getTokenPrice(dstChainId, dstToken, dstPricesMerged)
-                    return price ? output * price : undefined
-                  })()
-                : undefined
+            const outputUsd = dstPrice ? output * dstPrice : undefined
 
             return (
               <div

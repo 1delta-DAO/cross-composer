@@ -3,17 +3,19 @@ import type { Address } from "viem"
 import { zeroAddress } from "viem"
 import { useTokenLists } from "../../hooks/useTokenLists"
 import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
-import { useDexscreenerPrices } from "../../hooks/prices/useDexscreenerPrices"
+import { usePriceQuery } from "../../hooks/prices/usePriceQuery"
 import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { CurrencyHandler, SupportedChainId } from "../../sdk/types"
 import { getTokenFromCache } from "../../lib/data/tokenListsCache"
+import { getCurrency } from "../../lib/trade-helpers/utils"
+import type { RawCurrency } from "../../types/currency"
 import { TokenSelectorDropdownMode } from "./Dropdown"
 import { TokenSelectorListMode } from "./ListMode"
 import type { TokenRowData } from "./types"
+import { useConnection } from "wagmi"
 
 type Props = {
   chainId: string
-  userAddress?: Address
   value?: Address
   onChange: (address: Address) => void
   excludeAddresses?: Address[]
@@ -34,7 +36,6 @@ const BITCOIN_SYMBOLS = new Set(["WBTC", "BTCB", "HBTC", "RENBTC", "TBTC"])
 
 export function TokenSelector({
   chainId,
-  userAddress,
   value,
   onChange,
   excludeAddresses,
@@ -43,6 +44,7 @@ export function TokenSelector({
   showSearch = true,
   listMode = false,
 }: Props) {
+  const { address } = useConnection()
   const { data: lists, isLoading: listsLoading } = useTokenLists()
   const { data: chains } = useChainsRegistry()
   const [open, setOpen] = useState(false)
@@ -84,8 +86,8 @@ export function TokenSelector({
 
   const { data: balances, isLoading: balancesLoading } = useEvmBalances({
     chainId,
-    userAddress,
-    tokenAddresses: userAddress ? addressesWithNative : [],
+    userAddress: address,
+    tokenAddresses: address ? addressesWithNative : [],
   })
 
   const relevant = useMemo(() => {
@@ -183,21 +185,20 @@ export function TokenSelector({
     return undefined
   }, [])
 
-  const priceAddresses = useMemo(() => {
-    const addressesWithBalance: Address[] = []
-    const wrapped = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
+  const priceCurrencies = useMemo(() => {
+    const currencies: RawCurrency[] = []
+    const seenAddresses = new Set<string>()
 
-    if (balances?.[chainId] && userAddress) {
+    if (balances?.[chainId] && address) {
       for (const addr of addressesWithNative) {
         const bal = balances[chainId][addr.toLowerCase()]
         if (bal && Number(bal.value || 0) > 0) {
-          if (addr.toLowerCase() === zeroAddress.toLowerCase() && wrapped) {
-            if (!addressesWithBalance.includes(wrapped as Address)) {
-              addressesWithBalance.push(wrapped as Address)
-            }
-          } else {
-            if (!addressesWithBalance.includes(addr)) {
-              addressesWithBalance.push(addr)
+          const currency = getCurrency(chainId, addr)
+          if (currency) {
+            const key = currency.address.toLowerCase()
+            if (!seenAddresses.has(key)) {
+              seenAddresses.add(key)
+              currencies.push(currency)
             }
           }
         }
@@ -205,25 +206,22 @@ export function TokenSelector({
     }
 
     for (const addr of relevant) {
-      const addrLower = addr.toLowerCase()
-      if (addrLower === zeroAddress.toLowerCase() && wrapped) {
-        if (!addressesWithBalance.includes(wrapped as Address)) {
-          addressesWithBalance.push(wrapped as Address)
-        }
-      } else {
-        if (!addressesWithBalance.includes(addr)) {
-          addressesWithBalance.push(addr)
+      const currency = getCurrency(chainId, addr)
+      if (currency) {
+        const key = currency.address.toLowerCase()
+        if (!seenAddresses.has(key)) {
+          seenAddresses.add(key)
+          currencies.push(currency)
         }
       }
     }
 
-    return addressesWithBalance
-  }, [balances, chainId, addressesWithNative, userAddress, relevant])
+    return currencies
+  }, [balances, chainId, addressesWithNative, address, relevant])
 
-  const { data: prices, isLoading: pricesLoading } = useDexscreenerPrices({
-    chainId,
-    addresses: priceAddresses,
-    enabled: priceAddresses.length > 0,
+  const { data: prices, isLoading: pricesLoading } = usePriceQuery({
+    currencies: priceCurrencies,
+    enabled: priceCurrencies.length > 0,
   })
 
   const getTokenCategory = useCallback(
@@ -328,7 +326,7 @@ export function TokenSelector({
         prices={prices}
         balancesLoading={balancesLoading}
         pricesLoading={pricesLoading}
-        userAddress={userAddress}
+        userAddress={address}
         onChange={onChange}
       />
     )

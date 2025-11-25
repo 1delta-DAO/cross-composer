@@ -1,4 +1,3 @@
-import { useAccount } from "wagmi"
 import { useState } from "react"
 import type { Hex } from "viem"
 import BatchTransactionForm from "./components/BatchTransactionForm"
@@ -10,7 +9,6 @@ import { WalletConnect } from "./components/connect"
 import { TxHistoryButton } from "./components/history/TxHistoryButton"
 
 export default function App() {
-  const { address, isConnected } = useAccount()
   const [activeTab, setActiveTab] = useState<"swap" | "transactions">("swap")
   const [transactionHash, setTransactionHash] = useState<Hex | null>(null)
   const [showSwapReset, setShowSwapReset] = useState(false)
@@ -87,7 +85,6 @@ export default function App() {
               <div className="card-body p-4 sm:p-6">
                 {activeTab === "swap" ? (
                   <ActionsTab
-                    userAddress={address ?? undefined}
                     onResetStateChange={(showReset, resetCallback) => {
                       setShowSwapReset(showReset)
                       setSwapResetCallback(resetCallback || null)

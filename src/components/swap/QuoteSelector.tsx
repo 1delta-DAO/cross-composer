@@ -3,6 +3,9 @@ import type { GenericTrade } from "../../sdk/types"
 import { Logo } from "../common/Logo"
 import type { RawCurrency } from "../../types/currency"
 import type { Address } from "viem"
+import { useTokenPrice } from "../../hooks/prices/useTokenPrice"
+import { zeroAddress } from "viem"
+import { CurrencyHandler } from "../../sdk/types"
 
 type QuoteSelectorProps = {
   quotes: Array<{ label: string; trade: GenericTrade }>
@@ -12,23 +15,11 @@ type QuoteSelectorProps = {
   srcSymbol: string
   dstSymbol: string
   dstCurrency?: RawCurrency
-  dstPricesMerged?: Record<string, { usd: number }>
   quoting: boolean
   getLogo: (name: string) => string
 }
 
-export function QuoteSelector({
-  quotes,
-  selectedIndex,
-  onSelect,
-  amount,
-  srcSymbol,
-  dstSymbol,
-  dstCurrency,
-  dstPricesMerged,
-  quoting,
-  getLogo,
-}: QuoteSelectorProps) {
+export function QuoteSelector({ quotes, selectedIndex, onSelect, amount, srcSymbol, dstSymbol, dstCurrency, quoting, getLogo }: QuoteSelectorProps) {
   const [expanded, setExpanded] = useState(false)
 
   if (quotes.length === 0) {
@@ -41,13 +32,17 @@ export function QuoteSelector({
   const selectedOutput = selectedQuote.trade.outputAmountRealized
   const selectedRate = amount && Number(amount) > 0 ? selectedOutput / Number(amount) : 0
 
-  const dstToken = dstCurrency?.address as Address | undefined
-  const dstChainId = dstCurrency?.chainId
+  const dstTokenPriceAddr = dstCurrency
+    ? dstCurrency.address.toLowerCase() === zeroAddress.toLowerCase()
+      ? (CurrencyHandler.wrappedAddressFromAddress(dstCurrency.chainId, zeroAddress) as Address | undefined)
+      : (dstCurrency.address as Address)
+    : undefined
 
-  const getTokenPrice = (chainId: string, tokenAddress: string, prices?: Record<string, { usd: number }>): number | undefined => {
-    if (!prices) return undefined
-    return prices[tokenAddress.toLowerCase()]?.usd
-  }
+  const { price: dstPrice } = useTokenPrice({
+    chainId: dstCurrency?.chainId || "",
+    tokenAddress: dstTokenPriceAddr,
+    enabled: Boolean(dstCurrency),
+  })
 
   return (
     <div className="rounded-2xl bg-base-200 p-4 shadow border border-base-300 mt-3">
@@ -84,13 +79,7 @@ export function QuoteSelector({
             const isSelected = idx === selectedIndex
             const isBestQuote = idx === 0
             const diffPercent = bestOutput > 0 && idx > 0 ? ((output - bestOutput) / bestOutput) * 100 : 0
-            const outputUsd =
-              dstToken && dstChainId
-                ? (() => {
-                    const price = getTokenPrice(dstChainId, dstToken.toLowerCase(), dstPricesMerged)
-                    return price ? output * price : undefined
-                  })()
-                : undefined
+            const outputUsd = dstPrice ? output * dstPrice : undefined
 
             return (
               <div

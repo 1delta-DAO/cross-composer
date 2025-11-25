@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import type { Address } from "viem"
 import { zeroAddress } from "viem"
-import { useChainId } from "wagmi"
+import { useChainId, useConnection } from "wagmi"
 import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
 import { useTokenLists } from "../../hooks/useTokenLists"
 import { useEvmBalances } from "../../hooks/balances/useEvmBalances"
@@ -17,19 +17,18 @@ import { useSwapQuotes } from "../../sdk/hooks/useSwapQuotes"
 import { usePriceImpact } from "../../hooks/usePriceImpact"
 import ExecuteButton from "./ExecuteButton"
 import { ActionsPanel } from "./ActionsPanel"
-import { formatDisplayAmount, getTokenPrice, pickPreferredToken } from "./swapUtils"
+import { formatDisplayAmount, pickPreferredToken } from "./swapUtils"
 import type { DestinationCall } from "../../lib/types/destinationAction"
 import { reverseQuote } from "../../lib/reverseQuote"
-import type { DestinationActionSelectorRef } from "../DestinationActionSelector"
 
 type Props = {
-  userAddress?: Address
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
 }
 
 const DEFAULT_INPUT_CHAIN_ID = SupportedChainId.BASE
 
-export function ActionsTab({ userAddress, onResetStateChange }: Props) {
+export function ActionsTab({ onResetStateChange }: Props) {
+  const { address } = useConnection()
   const { data: chains } = useChainsRegistry()
   const { data: lists } = useTokenLists()
   const currentChainId = useChainId()
@@ -64,22 +63,22 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
   }, [inputCurrency, lists, chains])
 
   const inputAddressesWithNative = useMemo(() => {
-    if (!inputChainId || !userAddress) return []
+    if (!inputChainId || !address) return []
     const addrs = [...inputAddrs]
     if (!addrs.includes(zeroAddress as Address)) {
       addrs.unshift(zeroAddress as Address)
     }
     return addrs
-  }, [inputAddrs, inputChainId, userAddress])
+  }, [inputAddrs, inputChainId, address])
 
   const { data: inputBalances } = useEvmBalances({
     chainId: inputChainId,
-    userAddress,
+    userAddress: address,
     tokenAddresses: inputAddressesWithNative,
   })
 
   const inputPriceCurrencies = useMemo(() => {
-    if (!inputBalances?.[inputChainId] || !userAddress || !inputChainId) return []
+    if (!inputBalances?.[inputChainId] || !address || !inputChainId) return []
 
     const currencies: RawCurrency[] = []
     const seenAddresses = new Set<string>()
@@ -99,7 +98,7 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
     }
 
     return currencies
-  }, [inputBalances, inputChainId, inputAddressesWithNative, userAddress])
+  }, [inputBalances, inputChainId, inputAddressesWithNative, address])
 
   const { data: inputPrices } = usePriceQuery({
     currencies: inputPriceCurrencies,
@@ -116,32 +115,19 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
 
   const inputTokenPriceInCache = inputTokenPriceAddr && inputPrices?.[inputCurrency?.chainId || inputChainId]?.[inputTokenPriceAddr.toLowerCase()]
 
-  const { price: inputTokenPriceOnDemand } = useTokenPrice({
+  const { price: inputTokenPrice } = useTokenPrice({
     chainId: inputCurrency?.chainId || inputChainId,
     tokenAddress: inputTokenPriceAddr,
     enabled: Boolean(inputCurrency && !inputTokenPriceInCache),
   })
 
-  const inputPricesMerged = useMemo(() => {
-    const key = inputCurrency?.chainId || inputChainId
-    const merged: Record<string, { usd: number }> = {
-      ...(inputPrices?.[key] || {}),
+  const inputPrice = useMemo(() => {
+    if (inputTokenPrice !== undefined) return inputTokenPrice
+    if (inputTokenPriceAddr && inputPrices?.[inputCurrency?.chainId || inputChainId]?.[inputTokenPriceAddr.toLowerCase()]?.usd) {
+      return inputPrices[inputCurrency?.chainId || inputChainId][inputTokenPriceAddr.toLowerCase()].usd
     }
-    if (inputTokenPriceAddr && inputTokenPriceOnDemand) {
-      merged[inputTokenPriceAddr.toLowerCase()] = { usd: inputTokenPriceOnDemand }
-    }
-    return merged
-  }, [inputPrices, inputCurrency, inputChainId, inputTokenPriceAddr, inputTokenPriceOnDemand])
-
-  const actionPriceCurrencies = useMemo(() => {
-    if (!actionCurrency || !userAddress || !actionChainId) return []
-    return [actionCurrency]
-  }, [actionCurrency, userAddress, actionChainId])
-
-  const { data: actionPrices } = usePriceQuery({
-    currencies: actionPriceCurrencies,
-    enabled: actionPriceCurrencies.length > 0,
-  })
+    return undefined
+  }, [inputTokenPrice, inputTokenPriceAddr, inputPrices, inputCurrency, inputChainId])
 
   const actionTokenPriceAddr = useMemo(() => {
     if (!actionCurrency) return undefined
@@ -151,26 +137,11 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
     return actionCurrency.address as Address
   }, [actionCurrency])
 
-  const actionTokenPriceInCache =
-    actionTokenPriceAddr && actionPrices?.[actionCurrency?.chainId || actionChainId || ""]?.[actionTokenPriceAddr.toLowerCase()]
-
-  const { price: actionTokenPriceOnDemand } = useTokenPrice({
-    chainId: actionCurrency?.chainId || actionChainId || "1",
+  const { price: actionTokenPrice } = useTokenPrice({
+    chainId: actionCurrency?.chainId || actionChainId || "",
     tokenAddress: actionTokenPriceAddr,
-    enabled: Boolean(actionCurrency && !actionTokenPriceInCache),
+    enabled: Boolean(actionCurrency),
   })
-
-  const actionPricesMerged = useMemo(() => {
-    if (!actionCurrency || !actionChainId) return {}
-    const key = actionChainId
-    const merged: Record<string, { usd: number }> = {
-      ...(actionPrices?.[key] || {}),
-    }
-    if (actionTokenPriceAddr && actionTokenPriceOnDemand) {
-      merged[actionTokenPriceAddr.toLowerCase()] = { usd: actionTokenPriceOnDemand }
-    }
-    return merged
-  }, [actionPrices, actionCurrency, actionChainId, actionTokenPriceAddr, actionTokenPriceOnDemand])
 
   const debouncedAmount = useDebounce(amount, 1000)
   const inputKey = useMemo(
@@ -187,7 +158,7 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
   const { slippage, setPriceImpact } = useSlippage()
   const [txInProgress, setTxInProgress] = useState(false)
   const [destinationCalls, setDestinationCalls] = useState<DestinationCall[]>([])
-  const actionSelectorRef = useRef<DestinationActionSelectorRef>(null)
+  const [actionResetKey, setActionResetKey] = useState(0)
 
   const isSwapOrBridge = useMemo(() => {
     return Boolean(inputCurrency && actionCurrency)
@@ -200,7 +171,6 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
     debouncedSrcKey: debouncedInputKey,
     debouncedDstKey: debouncedActionKey,
     slippage,
-    userAddress,
     txInProgress,
     destinationCalls,
   })
@@ -225,8 +195,6 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
     dstToken: actionCurrency?.address as any,
     srcChainId: inputChainId,
     dstChainId: actionChainId,
-    srcPricesMerged: inputPricesMerged,
-    dstPricesMerged: actionPricesMerged,
   })
 
   useEffect(() => {
@@ -243,6 +211,7 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
         setDestinationInfoState(undefined)
         setCalculatedInputAmount("")
         setDestinationCalls([])
+        setActionCurrency(undefined)
         return
       }
 
@@ -254,14 +223,15 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
         setDestinationInfoState(undefined)
         setCalculatedInputAmount("")
         setDestinationCalls([])
+        setActionCurrency(undefined)
         return
       }
 
-      const priceIn = inputCurrency ? getTokenPrice(inputCurrency.chainId, inputCurrency.address as Address, inputPricesMerged) : 1
-      const priceOut = getTokenPrice(actionCur.chainId, actionCur.address as Address, actionPricesMerged)
+      const priceIn = inputPrice ?? 1
+      const priceOut = actionTokenPrice ?? 1
 
       const decimalsOut = actionCur.decimals
-      const amountIn = reverseQuote(decimalsOut, currencyAmount.amount.toString(), priceIn ?? 1, priceOut ?? 1)
+      const amountIn = reverseQuote(decimalsOut, currencyAmount.amount.toString(), priceIn, priceOut)
 
       setCalculatedInputAmount(amountIn)
       setDestinationInfoState({ currencyAmount })
@@ -269,22 +239,21 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
 
       setAmount(amountIn)
     },
-    [inputCurrency, inputPricesMerged, actionPricesMerged]
+    [inputCurrency, inputPrice, actionTokenPrice]
   )
 
   return (
     <div>
       <ActionsPanel
-        ref={actionSelectorRef}
+        resetKey={actionResetKey}
         srcCurrency={inputCurrency}
         dstCurrency={actionCurrency}
-        userAddress={userAddress}
         currentChainId={currentChainId}
         tokenLists={lists}
         setDestinationInfo={setDestinationInfo}
         quotes={quotes}
-        srcPricesMerged={inputPricesMerged}
-        dstPricesMerged={actionPricesMerged}
+        selectedQuoteIndex={selectedQuoteIndex}
+        setSelectedQuoteIndex={setSelectedQuoteIndex}
         slippage={slippage}
         onSrcCurrencyChange={setInputCurrency}
         calculatedInputAmount={calculatedInputAmount}
@@ -297,31 +266,30 @@ export function ActionsTab({ userAddress, onResetStateChange }: Props) {
             trade={selectedTrade}
             srcCurrency={inputCurrency}
             dstCurrency={actionCurrency}
-            userAddress={userAddress}
             amountWei={amountWei}
             destinationCalls={destinationCalls}
             chains={chains}
             onDone={(hashes) => {
-              if (inputCurrency?.chainId && userAddress) {
+              if (inputCurrency?.chainId && address) {
                 queryClient.invalidateQueries({
-                  queryKey: ["balances", inputCurrency.chainId, userAddress],
+                  queryKey: ["balances", inputCurrency.chainId, address],
                 })
                 queryClient.invalidateQueries({
-                  queryKey: ["tokenBalance", inputCurrency.chainId, userAddress],
+                  queryKey: ["tokenBalance", inputCurrency.chainId, address],
                 })
               }
-              if (actionCurrency?.chainId && userAddress) {
+              if (actionCurrency?.chainId && address) {
                 queryClient.invalidateQueries({
-                  queryKey: ["balances", actionCurrency.chainId, userAddress],
+                  queryKey: ["balances", actionCurrency.chainId, address],
                 })
                 queryClient.invalidateQueries({
-                  queryKey: ["tokenBalance", actionCurrency.chainId, userAddress],
+                  queryKey: ["tokenBalance", actionCurrency.chainId, address],
                 })
               }
               setDestinationInfo(undefined, undefined, [])
 
               if (hashes.src) {
-                actionSelectorRef.current?.reset()
+                setActionResetKey((prev) => prev + 1)
               }
             }}
             onTransactionStart={() => {

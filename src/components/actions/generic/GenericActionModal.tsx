@@ -4,9 +4,9 @@ import { formatUnits, toFunctionSelector, parseUnits, parseUnits as parseUnitsFn
 import type { DestinationActionConfig } from "../../../lib/types/destinationAction"
 import { useTokenBalance } from "../../../hooks/balances/useTokenBalance"
 import { useBorrowBalance } from "../../../hooks/balances/useBorrowBalance"
-import { useAccountLiquidity } from "../../../hooks/balances/useAccountLiquidity"
 import { SupportedChainId } from "../../../sdk/types"
 import { CurrencyHandler } from "@1delta/lib-utils/dist/services/currency/currencyUtils"
+import { useAccountLiquidity } from "../../../hooks/balances/useAccountLiquidity"
 
 type LendingActionModalProps = {
   open: boolean

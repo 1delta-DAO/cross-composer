@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import type { Address } from "viem"
 import type { GenericTrade } from "@1delta/lib-utils"
 import { TradeType } from "@1delta/lib-utils"
-import { getCurrency, convertAmountToWei } from "../../lib/trade-helpers/utils"
+import { convertAmountToWei } from "../../lib/trade-helpers/utils"
 import { fetchAllAggregatorTrades } from "../../lib/trade-helpers/aggregatorSelector"
 import { MOCK_RECEIVER_ADDRESS } from "../../lib/consts"
 import { useToast } from "../../components/common/ToastHost"
@@ -11,6 +11,7 @@ import type { DeltaCall } from "@1delta/trade-sdk"
 import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
 import { fetchAllBridgeTrades } from "../trade-helpers/bridgeSelector"
 import type { RawCurrency } from "../../types/currency"
+import { useConnection } from "wagmi"
 
 type Quote = { label: string; trade: GenericTrade }
 
@@ -21,7 +22,6 @@ export function useSwapQuotes({
   debouncedSrcKey,
   debouncedDstKey,
   slippage,
-  userAddress,
   txInProgress,
   destinationCalls,
 }: {
@@ -31,10 +31,12 @@ export function useSwapQuotes({
   debouncedSrcKey: string
   debouncedDstKey: string
   slippage: number
-  userAddress?: Address
   txInProgress: boolean
   destinationCalls?: DestinationCall[]
 }) {
+  const { address: userAddress } = useConnection()
+  const receiverAddress = userAddress || MOCK_RECEIVER_ADDRESS
+
   const [quoting, setQuoting] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [selectedQuoteIndex, setSelectedQuoteIndex] = useState(0)
@@ -42,9 +44,9 @@ export function useSwapQuotes({
   const toast = useToast()
 
   const srcChainId = useMemo(() => srcCurrency?.chainId, [srcCurrency])
-  const srcToken = useMemo(() => (srcCurrency?.address as Address | undefined), [srcCurrency])
+  const srcToken = useMemo(() => srcCurrency?.address as Address | undefined, [srcCurrency])
   const dstChainId = useMemo(() => dstCurrency?.chainId, [dstCurrency])
-  const dstToken = useMemo(() => (dstCurrency?.address as Address | undefined), [dstCurrency])
+  const dstToken = useMemo(() => dstCurrency?.address as Address | undefined, [dstCurrency])
 
   const requestInProgressRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -72,15 +74,15 @@ export function useSwapQuotes({
 
   const destinationCallsKey = JSON.stringify(
     (destinationCalls || []).map((c) => ({
-      t: c.target.toLowerCase(),
+      t: c.target ? c.target.toLowerCase() : "",
       v: c.value ? c.value.toString() : "",
-      dStart: c.calldata.slice(0, 10),
-      dEnd: c.calldata.slice(-10),
+      dStart: c.calldata ? c.calldata.slice(0, 10) : "",
+      dEnd: c.calldata ? c.calldata.slice(-10) : "",
       g: c.gasLimit ? c.gasLimit.toString() : "",
       ct: typeof c.callType === "number" ? c.callType : 0,
       ta: c.tokenAddress ? c.tokenAddress.toLowerCase() : "",
       bi: typeof c.balanceOfInjectIndex === "number" ? c.balanceOfInjectIndex : 0,
-    })),
+    }))
   )
 
   useEffect(() => {
@@ -92,8 +94,6 @@ export function useSwapQuotes({
       prevDestinationCallsKeyRef.current = destinationCallsKey
     }
   }, [destinationCallsKey, quotes.length])
-
-  const receiverAddress = userAddress || MOCK_RECEIVER_ADDRESS
 
   const prevTxInProgressRef = useRef(txInProgress)
 
@@ -238,7 +238,7 @@ export function useSwapQuotes({
               flashSwap: false,
               usePermit: true,
             } as any,
-            controller,
+            controller
           )
           allQuotes = trades.map((t) => ({ label: t.aggregator.toString(), trade: t.trade }))
         } else {
@@ -281,7 +281,7 @@ export function useSwapQuotes({
               ...(additionalCalls ? { additionalCalls } : {}),
               destinationGasLimit,
             } as any,
-            controller,
+            controller
           )
           console.log("All bridges received from trade-sdk:", { bridges: bridgeTrades.map((t) => t.bridge), bridgeTrades })
           allQuotes = bridgeTrades.map((t) => ({ label: t.bridge, trade: t.trade }))

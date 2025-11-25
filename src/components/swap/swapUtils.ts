@@ -1,7 +1,3 @@
-import type { Address } from "viem"
-import { zeroAddress } from "viem"
-import { CurrencyHandler } from "../../sdk/types"
-
 // Helper function to get aggregator logo URL
 export function getAggregatorLogo(aggregatorName: string): string {
   const normalizedName = aggregatorName.toLowerCase().replace(/\s+/g, "-")
@@ -31,16 +27,6 @@ export function pickPreferredToken(map: Record<string, any>, native?: string): s
     if (wrapped) return wrapped[0]
   }
   return entries[0][0]
-}
-
-export function getTokenPrice(chainId: string, tokenAddress: Address, prices?: Record<string, { usd: number }>): number | undefined {
-  if (!prices) return undefined
-  // For zero address (native), use wrapped native price
-  if (tokenAddress.toLowerCase() === zeroAddress.toLowerCase()) {
-    const wrapped = CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress)
-    return wrapped ? prices[(wrapped as string).toLowerCase()]?.usd : undefined
-  }
-  return prices[tokenAddress.toLowerCase()]?.usd
 }
 
 export function formatDisplayAmount(val: string): string {
