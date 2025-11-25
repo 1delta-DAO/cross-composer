@@ -318,9 +318,8 @@ export default function ExecuteButton({
       if (publicClient) {
         publicClient
           .waitForTransactionReceipt({ hash: hash as any })
-          .then(() => {
+          .then(async () => {
             setIsConfirmed(true)
-            onDone({ src: hash })
 
             if (historyIdRef.current && !isBridge) {
               updateEntry(historyIdRef.current, {
@@ -348,9 +347,7 @@ export default function ExecuteButton({
                 }
                 onDone(hashes)
               })
-            }
-
-            if (
+            } else if (
               !isBridge &&
               srcChainId === SupportedChainId.MOONBEAM &&
               dstChainId === SupportedChainId.MOONBEAM &&
@@ -358,20 +355,22 @@ export default function ExecuteButton({
               destinationCalls.length > 0 &&
               address
             ) {
-              ;(async () => {
-                try {
-                  for (const call of destinationCalls) {
-                    await sendTransactionAsync({
-                      to: call.target,
-                      data: call.calldata,
-                      value: (call.value ?? 0n) as any,
-                    })
-                  }
-                } catch (e) {
-                  console.error("Destination actions execution failed:", e)
-                  toast.showError("Failed to execute destination actions")
+              try {
+                for (const call of destinationCalls) {
+                  await sendTransactionAsync({
+                    to: call.target,
+                    data: call.calldata,
+                    value: (call.value ?? 0n) as any,
+                  })
                 }
-              })()
+                onDone({ src: hash })
+              } catch (e) {
+                console.error("Destination actions execution failed:", e)
+                toast.showError("Failed to execute destination actions")
+                onDone({ src: hash })
+              }
+            } else {
+              onDone({ src: hash })
             }
           })
           .catch((err) => {

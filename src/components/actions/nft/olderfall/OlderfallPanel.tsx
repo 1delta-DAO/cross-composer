@@ -10,6 +10,8 @@ import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from "./G
 import { buildCalls } from "./callBuilder"
 import type { OlderfallListing } from "./api"
 import { useConnection } from "wagmi"
+import { isValidAddress, isEmptyAddress } from "../../../../utils/addressValidation"
+import type { Address } from "viem"
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
@@ -74,9 +76,13 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
   const { address } = useConnection()
   const [selectedOlderfallOrderId, setSelectedOlderfallOrderId] = useState<string>("")
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(0)
+  const [receiverAddress, setReceiverAddress] = useState<string>("")
 
   const selectedOption = OLDERFALL_OPTIONS[selectedOptionIndex]
   const dstChainId = String(selectedOption.chainId)
+
+  const receiverAddressValid = isEmptyAddress(receiverAddress) || isValidAddress(receiverAddress)
+  const finalReceiverAddress = isEmptyAddress(receiverAddress) ? address : isValidAddress(receiverAddress) ? (receiverAddress as Address) : address
 
   // Reset selected listing when switching chain
   useEffect(() => {
@@ -87,6 +93,7 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
     if (resetKey !== undefined && resetKey > 0) {
       setSelectedOlderfallOrderId("")
       setSelectedOptionIndex(0)
+      setReceiverAddress("")
       setDestinationInfo?.(undefined, undefined, [])
     }
   }, [resetKey])
@@ -96,6 +103,8 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
 
   const handleAddClick = async (selectedOlderfallOrderId: string) => {
     if (!selectedOlderfallOrderId || !address) return
+
+    if (!receiverAddressValid || !finalReceiverAddress) return
 
     // Pick the first Olderfall config (they all share the same group)
     const listing = olderfallListings.find((l) => l.orderId === selectedOlderfallOrderId)
@@ -108,7 +117,7 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
     // create calldata
     const destinationCalls = await buildCalls({
       chainId: chainId,
-      buyer: address as any,
+      buyer: finalReceiverAddress,
       listing,
     })
     console.log("listing.pricePerToken", listing.pricePerToken, setDestinationInfo)
@@ -140,6 +149,29 @@ export function OlderfallPanel({ tokenLists, setDestinationInfo, preloadedListin
             {opt.label}
           </button>
         ))}
+      </div>
+
+      <div className="form-control">
+        <label className="label">
+          <span className="label-text text-xs font-medium">Receiver Address (optional)</span>
+        </label>
+        <input
+          type="text"
+          value={receiverAddress}
+          onChange={(e) => setReceiverAddress(e.target.value)}
+          placeholder={address || "0x..."}
+          className={`input input-bordered input-sm w-full ${!receiverAddressValid ? "input-error" : ""}`}
+        />
+        {!receiverAddressValid && (
+          <label className="label">
+            <span className="label-text-alt text-error">Invalid Ethereum address</span>
+          </label>
+        )}
+        {isEmptyAddress(receiverAddress) && (
+          <label className="label">
+            <span className="label-text-alt opacity-70">Leave empty to use your address</span>
+          </label>
+        )}
       </div>
 
       {olderfallLoading ? (
