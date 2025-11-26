@@ -9,10 +9,11 @@ import type { DestinationCallBuilder } from '../../shared/types'
 export type OlderfallCallBuilderParams = {
   chainId: string
   buyer: Address
+  userAddress: Address
   listing: OlderfallListing
 }
 
-export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = async ({ chainId, buyer, listing }) => {
+export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = async ({ chainId, buyer, userAddress, listing }) => {
   const orderId = String(listing.orderId || '')
   const tokenId = String(listing.tokenId || '')
   const currency = String(listing.currency || '')
@@ -59,7 +60,7 @@ export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = as
   const sweepCalldata = encodeFunctionData({
     abi: ERC20_ABI,
     functionName: 'transfer',
-    args: [buyer, 0n],
+    args: [userAddress, 0n], // always sweep to caller
   })
 
   const sweepCall: DestinationCall = {
