@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { RawCurrency } from '../../../types/currency'
 import { CurrencyHandler } from '../../../sdk/types'
 import { DestinationActionHandler } from '../shared/types'
@@ -40,7 +40,7 @@ export function BridgePanel({
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
   const [tokenModalQuery, setTokenModalQuery] = useState('')
 
-  const dstCurrency = selectedDstCurrency || initialDstCurrency
+  const dstCurrency = useMemo(() => selectedDstCurrency || initialDstCurrency, [selectedDstCurrency, initialDstCurrency])
   const debouncedOutputAmount = useDebounce(outputAmount, 1000)
 
   useEffect(() => {
@@ -70,18 +70,16 @@ export function BridgePanel({
     setOutputAmount(value)
   }
 
-  const handleTokenSelect = (currency: RawCurrency | undefined) => {
-    if (currency) {
-      setSelectedDstCurrency(currency)
-      setOutputAmount('')
-    }
+  const handleTokenSelect = useCallback((currency: RawCurrency) => {
+    setSelectedDstCurrency(currency)
+    setOutputAmount('')
     setTokenModalOpen(false)
-  }
+  }, [])
 
-  const handleChainChange = (chainId: string) => {
+  const handleChainChange = useCallback((chainId: string) => {
     setSelectedDstCurrency({ chainId, address: zeroAddress, decimals: 18 })
     setOutputAmount('')
-  }
+  }, [])
 
   const handleQuoteSelect = (index: number) => {
     if (!srcCurrency || !dstCurrency || !setDestinationInfo || !quotes || !setSelectedQuoteIndex) return

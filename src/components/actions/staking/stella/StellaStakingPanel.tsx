@@ -102,7 +102,6 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
     }
   }, [debouncedOutputAmount, xcDOTToken, xcDOTPrice, srcTokenPrice, slippage])
 
-
   useEffect(() => {
     const autoSelect = async () => {
       if (!debouncedOutputAmount || !xcDOTToken || !address || isSelected) return

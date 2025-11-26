@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { isMarketsLoading, isMarketsReady, subscribeToCacheChanges } from '../lib/moonwell/marketCache'
 import type { RawCurrency } from '../types/currency'
 import { ActionIconGrid } from './actions/shared/ActionIconGrid'
@@ -212,6 +212,13 @@ export default function DestinationActionSelector({
     setPanelResetKey((prev) => prev + 1)
   }
 
+  const wrappedSetDestinationInfo = useCallback<DestinationActionHandler>(
+    (currencyAmount, receiverAddress, destinationCalls, actionLabel) => {
+      setDestinationInfo?.(currencyAmount, receiverAddress, destinationCalls, actionLabel, selectedAction || undefined)
+    },
+    [setDestinationInfo, selectedAction],
+  )
+
   const renderActionPanel = () => {
     if (!selectedAction) return null
 
@@ -219,14 +226,6 @@ export default function DestinationActionSelector({
     if (!actionDef) return null
 
     const Panel = actionDef.panel
-    const wrappedSetDestinationInfo: DestinationActionHandler = (
-      currencyAmount,
-      receiverAddress,
-      destinationCalls,
-      actionLabel,
-    ) => {
-      setDestinationInfo?.(currencyAmount, receiverAddress, destinationCalls, actionLabel, selectedAction)
-    }
     const context = {
       tokenLists: tokenListsMeta,
       setDestinationInfo: wrappedSetDestinationInfo,

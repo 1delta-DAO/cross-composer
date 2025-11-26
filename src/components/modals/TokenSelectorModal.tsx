@@ -36,12 +36,14 @@ export function TokenSelectorModal({
   const [chainId, setChainId] = useState<string | undefined>(initialChainId ?? currency?.chainId ?? Chain.POLYGON_MAINNET)
 
   useEffect(() => {
-    if (open && initialChainId) {
-      setChainId(initialChainId)
-    } else if (open && currency?.chainId) {
-      setChainId(currency.chainId)
+    if (open) {
+      if (initialChainId) {
+        setChainId(initialChainId)
+      } else if (currency?.chainId) {
+        setChainId(currency.chainId)
+      }
     }
-  }, [open, initialChainId, currency?.chainId])
+  }, [open, initialChainId])
 
   const tokenValue = currency?.address as Address | undefined
 
