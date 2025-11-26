@@ -1,6 +1,7 @@
-import { initialize as initTradeSdk, setWalletClient as setTradeSdkWalletClient } from "@1delta/trade-sdk"
-import type { WalletClient } from "viem"
-import { initializeMoonwellMarkets } from "../moonwell/marketCache"
+import { initialize as initTradeSdk, setWalletClient as setTradeSdkWalletClient } from '@1delta/trade-sdk'
+import type { WalletClient } from 'viem'
+import { initializeMoonwellMarkets } from '../moonwell/marketCache'
+import { registerActions } from '../../components/actions/shared/registerActions'
 
 let isInitialized = false
 
@@ -9,9 +10,12 @@ export async function initAll() {
     return
   }
 
+  // init actions
+  registerActions()
+
   // init Moonwell markets cache on app startup
   initializeMoonwellMarkets().catch((error) => {
-    console.error("Failed to initialize Moonwell markets:", error)
+    console.error('Failed to initialize Moonwell markets:', error)
   })
 
   try {
@@ -22,9 +26,9 @@ export async function initAll() {
       load1deltaConfigs: true,
     })
     isInitialized = true
-    console.debug("Trade SDK initialized successfully")
+    console.debug('Trade SDK initialized successfully')
   } catch (error) {
-    console.error("Failed to initialize Trade SDK:", error)
+    console.error('Failed to initialize Trade SDK:', error)
     throw error
   }
 }

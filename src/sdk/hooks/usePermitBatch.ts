@@ -1,15 +1,15 @@
-import { useState, useCallback } from "react"
-import { useAccount, useSignTypedData, useWriteContract, useChainId } from "wagmi"
-import { encodeFunctionData, parseUnits, type Address, type Hex } from "viem"
-import { moonbeam } from "viem/chains"
-import { BATCH_PRECOMPILE, CALL_PERMIT_PRECOMPILE, DOMAIN_SEPARATOR } from "../../lib/consts"
-import { BatchCall, PermitBatchParams } from "../../lib/types"
-import { BATCH_ABI, CALL_PERMIT_ABI, ERC20_ABI } from "../../lib/abi"
-import { getRpcSelectorEvmClient } from "@1delta/lib-utils"
-import { fetchDecimals as fetchDecimalsUtil } from "../utils/tokenUtils"
+import { useState, useCallback } from 'react'
+import { useConnection, useSignTypedData, useWriteContract, useChainId } from 'wagmi'
+import { encodeFunctionData, parseUnits, type Address, type Hex } from 'viem'
+import { moonbeam } from 'viem/chains'
+import { BATCH_PRECOMPILE, CALL_PERMIT_PRECOMPILE, DOMAIN_SEPARATOR } from '../../lib/consts'
+import { BatchCall, PermitBatchParams } from '../../lib/types'
+import { BATCH_ABI, CALL_PERMIT_ABI, ERC20_ABI } from '../../lib/abi'
+import { getRpcSelectorEvmClient } from '@1delta/lib-utils'
+import { fetchDecimals as fetchDecimalsUtil } from '../utils/tokenUtils'
 
 export function usePermitBatch() {
-  const { address } = useAccount()
+  const { address } = useConnection()
   const chainId = useChainId()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,19 +22,19 @@ export function usePermitBatch() {
         const nonceChainId = targetChainId !== undefined ? String(targetChainId) : String(chainId)
         const publicClient = await getRpcSelectorEvmClient(nonceChainId)
         if (!publicClient) {
-          console.error("Could not get public client for fetching nonce")
+          console.error('Could not get public client for fetching nonce')
           return null
         }
         const nonce = await publicClient.readContract({
           address: CALL_PERMIT_PRECOMPILE,
           abi: CALL_PERMIT_ABI,
-          functionName: "nonces",
+          functionName: 'nonces',
           args: [userAddress],
         })
-        console.log("nonce fetch result:", nonce)
+        console.log('nonce fetch result:', nonce)
         return nonce
       } catch (error) {
-        console.error("Error fetching nonce:", error)
+        console.error('Error fetching nonce:', error)
         return null
       }
     },
@@ -52,7 +52,7 @@ export function usePermitBatch() {
 
     return encodeFunctionData({
       abi: BATCH_ABI,
-      functionName: "batchAll",
+      functionName: 'batchAll',
       args: [targets, values, callData, gasLimits],
     })
   }, [])
@@ -73,16 +73,16 @@ export function usePermitBatch() {
         if (!address || !DOMAIN_SEPARATOR) {
           return {
             hash: null,
-            error: "Missing required data for self-transmit",
+            error: 'Missing required data for self-transmit',
           }
         }
 
-        console.log("Fetching nonce for self-transmit:", address)
+        console.log('Fetching nonce for self-transmit:', address)
         const currentNonce = await fetchNonce(address)
         if (currentNonce === null) {
           return {
             hash: null,
-            error: "Failed to fetch nonce for self-transmit",
+            error: 'Failed to fetch nonce for self-transmit',
           }
         }
 
@@ -91,23 +91,23 @@ export function usePermitBatch() {
 
         const typedData = {
           domain: {
-            name: "Call Permit Precompile",
-            version: "1",
+            name: 'Call Permit Precompile',
+            version: '1',
             chainId: moonbeam.id,
             verifyingContract: CALL_PERMIT_PRECOMPILE,
           },
           types: {
             CallPermit: [
-              { name: "from", type: "address" },
-              { name: "to", type: "address" },
-              { name: "value", type: "uint256" },
-              { name: "data", type: "bytes" },
-              { name: "gaslimit", type: "uint64" },
-              { name: "nonce", type: "uint256" },
-              { name: "deadline", type: "uint256" },
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'value', type: 'uint256' },
+              { name: 'data', type: 'bytes' },
+              { name: 'gaslimit', type: 'uint64' },
+              { name: 'nonce', type: 'uint256' },
+              { name: 'deadline', type: 'uint256' },
             ],
           },
-          primaryType: "CallPermit" as const,
+          primaryType: 'CallPermit' as const,
           message: {
             from: params.from,
             to: BATCH_PRECOMPILE,
@@ -128,13 +128,13 @@ export function usePermitBatch() {
         const hash = await writeContractAsync({
           address: CALL_PERMIT_PRECOMPILE,
           abi: CALL_PERMIT_ABI,
-          functionName: "dispatch",
+          functionName: 'dispatch',
           args: [params.from, BATCH_PRECOMPILE, BigInt(0), batchData, gasLimit, params.deadline, v, r, s],
         })
 
         return { hash, error: null }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to execute self-transmit transaction"
+        const errorMessage = err instanceof Error ? err.message : 'Failed to execute self-transmit transaction'
         setError(errorMessage)
         return { hash: null, error: errorMessage }
       } finally {
@@ -147,7 +147,7 @@ export function usePermitBatch() {
   const createERC20Calls = useCallback(
     (
       operations: Array<{
-        type: "approve" | "transfer"
+        type: 'approve' | 'transfer'
         tokenAddress: Address
         to: Address
         amount: string
@@ -187,7 +187,7 @@ export function usePermitBatch() {
         return {
           target: op.target,
           value: valueInWei,
-          callData: (op.calldata as Hex) || "0x",
+          callData: (op.calldata as Hex) || '0x',
           gasLimit: BigInt(100000),
         }
       })
@@ -198,8 +198,8 @@ export function usePermitBatch() {
   const createBatchCalls = useCallback(
     (
       operations: Array<{
-        operationType: "erc20" | "arbitrary"
-        type?: "approve" | "transfer"
+        operationType: 'erc20' | 'arbitrary'
+        type?: 'approve' | 'transfer'
         tokenAddress?: Address
         to?: Address
         amount?: string
@@ -209,8 +209,8 @@ export function usePermitBatch() {
         value?: string
       }>,
     ): BatchCall[] => {
-      const erc20Ops = operations.filter((op) => op.operationType === "erc20")
-      const arbitraryOps = operations.filter((op) => op.operationType === "arbitrary")
+      const erc20Ops = operations.filter((op) => op.operationType === 'erc20')
+      const arbitraryOps = operations.filter((op) => op.operationType === 'arbitrary')
 
       const erc20Calls = createERC20Calls(erc20Ops as any)
       const arbitraryCalls = createArbitraryCalls(arbitraryOps as any)

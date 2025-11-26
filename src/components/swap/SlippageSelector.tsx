@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect } from 'react'
 
-type SlippageMode = "auto" | "custom"
+type SlippageMode = 'auto' | 'custom'
 
 type Props = {
   slippage: number
@@ -24,44 +24,44 @@ function calculateAutoSlippage(priceImpact?: number): number {
 }
 
 export function SlippageSelector({ slippage, onSlippageChange, priceImpact }: Props) {
-  const [mode, setMode] = useState<SlippageMode>("auto")
-  const [customValue, setCustomValue] = useState("")
+  const [mode, setMode] = useState<SlippageMode>('auto')
+  const [customValue, setCustomValue] = useState('')
 
   const autoSlippage = calculateAutoSlippage(priceImpact)
 
   useEffect(() => {
     if (Math.abs(slippage - autoSlippage) < 0.01) {
-      setMode("auto")
-      setCustomValue("")
+      setMode('auto')
+      setCustomValue('')
     } else if (PRESETS.includes(slippage)) {
-      setMode("custom")
+      setMode('custom')
       setCustomValue(slippage.toString())
     } else {
-      setMode("custom")
+      setMode('custom')
       setCustomValue(slippage.toString())
     }
   }, [slippage, autoSlippage])
 
   useEffect(() => {
-    if (mode === "auto" && Math.abs(slippage - autoSlippage) >= 0.01) {
+    if (mode === 'auto' && Math.abs(slippage - autoSlippage) >= 0.01) {
       onSlippageChange(autoSlippage)
     }
   }, [mode, autoSlippage, slippage, onSlippageChange])
 
   const handlePresetClick = (preset: number) => {
-    setMode("custom")
+    setMode('custom')
     setCustomValue(preset.toString())
     onSlippageChange(preset)
   }
 
   const handleAutoClick = () => {
-    setMode("auto")
-    setCustomValue("")
+    setMode('auto')
+    setCustomValue('')
     onSlippageChange(autoSlippage)
   }
 
   const handleCustomChange = (value: string) => {
-    setMode("custom")
+    setMode('custom')
     setCustomValue(value)
     const num = parseFloat(value)
     if (!isNaN(num) && num >= 0 && num <= 50) {
@@ -69,19 +69,19 @@ export function SlippageSelector({ slippage, onSlippageChange, priceImpact }: Pr
     }
   }
 
-  const displaySlippage = mode === "auto" ? autoSlippage : slippage
+  const displaySlippage = mode === 'auto' ? autoSlippage : slippage
 
   return (
     <div className="space-y-2">
       <div className="px-2 py-1 text-xs opacity-70">Max slippage</div>
       <div className="flex flex-wrap gap-2 px-2 pb-2">
-        <button className={`btn btn-xs ${mode === "auto" ? "btn-primary" : "btn-ghost"}`} onClick={handleAutoClick}>
+        <button className={`btn btn-xs ${mode === 'auto' ? 'btn-primary' : 'btn-ghost'}`} onClick={handleAutoClick}>
           Auto
         </button>
         {PRESETS.map((preset) => (
           <button
             key={preset}
-            className={`btn btn-xs ${mode === "custom" && Math.abs(slippage - preset) < 0.01 ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-xs ${mode === 'custom' && Math.abs(slippage - preset) < 0.01 ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => handlePresetClick(preset)}
           >
             {preset}%
@@ -101,12 +101,12 @@ export function SlippageSelector({ slippage, onSlippageChange, priceImpact }: Pr
           <span className="join-item px-2 text-xs opacity-70 flex items-center">%</span>
         </div>
       </div>
-      {mode === "auto" && priceImpact !== undefined && (
+      {mode === 'auto' && priceImpact !== undefined && (
         <div className="px-2 text-xs opacity-60">
           Auto: {autoSlippage.toFixed(2)}% (based on {priceImpact.toFixed(2)}% price impact)
         </div>
       )}
-      {mode === "auto" && priceImpact === undefined && <div className="px-2 text-xs opacity-60">Auto: {autoSlippage.toFixed(2)}% (default)</div>}
+      {mode === 'auto' && priceImpact === undefined && <div className="px-2 text-xs opacity-60">Auto: {autoSlippage.toFixed(2)}% (default)</div>}
     </div>
   )
 }

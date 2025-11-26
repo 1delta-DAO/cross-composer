@@ -1,18 +1,18 @@
-import React, { useState, useCallback, useEffect } from "react"
-import { useAccount, useChainId, useSwitchChain } from "wagmi"
-import { type Address } from "viem"
-import { usePermitBatch } from "../sdk/hooks/usePermitBatch"
-import { useDebounce } from "../hooks/useDebounce"
-import { isValidAddress, isEmptyAddress } from "../utils/addressValidation"
-import { isValidDecimal, formatDecimalInput } from "../utils/inputValidation"
-import { fetchDecimals } from "../sdk/utils/tokenUtils"
-import { DEFAULT_DECIMALS, XCUSDT_ADDRESS, XCUSDC_ADDRESS, GLMR_ADDRESS } from "../lib/consts"
-import { BatchTransactionFormProps, Operation, ERC20Operation, ArbitraryCallOperation } from "../lib/types"
+import React, { useState, useCallback, useEffect } from 'react'
+import { useConnection, useChainId, useSwitchChain } from 'wagmi'
+import { type Address } from 'viem'
+import { usePermitBatch } from '../sdk/hooks/usePermitBatch'
+import { useDebounce } from '../hooks/useDebounce'
+import { isValidAddress, isEmptyAddress } from '../utils/addressValidation'
+import { isValidDecimal, formatDecimalInput } from '../utils/inputValidation'
+import { fetchDecimals } from '../sdk/utils/tokenUtils'
+import { DEFAULT_DECIMALS, XCUSDT_ADDRESS, XCUSDC_ADDRESS, GLMR_ADDRESS } from '../lib/consts'
+import { BatchTransactionFormProps, Operation, ERC20Operation, ArbitraryCallOperation } from '../lib/types'
 
 const MOONBEAM_CHAIN_ID = 1284
 
 export default function BatchTransactionForm({ onTransactionExecuted }: BatchTransactionFormProps) {
-  const { address } = useAccount()
+  const { address } = useConnection()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
   const { executeSelfTransmit, createBatchCalls, isLoading, error } = usePermitBatch()
@@ -44,11 +44,11 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
     const newId = Date.now().toString()
     const newOperation: ERC20Operation = {
       id: newId,
-      operationType: "erc20",
-      type: "approve",
-      tokenAddress: "" as Address,
-      to: "" as Address,
-      amount: "",
+      operationType: 'erc20',
+      type: 'approve',
+      tokenAddress: '' as Address,
+      to: '' as Address,
+      amount: '',
       decimals: 18,
     }
 
@@ -59,10 +59,10 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
     const newId = Date.now().toString()
     const newOperation: ArbitraryCallOperation = {
       id: newId,
-      operationType: "arbitrary",
-      target: "" as Address,
-      calldata: "",
-      value: "",
+      operationType: 'arbitrary',
+      target: '' as Address,
+      calldata: '',
+      value: '',
     }
 
     setOperations((prev) => [...prev, newOperation])
@@ -103,7 +103,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
       const errorKey = `${id}-${field}`
 
       if (!isValid) {
-        newErrors[errorKey] = "Please enter a valid decimal number (e.g., 1.5 or 0.1)"
+        newErrors[errorKey] = 'Please enter a valid decimal number (e.g., 1.5 or 0.1)'
       } else {
         delete newErrors[errorKey]
       }
@@ -129,7 +129,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
 
     setOperations((prev) =>
       prev.map((op) =>
-        op.id === id && op.operationType === "erc20"
+        op.id === id && op.operationType === 'erc20'
           ? {
               ...op,
               tokenAddress,
@@ -153,14 +153,14 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
 
       const validAddress = address as Address
 
-      setOperations((prev) => prev.map((op) => (op.id === id && op.operationType === "erc20" ? { ...op, tokenAddress: validAddress } : op)))
+      setOperations((prev) => prev.map((op) => (op.id === id && op.operationType === 'erc20' ? { ...op, tokenAddress: validAddress } : op)))
     })
   }, [debouncedTokenAddresses])
 
   useEffect(() => {
     const operationsToUpdate = operations.filter(
       (operation) =>
-        operation.operationType === "erc20" &&
+        operation.operationType === 'erc20' &&
         operation.tokenAddress &&
         !localDecimalsCache[operation.tokenAddress] &&
         !localLoadingDecimals.has(operation.tokenAddress),
@@ -169,7 +169,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
     if (operationsToUpdate.length === 0) return
 
     operationsToUpdate.forEach((operation) => {
-      if (operation.operationType === "erc20") {
+      if (operation.operationType === 'erc20') {
         if (DEFAULT_DECIMALS[operation.tokenAddress]) {
           setOperations((prev) => prev.map((op) => (op.id === operation.id ? { ...op, decimals: DEFAULT_DECIMALS[operation.tokenAddress] } : op)))
         } else {
@@ -180,7 +180,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
               } else {
                 setTokenErrors((prev) => ({
                   ...prev,
-                  [operation.id]: "Failed to fetch token decimals. Address may not be a valid ERC20 token.",
+                  [operation.id]: 'Failed to fetch token decimals. Address may not be a valid ERC20 token.',
                 }))
               }
             })
@@ -188,7 +188,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
               console.error(`Error fetching decimals for operation ${operation.id}:`, err)
               setTokenErrors((prev) => ({
                 ...prev,
-                [operation.id]: "Error fetching token decimals. Please check the address.",
+                [operation.id]: 'Error fetching token decimals. Please check the address.',
               }))
             })
         }
@@ -217,7 +217,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
         })
 
         if (result.error) {
-          console.error("Self-transmit error:", result.error)
+          console.error('Self-transmit error:', result.error)
           return
         }
 
@@ -225,7 +225,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
           onTransactionExecuted(result.hash)
         }
       } catch (err) {
-        console.error("Transaction failed:", err)
+        console.error('Transaction failed:', err)
       } finally {
         setIsSubmitting(false)
       }
@@ -338,15 +338,15 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                         <div className="flex justify-between items-center mb-4">
                           <div className="flex items-center gap-2">
                             <h4 className="font-semibold text-primary">Operation {index + 1}</h4>
-                            <div className={`badge ${operation.operationType === "erc20" ? "badge-primary" : "badge-secondary"}`}>
-                              {operation.operationType === "erc20" ? "ERC20" : "Arbitrary Call"}
+                            <div className={`badge ${operation.operationType === 'erc20' ? 'badge-primary' : 'badge-secondary'}`}>
+                              {operation.operationType === 'erc20' ? 'ERC20' : 'Arbitrary Call'}
                             </div>
                           </div>
                           <button type="button" onClick={() => removeOperation(operation.id)} className="btn  btn-error btn-sm">
                             🗑️
                           </button>
                         </div>
-                        {operation.operationType === "erc20" ? (
+                        {operation.operationType === 'erc20' ? (
                           <>
                             <div className="form-control mb-4">
                               <label className="label">
@@ -354,7 +354,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                               </label>
                               <select
                                 value={(operation as ERC20Operation).type}
-                                onChange={(e) => updateOperation(operation.id, "type", e.target.value)}
+                                onChange={(e) => updateOperation(operation.id, 'type', e.target.value)}
                                 className="select select-bordered w-full"
                               >
                                 <option value="approve">Approve</option>
@@ -376,8 +376,8 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                                     rawTokenAddresses[operation.id] &&
                                     !isEmptyAddress(rawTokenAddresses[operation.id]) &&
                                     !isValidAddress(rawTokenAddresses[operation.id])
-                                      ? "input-error"
-                                      : ""
+                                      ? 'input-error'
+                                      : ''
                                   }`}
                                 />
                                 {rawTokenAddresses[operation.id] &&
@@ -450,7 +450,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                                 <input
                                   type="text"
                                   value={(operation as ERC20Operation).to}
-                                  onChange={(e) => updateOperation(operation.id, "to", e.target.value)}
+                                  onChange={(e) => updateOperation(operation.id, 'to', e.target.value)}
                                   placeholder="0x1234567890123456789012345678901234567890"
                                   className="input input-bordered w-full"
                                 />
@@ -463,9 +463,9 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                                 <input
                                   type="text"
                                   value={(operation as ERC20Operation).amount}
-                                  onChange={(e) => updateDecimalInput(operation.id, "amount", e.target.value)}
+                                  onChange={(e) => updateDecimalInput(operation.id, 'amount', e.target.value)}
                                   placeholder="1.5"
-                                  className={`input input-bordered w-full ${inputErrors[`${operation.id}-amount`] ? "input-error" : ""}`}
+                                  className={`input input-bordered w-full ${inputErrors[`${operation.id}-amount`] ? 'input-error' : ''}`}
                                 />
                                 {inputErrors[`${operation.id}-amount`] && (
                                   <label className="label">
@@ -485,7 +485,7 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                                 <input
                                   type="text"
                                   value={(operation as ArbitraryCallOperation).target}
-                                  onChange={(e) => updateOperation(operation.id, "target", e.target.value)}
+                                  onChange={(e) => updateOperation(operation.id, 'target', e.target.value)}
                                   placeholder="0x1234567890123456789012345678901234567890"
                                   className="input input-bordered w-full"
                                 />
@@ -497,10 +497,10 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                                 </label>
                                 <input
                                   type="text"
-                                  value={(operation as ArbitraryCallOperation).value || ""}
-                                  onChange={(e) => updateDecimalInput(operation.id, "value", e.target.value)}
+                                  value={(operation as ArbitraryCallOperation).value || ''}
+                                  onChange={(e) => updateDecimalInput(operation.id, 'value', e.target.value)}
                                   placeholder="0.1"
-                                  className={`input input-bordered w-full ${inputErrors[`${operation.id}-value`] ? "input-error" : ""}`}
+                                  className={`input input-bordered w-full ${inputErrors[`${operation.id}-value`] ? 'input-error' : ''}`}
                                 />
                                 {inputErrors[`${operation.id}-value`] && (
                                   <label className="label">
@@ -515,8 +515,8 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                                 <span className="label-text font-medium">Calldata (hex)</span>
                               </label>
                               <textarea
-                                value={(operation as ArbitraryCallOperation).calldata || ""}
-                                onChange={(e) => updateOperation(operation.id, "calldata", e.target.value)}
+                                value={(operation as ArbitraryCallOperation).calldata || ''}
+                                onChange={(e) => updateOperation(operation.id, 'calldata', e.target.value)}
                                 placeholder="0x1234567890abcdef..."
                                 className="textarea textarea-bordered w-full h-20"
                               />
@@ -552,12 +552,12 @@ export default function BatchTransactionForm({ onTransactionExecuted }: BatchTra
                 <button
                   type="submit"
                   disabled={isLoading || isSubmitting || !address || operations.length === 0 || !isMoonbeam}
-                  className={`btn btn-primary btn-lg w-full min-h-[3rem] ${isLoading || isSubmitting ? "loading" : ""}`}
+                  className={`btn btn-primary btn-lg w-full min-h-[3rem] ${isLoading || isSubmitting ? 'loading' : ''}`}
                 >
                   {!isMoonbeam ? (
-                    "Please switch to Moonbeam network"
+                    'Please switch to Moonbeam network'
                   ) : operations.length === 0 ? (
-                    "Add operations to continue"
+                    'Add operations to continue'
                   ) : (
                     <>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

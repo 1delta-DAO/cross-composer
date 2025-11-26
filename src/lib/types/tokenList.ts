@@ -1,4 +1,4 @@
-import type { RawCurrency } from "../../types/currency"
+import type { RawCurrency } from '../../types/currency'
 
 export interface VersionedDeltaTokenList {
   name: string

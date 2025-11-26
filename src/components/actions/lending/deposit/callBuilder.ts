@@ -1,10 +1,11 @@
-import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from "viem"
-import { DeltaCallType } from "@1delta/trade-sdk/dist/types"
-import { ComposerLendingActions, TransferToLenderType } from "@1delta/calldata-sdk"
-import type { DestinationCall } from "../../../../lib/types/destinationAction"
-import type { RawCurrency } from "../../../../types/currency"
-import type { DestinationCallBuilder } from "../../shared/types"
-import { encodeComposerCompose } from "../../../../lib/calldata/encodeComposerCompose"
+import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from 'viem'
+import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
+import { ComposerLendingActions, TransferToLenderType } from '@1delta/calldata-sdk'
+import type { DestinationCall } from '../../../../lib/types/destinationAction'
+import type { RawCurrency } from '../../../../types/currency'
+import type { DestinationCallBuilder } from '../../shared/types'
+import { encodeComposerCompose } from '../../../../lib/calldata/encodeComposerCompose'
+import { MOONWELL_UNDERLYING_TO_MTOKEN } from '../../../../hooks/useMoonwellMarkets'
 
 export type DepositCallBuilderParams = {
   amountHuman: string
@@ -29,8 +30,11 @@ export const buildCalls: DestinationCallBuilder<DepositCallBuilderParams> = asyn
     amount: amountRaw,
     asset: underlying.address,
     chainId: dstChainId || underlying.chainId,
-    lender: "MOONWELL" as any,
+    lender: 'MOONWELL' as any,
     transferType: TransferToLenderType.ContractBalance,
+    useOverride: {
+      pool: MOONWELL_UNDERLYING_TO_MTOKEN[underlying.address],
+    },
   })
 
   const wrapDepositInCompose = encodeComposerCompose(depositCall as Hex)
@@ -39,7 +43,7 @@ export const buildCalls: DestinationCallBuilder<DepositCallBuilderParams> = asyn
     target: underlying.address as Address,
     calldata: encodeFunctionData({
       abi: erc20Abi,
-      functionName: "transfer",
+      functionName: 'transfer',
       args: [composerAddress, 0n],
     }),
     value: 0n,

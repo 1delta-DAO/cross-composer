@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from "react"
-import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
-import { SUPPORTED_CHAIN_IDS } from "../../lib/data/chainIds"
-import { Logo } from "../common/Logo"
-import { SupportedChainId } from "../../sdk/types"
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
+import { SUPPORTED_CHAIN_IDS } from '../../lib/data/chainIds'
+import { Logo } from '../common/Logo'
+import { SupportedChainId } from '../../sdk/types'
 
 type Props = {
   value?: string
@@ -14,23 +14,23 @@ const RELEVANT_CHAIN_IDS = [SupportedChainId.OP_MAINNET, SupportedChainId.BASE, 
 export function ChainSelector({ value, onChange }: Props) {
   const { data, isLoading } = useChainsRegistry()
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState('')
   const dropdownRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false)
+      if (e.key === 'Escape') setOpen(false)
     }
     function onDocClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false)
     }
     if (open) {
-      document.addEventListener("keydown", onKey)
-      document.addEventListener("mousedown", onDocClick)
+      document.addEventListener('keydown', onKey)
+      document.addEventListener('mousedown', onDocClick)
     }
     return () => {
-      document.removeEventListener("keydown", onKey)
-      document.removeEventListener("mousedown", onDocClick)
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onDocClick)
     }
   }, [open])
 
@@ -51,8 +51,8 @@ export function ChainSelector({ value, onChange }: Props) {
   return (
     <div className="relative" ref={dropdownRef}>
       <button type="button" className="btn btn-outline w-full flex items-center gap-2" onClick={() => setOpen((o) => !o)}>
-        <Logo src={selected?.data.icon} alt={selected?.data.name || "Chain"} fallbackText={selected?.data.shortName || selected?.data.chain} />
-        <span className="truncate">{selected?.data.name || (isLoading ? "Loading chains..." : "Select chain")}</span>
+        <Logo src={selected?.data.icon} alt={selected?.data.name || 'Chain'} fallbackText={selected?.data.shortName || selected?.data.chain} />
+        <span className="truncate">{selected?.data.name || (isLoading ? 'Loading chains...' : 'Select chain')}</span>
         <span className="ml-auto tab">▼</span>
       </button>
       {open && (

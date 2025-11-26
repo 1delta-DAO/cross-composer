@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useRef } from "react"
-import { useChainsRegistry } from "../../sdk/hooks/useChainsRegistry"
-import { buildTransactionUrl } from "../../lib/explorer"
-import { useTxHistory } from "../../contexts/TxHistoryContext"
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
+import { buildTransactionUrl } from '../../lib/explorer'
+import { useTxHistory } from '../../contexts/TxHistoryContext'
 
 export function TxHistoryButton() {
   const { entries, clearAll, isPolling } = useTxHistory()
@@ -26,9 +26,9 @@ export function TxHistoryButton() {
         setOpen(false)
       }
     }
-    document.addEventListener("mousedown", handler)
+    document.addEventListener('mousedown', handler)
     return () => {
-      document.removeEventListener("mousedown", handler)
+      document.removeEventListener('mousedown', handler)
     }
   }, [open])
 
@@ -61,14 +61,14 @@ export function TxHistoryButton() {
             <div className="divide-y divide-base-300">
               {sortedEntries.map((entry) => {
                 const created = new Date(entry.createdAt)
-                const time = created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+                const time = created.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
                 const date = created.toLocaleDateString()
 
-                const typeLabel = entry.type === "swap" ? "Swap" : entry.type === "bridge_with_actions" ? "Bridge + actions" : "Bridge"
+                const typeLabel = entry.type === 'swap' ? 'Swap' : entry.type === 'bridge_with_actions' ? 'Bridge + actions' : 'Bridge'
 
-                const statusLabel = entry.status === "completed" ? "Completed" : entry.status === "failed" ? "Failed" : "Pending"
+                const statusLabel = entry.status === 'completed' ? 'Completed' : entry.status === 'failed' ? 'Failed' : 'Pending'
 
-                const statusClass = entry.status === "completed" ? "badge-success" : entry.status === "failed" ? "badge-error" : "badge-warning"
+                const statusClass = entry.status === 'completed' ? 'badge-success' : entry.status === 'failed' ? 'badge-error' : 'badge-warning'
 
                 const srcUrl = entry.srcChainId && entry.srcHash ? buildTransactionUrl(chains || {}, entry.srcChainId, entry.srcHash) : undefined
 
@@ -113,7 +113,7 @@ export function TxHistoryButton() {
                         )}
                       </div>
                     )}
-                    {entry.type === "bridge_with_actions" && <div className="text-xs text-info">Includes destination actions</div>}
+                    {entry.type === 'bridge_with_actions' && <div className="text-xs text-info">Includes destination actions</div>}
                   </div>
                 )
               })}

@@ -1,4 +1,4 @@
-import { SupportedChainId } from "@1delta/lib-utils"
+import { SupportedChainId } from '@1delta/lib-utils'
 
 export const SUPPORTED_CHAIN_IDS = [
   SupportedChainId.ETHEREUM_MAINNET,

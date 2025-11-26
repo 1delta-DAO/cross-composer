@@ -1,6 +1,6 @@
-import type { Address } from "viem"
-import { Logo } from "../common/Logo"
-import type { RawCurrency } from "../../types/currency"
+import type { Address } from 'viem'
+import { Logo } from '../common/Logo'
+import type { RawCurrency } from '../../types/currency'
 
 type TokenInputProps = {
   label: string
@@ -60,7 +60,7 @@ export function TokenInput({
             <div className="join">
               {[25, 50, 75, 100].map((p) => (
                 <button key={p} className="btn btn-xs join-item" onClick={() => onPercentageClick(p)}>
-                  {p === 100 ? "Max" : `${p}%`}
+                  {p === 100 ? 'Max' : `${p}%`}
                 </button>
               ))}
             </div>
@@ -81,11 +81,11 @@ export function TokenInput({
               <>
                 <Logo
                   src={token && chainId ? tokenInfo?.logoURI : undefined}
-                  alt={currency.symbol || "Token"}
+                  alt={currency.symbol || 'Token'}
                   size={20}
-                  fallbackText={currency.symbol?.[0] || "T"}
+                  fallbackText={currency.symbol?.[0] || 'T'}
                 />
-                <span>{currency.symbol || "Token"}</span>
+                <span>{currency.symbol || 'Token'}</span>
               </>
             ) : (
               <span>Select token</span>
@@ -94,9 +94,9 @@ export function TokenInput({
         </div>
       </div>
       <div className="flex items-center justify-between text-xs mt-2">
-        <div className="opacity-70">{usdValue ?? "$0"}</div>
-        <div className={balanceError ? "text-error" : "opacity-70"}>
-          {balance ? `${Number(balance).toFixed(4)} ${balanceSymbol || currency?.symbol || ""}` : ""}
+        <div className="opacity-70">{usdValue ?? '$0'}</div>
+        <div className={balanceError ? 'text-error' : 'opacity-70'}>
+          {balance ? `${Number(balance).toFixed(4)} ${balanceSymbol || currency?.symbol || ''}` : ''}
         </div>
       </div>
     </div>

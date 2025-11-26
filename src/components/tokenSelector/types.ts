@@ -1,5 +1,5 @@
-import { Address } from "viem"
-import type { RawCurrency } from "../../types/currency"
+import { Address } from 'viem'
+import type { RawCurrency } from '../../types/currency'
 
 export type TokenRowData = {
   addr: Address

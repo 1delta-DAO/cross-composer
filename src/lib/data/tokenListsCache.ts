@@ -1,6 +1,6 @@
-import { SUPPORTED_CHAIN_IDS } from "./chainIds"
-import type { RawCurrency } from "../../types/currency"
-import type { VersionedDeltaTokenList } from "../types/tokenList"
+import { SUPPORTED_CHAIN_IDS } from './chainIds'
+import type { RawCurrency } from '../../types/currency'
+import type { VersionedDeltaTokenList } from '../types/tokenList'
 
 let cachedTokenLists: Record<string, Record<string, RawCurrency>> | null = null
 

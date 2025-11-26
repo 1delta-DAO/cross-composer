@@ -1,5 +1,5 @@
-import { fetchAggregatorTrade, getAvailableAggregators, TradeAggregator } from "@1delta/trade-sdk"
-import type { GenericTrade, AggregatorApiInput } from "@1delta/lib-utils"
+import { fetchAggregatorTrade, getAvailableAggregators, TradeAggregator } from '@1delta/trade-sdk'
+import type { GenericTrade, AggregatorApiInput } from '@1delta/lib-utils'
 
 export async function fetchAllAggregatorTrades(
   chainId: string,

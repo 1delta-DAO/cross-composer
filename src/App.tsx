@@ -1,17 +1,15 @@
-import { useAccount } from "wagmi"
-import { useState } from "react"
-import type { Hex } from "viem"
-import BatchTransactionForm from "./components/BatchTransactionForm"
-import { SwapTab } from "./components/swap/SwapTab"
-import { TradeSdkWalletSync } from "./lib/trade-helpers/walletClient"
-import { SwapSlippageSelector } from "./components/swap/SwapSlippageSelector"
-import { ThemeSwitcher } from "./components/themeSwitcher"
-import { WalletConnect } from "./components/connect"
-import { TxHistoryButton } from "./components/history/TxHistoryButton"
+import { useState } from 'react'
+import type { Hex } from 'viem'
+import BatchTransactionForm from './components/BatchTransactionForm'
+import { ActionsTab } from './components/swap/ActionsTab'
+import { TradeSdkWalletSync } from './lib/trade-helpers/walletClient'
+import { SwapSlippageSelector } from './components/swap/SwapSlippageSelector'
+import { ThemeSwitcher } from './components/themeSwitcher'
+import { WalletConnect } from './components/connect'
+import { TxHistoryButton } from './components/history/TxHistoryButton'
 
 export default function App() {
-  const { address, isConnected } = useAccount()
-  const [activeTab, setActiveTab] = useState<"swap" | "transactions">("swap")
+  const [activeTab, setActiveTab] = useState<'swap' | 'transactions'>('swap')
   const [transactionHash, setTransactionHash] = useState<Hex | null>(null)
   const [showSwapReset, setShowSwapReset] = useState(false)
   const [swapResetCallback, setSwapResetCallback] = useState<(() => void) | null>(null)
@@ -33,8 +31,7 @@ export default function App() {
         <div className="flex flex-row p-2 grow">
           <div className="flex-1">
             <div className="flex items-center space-x-2">
-              {/* Use theme primary instead of fixed gradient */}
-              <h1 className="text-2xl font-bold text-primary">MOONBEAMER</h1>
+              <h1 className="text-2xl font-bold text-primary">1ΔC²</h1>
             </div>
           </div>
           <div className="flex-none flex gap-3 items-center">
@@ -55,20 +52,20 @@ export default function App() {
           {/* TABS + SLIPPAGE */}
           <div className="w-full max-w-[500px] min-w-[300px] flex items-center justify-between">
             <div className="join">
-              <button className={`btn btn-sm join-item ${activeTab === "swap" ? "btn-primary" : "btn-ghost"}`} onClick={() => setActiveTab("swap")}>
+              <button className={`btn btn-sm join-item ${activeTab === 'swap' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('swap')}>
                 Swap
               </button>
               <button
-                className={`btn btn-sm join-item ${activeTab === "transactions" ? "btn-primary" : "btn-ghost"}`}
-                onClick={() => setActiveTab("transactions")}
+                className={`btn btn-sm join-item ${activeTab === 'transactions' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setActiveTab('transactions')}
               >
                 Transactions
               </button>
             </div>
 
             <div className="flex items-center gap-2">
-              {activeTab === "swap" && <SwapSlippageSelector />}
-              {activeTab === "swap" && showSwapReset && (
+              {activeTab === 'swap' && <SwapSlippageSelector />}
+              {activeTab === 'swap' && showSwapReset && (
                 <button className="btn btn-ghost btn-xs" onClick={handleSwapReset}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                     <path
@@ -86,9 +83,8 @@ export default function App() {
           <div className="w-full max-w-[500px] min-w-[300px]">
             <div className="card bg-base-100 shadow-xl rounded-2xl">
               <div className="card-body p-4 sm:p-6">
-                {activeTab === "swap" ? (
-                  <SwapTab
-                    userAddress={address ?? undefined}
+                {activeTab === 'swap' ? (
+                  <ActionsTab
                     onResetStateChange={(showReset, resetCallback) => {
                       setShowSwapReset(showReset)
                       setSwapResetCallback(resetCallback || null)

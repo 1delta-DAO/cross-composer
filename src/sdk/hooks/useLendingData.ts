@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo } from 'react'
 import {
   aavePools,
   aaveTokens,
@@ -13,7 +13,7 @@ import {
   morphoOracles,
   morphoTypeMarkets,
   morphoTypeOracles,
-} from "@1delta/data-sdk"
+} from '@1delta/data-sdk'
 
 /**
  * Returns a snapshot of lending data maps from @1delta/data-sdk.

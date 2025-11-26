@@ -1,20 +1,20 @@
-import { useQuery } from "@tanstack/react-query"
-import type { Address } from "viem"
-import { readContract } from "viem/actions"
-import { getRpcSelectorEvmClient } from "@1delta/lib-utils"
-import { MOONWELL_COMPTROLLER } from "../../lib/moonwell/consts"
+import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
+import { readContract } from 'viem/actions'
+import { getRpcSelectorEvmClient } from '@1delta/lib-utils'
+import { MOONWELL_COMPTROLLER } from '../../lib/moonwell/consts'
 
 const COMPTROLLER_ABI = [
   {
-    inputs: [{ internalType: "address", name: "account", type: "address" }],
-    name: "getAccountLiquidity",
+    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+    name: 'getAccountLiquidity',
     outputs: [
-      { internalType: "uint256", name: "error", type: "uint256" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-      { internalType: "uint256", name: "shortfall", type: "uint256" },
+      { internalType: 'uint256', name: 'error', type: 'uint256' },
+      { internalType: 'uint256', name: 'liquidity', type: 'uint256' },
+      { internalType: 'uint256', name: 'shortfall', type: 'uint256' },
     ],
-    stateMutability: "view",
-    type: "function",
+    stateMutability: 'view',
+    type: 'function',
   },
 ] as const
 
@@ -32,7 +32,7 @@ async function fetchAccountLiquidity(chainId: string, userAddress: Address): Pro
     const result = await readContract(client, {
       address: MOONWELL_COMPTROLLER,
       abi: COMPTROLLER_ABI,
-      functionName: "getAccountLiquidity",
+      functionName: 'getAccountLiquidity',
       args: [userAddress],
     })
 
@@ -50,7 +50,7 @@ async function fetchAccountLiquidity(chainId: string, userAddress: Address): Pro
 export function useAccountLiquidity(params: { chainId: string; userAddress?: Address }) {
   const { chainId, userAddress } = params
   return useQuery({
-    queryKey: ["accountLiquidity", chainId, userAddress ?? "0x"],
+    queryKey: ['accountLiquidity', chainId, userAddress ?? '0x'],
     enabled: Boolean(chainId && userAddress),
     queryFn: () => fetchAccountLiquidity(chainId, userAddress as Address),
     staleTime: 1000 * 30, // 30 seconds

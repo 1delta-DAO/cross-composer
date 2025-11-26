@@ -1,5 +1,5 @@
-import type { Hex } from "viem"
-import type { DestinationActionConfig } from "../../../../lib/types/destinationAction"
+import type { Hex } from 'viem'
+import type { DestinationActionConfig } from '../../../../lib/types/destinationAction'
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
 
@@ -23,7 +23,7 @@ export function OlderfallListingCard({ listing, title, priceLabel, isSelected, o
   return (
     <button
       type="button"
-      className={`w-full flex items-center gap-3 p-2 rounded border ${isSelected ? "border-primary bg-primary/10" : "border-base-300"}`}
+      className={`w-full flex items-center gap-3 p-2 rounded border ${isSelected ? 'border-primary bg-primary/10' : 'border-base-300'}`}
       onClick={onSelect}
     >
       {listing.image && (

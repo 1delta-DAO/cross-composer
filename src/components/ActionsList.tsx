@@ -1,5 +1,5 @@
-import type { DestinationActionConfig } from "../lib/types/destinationAction"
-import type { Hex } from "viem"
+import type { DestinationActionConfig } from '../lib/types/destinationAction'
+import type { Hex } from 'viem'
 
 type PendingAction = {
   id: string
@@ -38,7 +38,7 @@ export function ActionsList({ actions, onRemove, onMoveUp, onMoveDown, onEdit }:
                       {action.args.map((arg, i) => (
                         <span key={i} className="mr-2">
                           Arg {i + 1}: {String(arg).slice(0, 20)}
-                          {String(arg).length > 20 ? "..." : ""}
+                          {String(arg).length > 20 ? '...' : ''}
                         </span>
                       ))}
                     </div>

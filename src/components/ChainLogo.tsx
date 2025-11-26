@@ -1,4 +1,4 @@
-import { getChainConfig } from "../lib/chains"
+import { getChainConfig } from '../lib/chains'
 
 interface ChainLogoProps {
   chainId: string | number
@@ -6,8 +6,8 @@ interface ChainLogoProps {
   className?: string
 }
 
-export default function ChainLogo({ chainId, size = 24, className = "" }: ChainLogoProps) {
-  const chainConfig = getChainConfig(typeof chainId === "number" ? chainId.toString() : chainId)
+export default function ChainLogo({ chainId, size = 24, className = '' }: ChainLogoProps) {
+  const chainConfig = getChainConfig(typeof chainId === 'number' ? chainId.toString() : chainId)
 
   if (!chainConfig) {
     return (
@@ -30,12 +30,12 @@ export default function ChainLogo({ chainId, size = 24, className = "" }: ChainL
           onError={(e) => {
             // Fallback to name if image fails to load
             const target = e.target as HTMLImageElement
-            target.style.display = "none"
+            target.style.display = 'none'
           }}
         />
         <div
           className={`flex items-center justify-center bg-base-300 rounded-full ${className}`}
-          style={{ width: size, height: size, display: "none" }}
+          style={{ width: size, height: size, display: 'none' }}
         >
           <span className="text-xs font-bold">{chainConfig.name[0]}</span>
         </div>

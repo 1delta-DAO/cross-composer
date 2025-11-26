@@ -1,4 +1,4 @@
-import { Address, Hex } from "viem"
+import { Address, Hex } from 'viem'
 
 export interface BatchCall {
   target: Address
@@ -15,8 +15,8 @@ export interface PermitBatchParams {
 
 export interface ERC20Operation {
   id: string
-  operationType: "erc20"
-  type: "approve" | "transfer"
+  operationType: 'erc20'
+  type: 'approve' | 'transfer'
   tokenAddress: Address
   to: Address
   amount: string
@@ -25,7 +25,7 @@ export interface ERC20Operation {
 
 export interface ArbitraryCallOperation {
   id: string
-  operationType: "arbitrary"
+  operationType: 'arbitrary'
   target: Address
   calldata?: string
   value?: string

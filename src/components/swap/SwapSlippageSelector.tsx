@@ -1,5 +1,5 @@
-import { SlippageSelector } from "./SlippageSelector"
-import { useSlippage } from "../../contexts/SlippageContext"
+import { SlippageSelector } from './SlippageSelector'
+import { useSlippage } from '../../contexts/SlippageContext'
 
 export function SwapSlippageSelector() {
   const { slippage, setSlippage, priceImpact } = useSlippage()

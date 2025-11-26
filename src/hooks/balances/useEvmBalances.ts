@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query"
-import type { Address } from "viem"
-import { zeroAddress } from "viem"
-import { fetchEvmUserTokenDataEnhanced } from "../../sdk/utils/fetchBalances"
+import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
+import { zeroAddress } from 'viem'
+import { fetchEvmUserTokenDataEnhanced } from '../../sdk/utils/fetchBalances'
 
 export type ChainBalancesRecord = Record<string, Record<string, { raw: string; value: string }>>
 
@@ -37,13 +37,13 @@ export function useEvmBalances(params: { chainId: string; userAddress?: Address;
   const { chainId, userAddress, tokenAddresses } = params
   return useQuery({
     queryKey: [
-      "balances",
+      'balances',
       chainId,
-      userAddress ?? "0x",
+      userAddress ?? '0x',
       tokenAddresses
         .map((a) => a.toLowerCase())
         .sort()
-        .join(","),
+        .join(','),
     ],
     enabled: Boolean(chainId && userAddress && tokenAddresses && tokenAddresses.length > 0),
     queryFn: () => fetchBalances(chainId, userAddress as Address, tokenAddresses),

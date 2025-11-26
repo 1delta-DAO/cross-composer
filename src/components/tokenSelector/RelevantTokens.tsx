@@ -1,5 +1,5 @@
-import { Address, zeroAddress } from "viem"
-import { Logo } from "../common/Logo"
+import { Address, zeroAddress } from 'viem'
+import { Logo } from '../common/Logo'
 
 type RelevantTokensBarProps = {
   chainId: string
