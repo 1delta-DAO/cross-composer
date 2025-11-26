@@ -12,6 +12,7 @@ export function registerStakingAction(): void {
     panel: StellaStakingPanel,
     priority: 5,
     actionType: 'staking',
+    requiresExactDestinationAmount: false,
     buildPanelProps: (context) => ({
       tokenLists: context.tokenLists,
       setDestinationInfo: context.setDestinationInfo,

@@ -26,6 +26,7 @@ export function useSwapQuotes({
   txInProgress,
   destinationCalls,
   minRequiredAmount,
+  enableRequoting,
 }: {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
@@ -36,6 +37,7 @@ export function useSwapQuotes({
   txInProgress: boolean
   destinationCalls?: DestinationCall[]
   minRequiredAmount?: RawCurrencyAmount
+  enableRequoting?: boolean
 }) {
   const { address: userAddress } = useConnection()
   const receiverAddress = userAddress || DUMMY_ADDRESS
@@ -302,7 +304,7 @@ export function useSwapQuotes({
         if (allQuotes.length > 0) {
           console.debug('Quotes received:', allQuotes.length)
 
-          if (minRequiredAmount && allQuotes.length > 0) {
+          if (enableRequoting && minRequiredAmount && allQuotes.length > 0) {
             const bestQuote = allQuotes[0]
             const outputAmount = bestQuote.trade.outputAmountRealized
             const validation = validateQuoteOutput(outputAmount, minRequiredAmount)
@@ -397,6 +399,7 @@ export function useSwapQuotes({
     destinationCalls,
     receiverAddress,
     minRequiredAmount,
+    enableRequoting,
   ])
 
   const refreshQuotes = () => {
@@ -418,7 +421,7 @@ export function useSwapQuotes({
   }
 
   useEffect(() => {
-    if (minRequiredAmount && quotes.length > 0 && selectedQuoteIndex < quotes.length) {
+    if (enableRequoting && minRequiredAmount && quotes.length > 0 && selectedQuoteIndex < quotes.length) {
       const selectedQuote = quotes[selectedQuoteIndex]
       const outputAmount = selectedQuote.trade.outputAmountRealized
       const validation = validateQuoteOutput(outputAmount, minRequiredAmount)
@@ -431,7 +434,7 @@ export function useSwapQuotes({
     } else {
       setHighSlippageLossWarning(false)
     }
-  }, [quotes, selectedQuoteIndex, minRequiredAmount])
+  }, [quotes, selectedQuoteIndex, minRequiredAmount, enableRequoting])
 
   useEffect(() => {
     setCurrentBuffer(calculateReverseQuoteBuffer(slippage))

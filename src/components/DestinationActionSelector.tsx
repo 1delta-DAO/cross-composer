@@ -219,9 +219,17 @@ export default function DestinationActionSelector({
     if (!actionDef) return null
 
     const Panel = actionDef.panel
+    const wrappedSetDestinationInfo: DestinationActionHandler = (
+      currencyAmount,
+      receiverAddress,
+      destinationCalls,
+      actionLabel,
+    ) => {
+      setDestinationInfo?.(currencyAmount, receiverAddress, destinationCalls, actionLabel, selectedAction)
+    }
     const context = {
       tokenLists: tokenListsMeta,
-      setDestinationInfo,
+      setDestinationInfo: wrappedSetDestinationInfo,
       srcCurrency,
       dstCurrency,
       slippage,
@@ -231,6 +239,7 @@ export default function DestinationActionSelector({
       quotes,
       selectedQuoteIndex,
       setSelectedQuoteIndex,
+      requiresExactDestinationAmount: actionDef.requiresExactDestinationAmount ?? false,
     }
 
     const props = actionDef.buildPanelProps

@@ -17,6 +17,7 @@ export function registerNftAction(): void {
     panel: OlderfallPanel,
     priority: 2,
     actionType: 'game_token',
+    requiresExactDestinationAmount: true,
     dataLoader: async (context: ActionLoaderContext): Promise<Record<string, OlderfallListing[]>> => {
       const supportedChains = [String(Chain.POLYGON_MAINNET), String(Chain.MOONBEAM)]
       const results: Record<string, OlderfallListing[]> = {}

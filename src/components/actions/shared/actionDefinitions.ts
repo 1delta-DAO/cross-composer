@@ -29,6 +29,7 @@ export interface ActionPanelContext {
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
   setSelectedQuoteIndex?: (index: number) => void
+  requiresExactDestinationAmount?: boolean
 }
 
 export interface ActionReadinessContext {
@@ -51,6 +52,7 @@ export interface ActionDefinition {
   actionType: DestinationActionType
   requiresSrcCurrency?: boolean
   requiresMarkets?: boolean
+  requiresExactDestinationAmount?: boolean
   dataLoader?: DataLoader
   buildPanelProps?: PanelPropsBuilder
   isReady?: ReadinessChecker

@@ -20,6 +20,7 @@ import { ActionsPanel } from './ActionsPanel'
 import { formatDisplayAmount, pickPreferredToken } from './swapUtils'
 import type { DestinationCall } from '../../lib/types/destinationAction'
 import { reverseQuote } from '../../lib/reverseQuote'
+import { getRegisteredActions } from '../actions/shared/actionRegistry'
 
 type Props = {
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
@@ -37,7 +38,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
   const [actionCurrency, setActionCurrency] = useState<RawCurrency | undefined>(undefined)
   const [amount, setAmount] = useState('')
   const [calculatedInputAmount, setCalculatedInputAmount] = useState<string>('')
-  const [destinationInfo, setDestinationInfoState] = useState<{ currencyAmount?: RawCurrencyAmount; actionLabel?: string } | undefined>(undefined)
+  const [destinationInfo, setDestinationInfoState] = useState<{ currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string } | undefined>(undefined)
 
   const inputChainId = inputCurrency?.chainId ?? DEFAULT_INPUT_CHAIN_ID
   const actionChainId = actionCurrency?.chainId
@@ -165,6 +166,12 @@ export function ActionsTab({ onResetStateChange }: Props) {
     return Boolean(inputCurrency && actionCurrency)
   }, [inputCurrency, actionCurrency])
 
+  const enableRequoting = useMemo(() => {
+    if (!destinationInfo?.actionId) return false
+    const actionDef = getRegisteredActions().find((a) => a.id === destinationInfo.actionId)
+    return actionDef?.requiresExactDestinationAmount ?? false
+  }, [destinationInfo?.actionId])
+
   const {
     quotes,
     quoting,
@@ -185,6 +192,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
     txInProgress,
     destinationCalls,
     minRequiredAmount: destinationInfo?.currencyAmount,
+    enableRequoting,
   })
 
   const selectedTrade = quotes[selectedQuoteIndex]?.trade
@@ -225,6 +233,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       receiverAddress: string | undefined,
       destinationCalls: DestinationCall[],
       actionLabel?: string,
+      actionId?: string,
     ) => {
       if (!currencyAmount) {
         setDestinationInfoState(undefined)
@@ -250,7 +259,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       const priceOut = actionTokenPrice ?? 0
 
       if (priceIn <= 0 || priceOut <= 0) {
-        setDestinationInfoState({ currencyAmount, actionLabel })
+        setDestinationInfoState({ currencyAmount, actionLabel, actionId })
         setDestinationCalls(destinationCalls)
         setCalculatedInputAmount('')
         return
@@ -260,7 +269,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       const amountIn = reverseQuote(decimalsOut, currencyAmount.amount.toString(), priceIn, priceOut, slippage)
 
       setCalculatedInputAmount(amountIn)
-      setDestinationInfoState({ currencyAmount, actionLabel })
+      setDestinationInfoState({ currencyAmount, actionLabel, actionId })
       setDestinationCalls(destinationCalls)
 
       setAmount(amountIn)
@@ -316,7 +325,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
         onSrcCurrencyChange={setInputCurrency}
         calculatedInputAmount={calculatedInputAmount}
         destinationInfo={destinationInfo}
-        isRequoting={quoting}
+        isRequoting={quoting && enableRequoting}
       />
 
       {tradeToUse && (

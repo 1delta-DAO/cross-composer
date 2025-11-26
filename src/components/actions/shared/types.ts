@@ -7,6 +7,7 @@ export type DestinationActionHandler = (
   receiverAddress: string | undefined,
   destinationCalls: DestinationCall[],
   actionLabel?: string,
+  actionId?: string,
 ) => void
 
 export type PendingAction = {

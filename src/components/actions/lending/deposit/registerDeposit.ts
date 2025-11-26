@@ -13,6 +13,7 @@ export function registerDepositAction(): void {
     priority: 1,
     actionType: 'lending',
     requiresMarkets: true,
+    requiresExactDestinationAmount: false,
     buildPanelProps: (context) => ({
       tokenLists: context.tokenLists,
       setDestinationInfo: context.setDestinationInfo,
