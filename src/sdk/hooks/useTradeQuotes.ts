@@ -9,7 +9,7 @@ import { useToast } from '../../components/common/ToastHost'
 import type { DestinationCall } from '../../lib/types/destinationAction'
 import type { DeltaCall } from '@1delta/trade-sdk'
 import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
-import { fetchAllBridgeTrades } from '../trade-helpers/bridgeSelector'
+import { fetchAllActionTrades } from '../trade-helpers/actionSelector'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { useConnection } from 'wagmi'
 import { validateQuoteOutput, calculateAdjustedBuffer, calculateReverseQuoteBuffer } from '../../lib/reverseQuote'
@@ -337,7 +337,7 @@ export function useTradeQuotes({
             destinationGasLimit = destinationCalls.reduce((acc, c) => acc + (c.gasLimit || 0n), 0n)
           }
 
-          const bridgeTrades = await fetchAllBridgeTrades(
+          const actionTrades = await fetchAllActionTrades(
             {
               slippage,
               tradeType: TradeType.EXACT_INPUT,
@@ -353,8 +353,8 @@ export function useTradeQuotes({
             } as any,
             controller,
           )
-          console.log('All bridges received from trade-sdk:', { bridges: bridgeTrades.map((t) => t.bridge), bridgeTrades })
-          allQuotes = bridgeTrades.map((t) => ({ label: t.bridge, trade: t.trade }))
+          console.log('All actions received from trade-sdk:', { actions: actionTrades.map((t) => t.action), actionTrades })
+          allQuotes = actionTrades.map((t) => ({ label: t.action, trade: t.trade }))
         }
 
         if (cancel || controller.signal.aborted) {

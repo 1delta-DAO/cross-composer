@@ -9,7 +9,6 @@ import { fetchAxelarTradeWithSwaps } from '@1delta/trade-sdk/dist/composedTrades
 import { fetchAcrossTradeWithSwaps } from '@1delta/trade-sdk/dist/composedTrades/across/acrossWithSwaps'
 import { fetchPrices } from '../../hooks/prices/usePriceQuery'
 import { setPricesFromDexscreener } from '../../lib/trade-helpers/prices'
-import { TradeType } from '@1delta/calldata-sdk'
 
 type ExtendedBridgeInput = BaseBridgeInput & {
   additionalCalls?: DeltaCall[]
@@ -35,15 +34,15 @@ async function fetchPricesForCurrencies(currencies: RawCurrency[]): Promise<void
   } catch {}
 }
 
-export async function fetchAllBridgeTrades(
+export async function fetchAllActionTrades(
   input: ExtendedBridgeInput,
   controller?: AbortController,
-): Promise<Array<{ bridge: string; trade: GenericTrade }>> {
+): Promise<Array<{ action: string; trade: GenericTrade }>> {
   const availableBridges = getBridges()
   const hasAdditionalCalls = Boolean(input.additionalCalls && input.additionalCalls.length > 0)
 
   console.debug(
-    'Fetching from bridges:',
+    'Fetching from actions:',
     availableBridges.map((b) => (b.toString ? b.toString() : String(b))),
   )
   if (availableBridges.length === 0) return []
@@ -83,7 +82,7 @@ export async function fetchAllBridgeTrades(
           trade = await fetchBridgeTradeWithoutComposed(bridge, baseInput, controller || new AbortController())
         }
 
-        if (trade) return { bridge: bridge.toString(), trade }
+        if (trade) return { action: bridge.toString(), trade }
       } catch (error) {
         console.debug('Error fetching trade from ${bridge}:', {
           bridge,
@@ -95,7 +94,7 @@ export async function fetchAllBridgeTrades(
     }),
   )
 
-  const trades = (results.filter(Boolean) as Array<{ bridge: string; trade: GenericTrade }>).filter(({ trade }) => {
+  const trades = (results.filter(Boolean) as Array<{ action: string; trade: GenericTrade }>).filter(({ trade }) => {
     const hasAssemble = typeof (trade as any)?.assemble === 'function'
     const hasTx = Boolean((trade as any)?.transaction)
     return hasAssemble || hasTx
@@ -103,3 +102,4 @@ export async function fetchAllBridgeTrades(
 
   return trades.sort((a, b) => b.trade.outputAmountRealized - a.trade.outputAmountRealized)
 }
+
