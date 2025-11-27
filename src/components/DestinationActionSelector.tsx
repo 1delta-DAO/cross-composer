@@ -24,6 +24,7 @@ interface DestinationActionSelectorProps {
   setSelectedQuoteIndex?: (index: number) => void
   slippage?: number
   resetKey?: number
+  onSrcCurrencyChange?: (currency: RawCurrency) => void
 }
 
 export default function DestinationActionSelector({
@@ -36,6 +37,7 @@ export default function DestinationActionSelector({
   setSelectedQuoteIndex,
   slippage,
   resetKey,
+  onSrcCurrencyChange,
 }: DestinationActionSelectorProps) {
   const [marketsReady, setMarketsReady] = useState(isMarketsReady())
   const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
@@ -267,6 +269,7 @@ export default function DestinationActionSelector({
             onToggleExpand={() => setIsExpanded(!isExpanded)}
             onReset={handleReset}
             srcCurrency={srcCurrency}
+            onSrcCurrencyChange={onSrcCurrencyChange}
             isActionReady={isActionReady}
             isActionLoading={isActionLoading}
           />

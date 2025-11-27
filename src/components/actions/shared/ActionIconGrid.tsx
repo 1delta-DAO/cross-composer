@@ -3,6 +3,9 @@ import type { ActionDefinition, ActionCategory, ActionType } from './actionDefin
 import { CATEGORIES } from './actionDefinitions'
 import type { RawCurrency } from '../../../types/currency'
 import { useContainerWidth } from '../../../hooks/useContainerWidth'
+import { InputTokenSelector } from './InputTokenSelector'
+import { useChainsRegistry } from '../../../sdk/hooks/useChainsRegistry'
+import { useTokenLists } from '../../../hooks/useTokenLists'
 
 interface ActionIconGridProps {
   actions: ActionDefinition[]
@@ -14,6 +17,7 @@ interface ActionIconGridProps {
   onToggleExpand: () => void
   onReset: () => void
   srcCurrency?: RawCurrency
+  onSrcCurrencyChange?: (currency: RawCurrency) => void
   isActionReady?: Record<string, boolean>
   isActionLoading?: Record<string, boolean>
 }
@@ -28,10 +32,13 @@ export function ActionIconGrid({
   onToggleExpand,
   onReset,
   srcCurrency,
+  onSrcCurrencyChange,
   isActionReady,
   isActionLoading,
 }: ActionIconGridProps) {
   const { containerRef, width } = useContainerWidth()
+  const { data: chains } = useChainsRegistry()
+  const { data: lists } = useTokenLists()
 
   const filteredActions = useMemo(() => {
     if (selectedCategory === 'all') {
@@ -94,6 +101,29 @@ export function ActionIconGrid({
 
   return (
     <div ref={containerRef} className="space-y-3">
+      {/* Header */}
+      <div className="card bg-base-100 border border-base-300 shadow-sm">
+        <div className="card-body p-3">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity cursor-pointer"
+              onClick={onToggleExpand}
+            >
+              <span className="text-lg">{isExpanded ? '▲' : '▼'}</span>
+              <span className="font-medium">Actions</span>
+            </button>
+            <div className="flex-1"></div>
+            {onSrcCurrencyChange && (
+              <InputTokenSelector srcCurrency={srcCurrency} onCurrencyChange={onSrcCurrencyChange} tokenLists={lists} chains={chains} />
+            )}
+            <button type="button" className="btn btn-sm btn-ghost btn-circle" onClick={onReset} title="Reset">
+              <span className="text-lg">↻</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Category Tabs */}
       {isExpanded && (
         <div className="tabs tabs-boxed">
@@ -173,16 +203,6 @@ export function ActionIconGrid({
           )}
         </div>
       )}
-
-      {/* Controls */}
-      <div className="flex items-center gap-2 justify-end">
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onReset}>
-          Reset
-        </button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onToggleExpand} title={isExpanded ? 'Collapse' : 'Expand'}>
-          {isExpanded ? '▲' : '▼'}
-        </button>
-      </div>
     </div>
   )
 }

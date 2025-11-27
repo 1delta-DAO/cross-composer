@@ -2,10 +2,8 @@ import DestinationActionSelector from '../DestinationActionSelector'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { DestinationActionHandler } from '../actions/shared/types'
 import type { GenericTrade } from '@1delta/lib-utils'
-import { InputTokenSelector } from '../actions/shared/InputTokenSelector'
 import { TransactionSummary } from '../actions/shared/TransactionSummary'
 import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
-import { useTokenLists } from '../../hooks/useTokenLists'
 
 type ActionsPanelProps = {
   srcCurrency?: RawCurrency
@@ -40,16 +38,10 @@ export function ActionsPanel({
   resetKey,
 }: ActionsPanelProps) {
   const { data: chains } = useChainsRegistry()
-  const { data: lists } = useTokenLists()
 
   return (
     <div className="card bg-base-200 shadow-lg border border-primary/30 mt-4">
       <div className="card-body">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-medium">Actions</div>
-          <InputTokenSelector srcCurrency={srcCurrency} onCurrencyChange={onSrcCurrencyChange} tokenLists={lists} chains={chains} />
-        </div>
-
         <DestinationActionSelector
           resetKey={resetKey}
           srcCurrency={srcCurrency}
@@ -60,6 +52,7 @@ export function ActionsPanel({
           selectedQuoteIndex={selectedQuoteIndex}
           setSelectedQuoteIndex={setSelectedQuoteIndex}
           slippage={slippage}
+          onSrcCurrencyChange={onSrcCurrencyChange}
         />
 
         <TransactionSummary
