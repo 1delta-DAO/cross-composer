@@ -3,14 +3,6 @@ import type { DestinationActionConfig } from '../../../../lib/types/destinationA
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
 
-interface OlderfallPanelProps {
-  actions: DestinationActionConfig[]
-  dstChainId?: string
-  userAddress?: string
-  tokenLists?: TokenListsMeta
-  onAdd?: (config: DestinationActionConfig, selector: Hex, args: any[], value?: string) => void
-}
-
 interface OlderfallListingCardProps {
   listing: any
   title: string
@@ -23,7 +15,7 @@ export function OlderfallListingCard({ listing, title, priceLabel, isSelected, o
   return (
     <button
       type="button"
-      className={`w-full flex items-center gap-3 p-2 rounded border ${isSelected ? 'border-primary bg-primary/10' : 'border-base-300'}`}
+      className={`w-full flex items-center gap-3 p-2 cursor-pointer hover:border-primary/50 rounded border ${isSelected ? 'border-primary bg-primary/10' : 'border-base-300'}`}
       onClick={onSelect}
     >
       {listing.image && (

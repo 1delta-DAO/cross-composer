@@ -84,31 +84,19 @@ export function DepositPanel({ chainId, setDestinationInfo, resetKey }: DepositP
 
   return (
     <>
-      <div className="card bg-base-200 shadow-sm border border-base-200">
-        <div className="card-body p-4">
-          <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-            <div className="font-medium">Lending Deposits</div>
-            <button className="btn btn-sm btn-ghost">{isExpanded ? '▼' : '▶'}</button>
-          </div>
-
-          {isExpanded && (
-            <div className="mt-4">
-              <div className="text-sm font-semibold mb-2 opacity-70">Deposit</div>
-              <div className="grid grid-cols-2 min-[600px]:grid-cols-3 min-[800px]:grid-cols-4 min-[1000px]:grid-cols-5 gap-3 max-h-[400px] overflow-y-auto">
-                {depositMarkets.length === 0 ? (
-                  <div className="col-span-full text-sm opacity-50 text-center py-4">No markets available</div>
-                ) : (
-                  depositMarkets.map((market) => (
-                    <DepositCard
-                      key={market.mTokenCurrency.address}
-                      market={market}
-                      onActionClick={() => setSelectedMarket(market)}
-                      currencyFromList={list[market.mTokenCurrency.chainId]?.[market.underlyingCurrency.address.toLowerCase()]}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
+      <div className="card-body p-4">
+        <div className="grid grid-cols-2 min-[600px]:grid-cols-3 min-[800px]:grid-cols-4 min-[1000px]:grid-cols-5 gap-3 max-h-[400px] overflow-y-auto">
+          {depositMarkets.length === 0 ? (
+            <div className="col-span-full text-sm opacity-50 text-center py-4">No markets available</div>
+          ) : (
+            depositMarkets.map((market) => (
+              <DepositCard
+                key={market.mTokenCurrency.address}
+                market={market}
+                onActionClick={() => setSelectedMarket(market)}
+                currencyFromList={list[market.mTokenCurrency.chainId]?.[market.underlyingCurrency.address.toLowerCase()]}
+              />
+            ))
           )}
         </div>
       </div>

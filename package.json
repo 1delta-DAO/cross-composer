@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@1delta/bridge-configs": "^0.1.6",
-    "@1delta/calldata-sdk": "^0.0.126",
+    "@1delta/calldata-sdk": "^0.0.128",
     "@1delta/calldatalib": "0.0.46",
     "@1delta/chain-registry": "^0.0.3",
     "@1delta/data-sdk": "^0.0.10",
@@ -32,7 +32,7 @@
     "tailwindcss": "^4.1.17",
     "viem": "^2.40.3",
     "vite": "^7.2.4",
-    "wagmi": "^3.0.1"
+    "wagmi": "^3.0.2"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

@@ -17,7 +17,7 @@ function DepositCard({ market, onActionClick, currencyFromList }: MarketTokenCar
   return (
     <button
       type="button"
-      className="flex flex-col items-center gap-2 p-3 rounded-lg border border-base-300 hover:border-primary/50 bg-base-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex flex-col items-center gap-2 p-3 cursor-pointer rounded-lg border border-base-300 hover:border-primary/50 bg-base-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={market.mintPaused}
       onClick={() => {
         if (!market.mintPaused) onActionClick()
