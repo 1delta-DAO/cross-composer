@@ -25,38 +25,6 @@ type Props = {
   listMode?: boolean // When true, shows only the list without dropdown button
 }
 
-// Stablecoin symbols (common stablecoins)
-const STABLECOIN_SYMBOLS = new Set([
-  'USDC',
-  'USDT',
-  'DAI',
-  'BUSD',
-  'FRAX',
-  'USDD',
-  'USDE',
-  'TUSD',
-  'LUSD',
-  'SUSD',
-  'GUSD',
-  'MIM',
-  'DOLA',
-])
-
-// LST (Liquid Staking Token) patterns - common LST symbols
-const LST_SYMBOLS = new Set([
-  'STETH',
-  'RETH',
-  'CBETH',
-  'SFRXETH',
-  'WBETH',
-  'STSOL',
-  'MSOL',
-  'JITOSOL',
-])
-
-// Bitcoin tokens
-const BITCOIN_SYMBOLS = new Set(['WBTC', 'BTCB', 'HBTC', 'RENBTC', 'TBTC'])
-
 export function TokenSelector({
   chainId,
   value,
@@ -67,7 +35,7 @@ export function TokenSelector({
   showSearch = true,
   listMode = false,
 }: Props) {
-  const { address } = useConnection()
+  const { address: userAddress } = useConnection()
   const { data: lists, isLoading: listsLoading } = useTokenLists()
   const { data: chains } = useChainsRegistry()
   const [open, setOpen] = useState(false)
@@ -109,8 +77,8 @@ export function TokenSelector({
 
   const { data: balances, isLoading: balancesLoading } = useEvmBalances({
     chainId,
-    userAddress: address,
-    tokenAddresses: address ? addressesWithNative : [],
+    userAddress,
+    tokenAddresses: userAddress ? addressesWithNative : [],
   })
 
   const relevant = useMemo(() => {
@@ -198,13 +166,8 @@ export function TokenSelector({
 
     // WBTC selection logic
     const wbtcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => {
-      const symbolUpper = t?.symbol?.toUpperCase() || ''
       const assetGroupUpper = t?.assetGroup?.toUpperCase() || ''
-      return (
-        symbolUpper.includes('WBTC') ||
-        assetGroupUpper.includes('WBTC') ||
-        (assetGroupUpper.includes('BTC') && !assetGroupUpper.includes('INTER'))
-      )
+      return assetGroupUpper === 'WBTC'
     })
     addTokenIfNotIncluded(wbtcCandidates, (candidates) => {
       return (
@@ -216,32 +179,11 @@ export function TokenSelector({
     return relevantTokens
   }, [tokensMap, chainId, nativeCurrencySymbol])
 
-  const getStablecoinFallbackPrice = useCallback(
-    (chainId: string, address: string): number | undefined => {
-      const token = getTokenFromCache(chainId, address)
-      if (!token) return undefined
-      const symbol = (token as any)?.symbol?.toUpperCase?.() || ''
-      const assetGroup = (token as any)?.assetGroup || ''
-      if (assetGroup === 'USDC') return 1
-      if (
-        symbol === 'USDC' ||
-        symbol === 'USDT' ||
-        symbol === 'DAI' ||
-        symbol === 'USDBC' ||
-        symbol === 'XCUSDC' ||
-        symbol === 'XCUSDT'
-      )
-        return 1
-      return undefined
-    },
-    []
-  )
-
   const priceCurrencies = useMemo(() => {
     const currencies: RawCurrency[] = []
     const seenAddresses = new Set<string>()
 
-    if (balances?.[chainId] && address) {
+    if (balances?.[chainId] && userAddress) {
       for (const addr of addressesWithNative) {
         const bal = balances[chainId][addr.toLowerCase()]
         if (bal && Number(bal.value || 0) > 0) {
@@ -269,7 +211,7 @@ export function TokenSelector({
     }
 
     return currencies
-  }, [balances, chainId, addressesWithNative, address, relevant])
+  }, [balances, chainId, addressesWithNative, userAddress, relevant])
 
   const { data: prices, isLoading: pricesLoading } = usePriceQuery({
     currencies: priceCurrencies,
@@ -287,24 +229,7 @@ export function TokenSelector({
       if (isNative || isWrappedNative) {
         return 1
       }
-
-      if (
-        LST_SYMBOLS.has(symbolUpper) ||
-        symbolUpper.includes('ST') ||
-        (symbolUpper.includes('ETH') && symbolUpper.includes('S'))
-      ) {
-        return 2
-      }
-
-      if (STABLECOIN_SYMBOLS.has(symbolUpper)) {
-        return 3
-      }
-
-      if (BITCOIN_SYMBOLS.has(symbolUpper) || symbolUpper.includes('BTC')) {
-        return 4
-      }
-
-      return 5
+      return 2
     },
     [nativeCurrencySymbol]
   )
@@ -320,9 +245,7 @@ export function TokenSelector({
         const priceData = prices?.[chainId]?.[addr.toLowerCase()]
         const price = priceData?.usd
 
-        // Get fallback price for stablecoins if no price from API
-        const fallbackPrice = price || getStablecoinFallbackPrice(chainId, addr) || 0
-        const finalPrice = price || fallbackPrice
+        const finalPrice = price || 0
 
         // Calculate USD value: balance * price, or use price for sorting if no balance
         const balanceAmount = bal ? Number(bal.value || 0) : 0
@@ -389,7 +312,6 @@ export function TokenSelector({
     excludeAddresses,
     getTokenCategory,
     relevant,
-    getStablecoinFallbackPrice,
   ])
 
   const selected = value ? tokensMap[value.toLowerCase()] : undefined
@@ -407,7 +329,7 @@ export function TokenSelector({
         prices={prices}
         balancesLoading={balancesLoading}
         pricesLoading={pricesLoading}
-        userAddress={address}
+        userAddress={userAddress}
         onChange={onChange}
       />
     )

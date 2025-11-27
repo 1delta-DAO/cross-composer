@@ -1,38 +1,86 @@
 import { SUPPORTED_CHAIN_IDS } from './data/chainIds'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import type { RawCurrency } from '../types/currency'
+import type { VersionedDeltaTokenList } from './types/tokenList'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+export type TokenListsRecord = Record<string, Record<string, RawCurrency>>
+
+let cachedTokenLists: TokenListsRecord | null = null
+let loadPromise: Promise<TokenListsRecord> | null = null
+
+type ReadyListener = () => void
+const listeners = new Set<ReadyListener>()
 
 const getListUrl = (chainId: string) =>
   `https://raw.githubusercontent.com/1delta-DAO/asset-lists/main/${chainId}.json`
 
-async function fetchChains() {
-  const dir = path.resolve(__dirname, './data/assets')
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
+async function fetchList(chainId: string): Promise<VersionedDeltaTokenList | null> {
+  try {
+    const url = getListUrl(chainId)
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.warn(
+        `Failed to fetch asset list for chain ${chainId}: ${response.status} ${response.statusText}`
+      )
+      return null
+    }
+    const data = (await response.json()) as VersionedDeltaTokenList
+    return data
+  } catch (error) {
+    console.warn(`Error fetching asset list for chain ${chainId}:`, error)
+    return null
   }
-
-  await Promise.all(
-    SUPPORTED_CHAIN_IDS.map(async (chainId) => {
-      try {
-        const url = getListUrl(chainId)
-        console.log(`Fetching ${chainId} from ${url}`)
-        const response = await fetch(url)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${chainId}: ${response.statusText}`)
-        }
-        const data = await response.json()
-        const filePath = path.join(dir, `${chainId}.json`)
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8')
-      } catch (error) {
-        console.error(`Error fetching ${chainId}:`, error)
-      }
-    })
-  )
-  console.log('Done!')
 }
 
-fetchChains()
+function notifyReady() {
+  listeners.forEach((listener) => listener())
+}
+
+export async function loadTokenLists(): Promise<TokenListsRecord> {
+  if (cachedTokenLists) return cachedTokenLists
+  if (loadPromise) return loadPromise
+
+  loadPromise = (async () => {
+    const lists: TokenListsRecord = {}
+
+    for (const chainId of SUPPORTED_CHAIN_IDS) {
+      const list = await fetchList(chainId)
+      if (!list || !list.list) continue
+
+      const normalized: Record<string, RawCurrency> = {}
+      for (const [address, token] of Object.entries(list.list)) {
+        normalized[address.toLowerCase()] = token
+      }
+
+      lists[chainId] = normalized
+    }
+
+    cachedTokenLists = lists
+    notifyReady()
+    return lists
+  })()
+
+  return loadPromise
+}
+
+export function getTokenListsCache(): TokenListsRecord | null {
+  return cachedTokenLists
+}
+
+export function getTokenFromCache(chainId: string, address: string): RawCurrency | undefined {
+  const lower = address.toLowerCase()
+  return cachedTokenLists?.[chainId]?.[lower]
+}
+
+export function isTokenListsReady(): boolean {
+  return cachedTokenLists !== null
+}
+
+export function subscribeTokenListsReady(listener: ReadyListener): () => void {
+  listeners.add(listener)
+  if (cachedTokenLists) {
+    listener()
+  }
+  return () => {
+    listeners.delete(listener)
+  }
+}

@@ -32,7 +32,6 @@ export function TokenSelectorModal({
   showChainSelector = true,
   initialChainId,
 }: Props) {
-  const { address } = useConnection()
   const [chainId, setChainId] = useState<string | undefined>(
     initialChainId ?? currency?.chainId ?? Chain.POLYGON_MAINNET
   )

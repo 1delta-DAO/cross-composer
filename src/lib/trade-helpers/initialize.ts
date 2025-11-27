@@ -6,6 +6,7 @@ import type { WalletClient } from 'viem'
 import { initializeMoonwellMarkets } from '../moonwell/marketCache'
 import { registerActions } from '../../components/actions/shared/registerActions'
 import { fetchMainPrices } from '../../hooks/prices/usePriceQuery'
+import { loadTokenLists } from '../data/tokenListsCache'
 
 let isInitialized = false
 
@@ -29,10 +30,13 @@ export async function initAll() {
       loadSquidData: true,
       load1deltaConfigs: true,
     })
+
+    await loadTokenLists()
+
     isInitialized = true
-    console.debug('Trade SDK initialized successfully')
+    console.debug('Trade SDK and asset lists initialized successfully')
   } catch (error) {
-    console.error('Failed to initialize Trade SDK:', error)
+    console.error('Failed to initialize core services:', error)
     throw error
   }
 
