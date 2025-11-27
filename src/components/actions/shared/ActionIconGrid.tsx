@@ -69,18 +69,20 @@ export function ActionIconGrid({
   return (
     <div className="space-y-3">
       {/* Category Tabs */}
-      <div className="tabs tabs-boxed">
-        {CATEGORIES.map((category) => (
-          <button
-            key={category.id}
-            type="button"
-            className={`tab ${selectedCategory === category.id ? 'tab-active' : ''}`}
-            onClick={() => onCategoryChange(category.id)}
-          >
-            {category.label}
-          </button>
-        ))}
-      </div>
+      {isExpanded && (
+        <div className="tabs tabs-boxed">
+          {CATEGORIES.map((category) => (
+            <button
+              key={category.id}
+              type="button"
+              className={`tab ${selectedCategory === category.id ? 'tab-active' : ''}`}
+              onClick={() => onCategoryChange(category.id)}
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Action Icons */}
       {isExpanded ? (

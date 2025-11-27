@@ -50,7 +50,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="space-y-4 flex flex-col items-center">
           {/* TABS + SLIPPAGE */}
-          <div className="w-full max-w-[500px] min-w-[300px] flex items-center justify-between">
+          <div className="w-full max-w-[1000px] min-w-[450px] flex items-center justify-between">
             <div className="join">
               <button className={`btn btn-sm join-item ${activeTab === 'swap' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('swap')}>
                 Swap
@@ -80,7 +80,7 @@ export default function App() {
           </div>
 
           {/* CARD */}
-          <div className="w-full max-w-[500px] min-w-[300px]">
+          <div className="w-full max-w-[1000px] min-w-[450px]">
             <div className="card bg-base-100 shadow-xl rounded-2xl">
               <div className="card-body p-4 sm:p-6">
                 {activeTab === 'swap' ? (

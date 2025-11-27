@@ -102,4 +102,3 @@ export async function fetchAllActionTrades(
 
   return trades.sort((a, b) => b.trade.outputAmountRealized - a.trade.outputAmountRealized)
 }
-
