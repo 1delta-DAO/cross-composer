@@ -7,10 +7,9 @@ import type { RawCurrency } from '../../../../types/currency'
 import { parseUnits } from 'viem'
 import { reverseQuote } from '../../../../lib/reverseQuote'
 import { useDebounce } from '../../../../hooks/useDebounce'
-import type { Address } from 'viem'
-import { useTokenPrice } from '../../../../hooks/prices/useTokenPrice'
-import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { usePriceQuery } from '../../../../hooks/prices/usePriceQuery'
+import { getCurrency } from '../../../../lib/trade-helpers/utils'
 
 type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
@@ -27,7 +26,6 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
   const { address } = useConnection()
 
   const [outputAmount, setOutputAmount] = useState('')
-  const [isSelected, setIsSelected] = useState(false)
 
   const chainId = SupportedChainId.MOONBEAM
   const debouncedOutputAmount = useDebounce(outputAmount, 1000)
@@ -37,39 +35,21 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
     return tokenLists[chainId]?.[XCDOT_ADDRESS.toLowerCase()]
   }, [tokenLists, chainId])
 
-  const xcDOTCurrency = useMemo(() => {
-    if (!xcDOTToken || !chainId) return undefined
-    return {
-      chainId: String(chainId),
-      address: XCDOT_ADDRESS,
-      decimals: xcDOTToken.decimals,
-      symbol: xcDOTToken.symbol || 'XCDOT',
-    } as RawCurrency
-  }, [xcDOTToken, chainId])
-
-  // Get price address for srcCurrency (handle native tokens)
-  const srcTokenPriceAddr = useMemo(() => {
-    if (!srcCurrency) return undefined
-    if (srcCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(srcCurrency.chainId, zeroAddress) as Address | undefined
-    }
-    return srcCurrency.address as Address
-  }, [srcCurrency])
-
-  const shouldFetchXcDOTPrice = Boolean(chainId && outputAmount && Number(outputAmount) > 0)
-  const shouldFetchSrcTokenPrice = Boolean(srcCurrency && srcTokenPriceAddr && outputAmount && Number(outputAmount) > 0)
-
-  const { price: xcDOTPrice } = useTokenPrice({
-    chainId: String(chainId),
-    tokenAddress: XCDOT_ADDRESS,
-    enabled: shouldFetchXcDOTPrice,
+  const xcDotCurrency = getCurrency(chainId, XCDOT_ADDRESS)
+  const { data: pricesData } = usePriceQuery({
+    currencies: [xcDotCurrency!, srcCurrency!],
+    enabled: Boolean(srcCurrency && xcDotCurrency),
   })
 
-  const { price: srcTokenPrice } = useTokenPrice({
-    chainId: srcCurrency?.chainId || '',
-    tokenAddress: srcTokenPriceAddr,
-    enabled: shouldFetchSrcTokenPrice,
-  })
+  const xcDOTPrice = useMemo(() => {
+    if (!pricesData || !xcDotCurrency) return undefined
+    return pricesData[xcDotCurrency.chainId]?.[CurrencyHandler.wrappedAddress(xcDotCurrency)!]?.usd
+  }, [pricesData, xcDotCurrency])
+
+  const srcTokenPrice = useMemo(() => {
+    if (!pricesData || !srcCurrency) return undefined
+    return pricesData[srcCurrency.chainId]?.[CurrencyHandler.wrappedAddress(srcCurrency)!]?.usd
+  }, [pricesData, srcCurrency])
 
   const calculatedInputAmount = useMemo(() => {
     if (!debouncedOutputAmount || !xcDOTToken) {
@@ -81,18 +61,11 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
       return undefined
     }
 
-    // We need DOT (xcDOT) price and source token price for reverse quote
     if (xcDOTPrice === undefined || srcTokenPrice === undefined) {
       return undefined
     }
 
     try {
-      // User enters DOT amount (output), we calculate how much source token (input) is needed
-      // reverseQuote(decimalsOut, amountOut, priceIn, priceOut)
-      // - decimalsOut: DOT/xcDOT decimals
-      // - amountOut: DOT amount in wei
-      // - priceIn: source token price
-      // - priceOut: DOT/xcDOT price
       const amountInWei = parseUnits(debouncedOutputAmount, xcDOTToken.decimals)
       const inputAmount = reverseQuote(xcDOTToken.decimals, amountInWei.toString(), srcTokenPrice, xcDOTPrice, slippage)
       return inputAmount
@@ -104,7 +77,7 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
 
   useEffect(() => {
     const autoSelect = async () => {
-      if (!debouncedOutputAmount || !xcDOTToken || !address || isSelected) return
+      if (!debouncedOutputAmount || !xcDOTToken || !address) return
 
       const amount = Number(debouncedOutputAmount)
       if (!amount || amount <= 0) {
@@ -123,17 +96,14 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
         const currencyAmount = CurrencyHandler.fromRawAmount(xcDOTToken, outputAmountWei.toString())
 
         setDestinationInfo(currencyAmount, undefined, destinationCalls, 'Staked DOT')
-        setIsSelected(true)
-        setTimeout(() => setIsSelected(false), 1000)
       }
     }
 
     autoSelect()
-  }, [debouncedOutputAmount, xcDOTToken, address, isSelected, setDestinationInfo])
+  }, [debouncedOutputAmount, xcDOTToken, address, setDestinationInfo])
 
   const handleAmountChange = (value: string) => {
     setOutputAmount(value)
-    setIsSelected(false)
     if (!value || Number(value) <= 0) {
       setDestinationInfo?.(undefined, undefined, [])
     }
@@ -142,7 +112,6 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
   useEffect(() => {
     if (resetKey !== undefined && resetKey > 0) {
       setOutputAmount('')
-      setIsSelected(false)
       setDestinationInfo?.(undefined, undefined, [])
     }
   }, [resetKey])
