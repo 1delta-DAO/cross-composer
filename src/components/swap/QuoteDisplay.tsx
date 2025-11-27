@@ -3,10 +3,7 @@ import type { GenericTrade } from '../../sdk/types'
 import { Logo } from '../common/Logo'
 import { getAggregatorLogo, getBridgeLogo } from './swapUtils'
 import type { RawCurrency } from '../../types/currency'
-import type { Address } from 'viem'
-import { useTokenPrice } from '../../hooks/prices/useTokenPrice'
-import { zeroAddress } from 'viem'
-import { CurrencyHandler } from '../../sdk/types'
+import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
 
 type QuoteDisplayProps = {
   quotes: Array<{ label: string; trade: GenericTrade }>
@@ -35,20 +32,15 @@ export function QuoteDisplay({
 }: QuoteDisplayProps) {
   const [quotesExpanded, setQuotesExpanded] = useState(false)
   const getLogo = isBridge ? getBridgeLogo : getAggregatorLogo
-
-  const dstTokenPriceAddr = useMemo(() => {
-    if (!dstCurrency) return undefined
-    if (dstCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(dstCurrency.chainId, zeroAddress) as Address | undefined
-    }
-    return dstCurrency.address as Address
-  }, [dstCurrency])
-
-  const { price: dstPrice } = useTokenPrice({
-    chainId: dstCurrency?.chainId || '',
-    tokenAddress: dstTokenPriceAddr,
+  const { data: pricesData } = usePriceQuery({
+    currencies: dstCurrency ? [dstCurrency] : [],
     enabled: Boolean(dstCurrency),
   })
+
+  const dstPrice = useMemo(() => {
+    if (!pricesData || !dstCurrency) return undefined
+    return pricesData[dstCurrency.chainId]?.[dstCurrency.address.toLowerCase()]?.usd
+  }, [pricesData, dstCurrency])
 
   if (quotes.length === 0) {
     if (quoting) {

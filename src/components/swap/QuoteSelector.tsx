@@ -1,11 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { GenericTrade } from '../../sdk/types'
 import { Logo } from '../common/Logo'
 import type { RawCurrency } from '../../types/currency'
-import type { Address } from 'viem'
-import { useTokenPrice } from '../../hooks/prices/useTokenPrice'
-import { zeroAddress } from 'viem'
-import { CurrencyHandler } from '../../sdk/types'
+import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
 
 type QuoteSelectorProps = {
   quotes: Array<{ label: string; trade: GenericTrade }>
@@ -31,18 +28,15 @@ export function QuoteSelector({ quotes, selectedIndex, onSelect, amount, srcSymb
   const bestOutput = bestQuote.trade.outputAmountRealized
   const selectedOutput = selectedQuote.trade.outputAmountRealized
   const selectedRate = amount && Number(amount) > 0 ? selectedOutput / Number(amount) : 0
-
-  const dstTokenPriceAddr = dstCurrency
-    ? dstCurrency.address.toLowerCase() === zeroAddress.toLowerCase()
-      ? (CurrencyHandler.wrappedAddressFromAddress(dstCurrency.chainId, zeroAddress) as Address | undefined)
-      : (dstCurrency.address as Address)
-    : undefined
-
-  const { price: dstPrice } = useTokenPrice({
-    chainId: dstCurrency?.chainId || '',
-    tokenAddress: dstTokenPriceAddr,
+  const { data: pricesData } = usePriceQuery({
+    currencies: dstCurrency ? [dstCurrency] : [],
     enabled: Boolean(dstCurrency),
   })
+
+  const dstPrice = useMemo(() => {
+    if (!pricesData || !dstCurrency) return undefined
+    return pricesData[dstCurrency.chainId]?.[dstCurrency.address.toLowerCase()]?.usd
+  }, [pricesData, dstCurrency])
 
   return (
     <div className="rounded-2xl bg-base-200 p-4 shadow border border-base-300 mt-3">

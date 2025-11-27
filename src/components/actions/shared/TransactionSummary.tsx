@@ -2,10 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import type { RawCurrency, RawCurrencyAmount } from '../../../types/currency'
 import { formatDisplayAmount } from '../../swap/swapUtils'
 import { CurrencyHandler } from '../../../sdk/types'
-import type { Address } from 'viem'
-import { useTokenPrice } from '../../../hooks/prices/useTokenPrice'
-import { zeroAddress } from 'viem'
-import { getPriceWithFallback } from '../../../lib/trade-helpers/prices'
+import { usePriceQuery } from '../../../hooks/prices/usePriceQuery'
 
 interface TransactionSummaryProps {
   srcCurrency?: RawCurrency
@@ -43,54 +40,35 @@ export function TransactionSummary({
     return srcCurrency && dstCurrency && outputAmount && Number(outputAmount) > 0
   }, [srcCurrency, dstCurrency, outputAmount])
 
-  const srcTokenPriceAddr = useMemo(() => {
-    if (!srcCurrency) return undefined
-    if (srcCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(srcCurrency.chainId, zeroAddress) as Address | undefined
-    }
-    return srcCurrency.address as Address
-  }, [srcCurrency])
+  const currenciesForPrice = useMemo(() => {
+    const currencies: RawCurrency[] = []
+    if (srcCurrency) currencies.push(srcCurrency)
+    if (dstCurrency) currencies.push(dstCurrency)
+    return currencies
+  }, [srcCurrency, dstCurrency])
 
-  const { price: srcPrice, isLoading: srcPriceLoading } = useTokenPrice({
-    chainId: srcCurrency?.chainId || '',
-    tokenAddress: srcTokenPriceAddr,
-    enabled: Boolean(srcCurrency),
-  })
+  const { data: pricesData } = usePriceQuery({ currencies: currenciesForPrice, enabled: currenciesForPrice.length > 0 })
 
-  const dstTokenPriceAddr = useMemo(() => {
-    if (!dstCurrency) return undefined
-    if (dstCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(dstCurrency.chainId, zeroAddress) as Address | undefined
-    }
-    return dstCurrency.address as Address
-  }, [dstCurrency])
+  const srcPrice = useMemo(() => {
+    if (!pricesData || !srcCurrency) return undefined
+    const chainId = srcCurrency.chainId
+    const addressKey = srcCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
+  }, [pricesData, srcCurrency])
 
-  const { price: dstPrice, isLoading: dstPriceLoading } = useTokenPrice({
-    chainId: dstCurrency?.chainId || '',
-    tokenAddress: dstTokenPriceAddr,
-    enabled: Boolean(dstCurrency),
-  })
-
-  const srcPriceWithFallback = useMemo(() => {
-    if (srcPrice && srcPrice > 0) return srcPrice
-    if (srcCurrency && srcTokenPriceAddr) {
-      return getPriceWithFallback(srcCurrency.chainId, srcTokenPriceAddr)
-    }
-    return undefined
-  }, [srcPrice, srcCurrency, srcTokenPriceAddr])
-
-  const dstPriceWithFallback = useMemo(() => {
-    if (dstPrice && dstPrice > 0) return dstPrice
-    if (dstCurrency && dstTokenPriceAddr) {
-      return getPriceWithFallback(dstCurrency.chainId, dstTokenPriceAddr)
-    }
-    return undefined
-  }, [dstPrice, dstCurrency, dstTokenPriceAddr])
+  const dstPrice = useMemo(() => {
+    if (!pricesData || !dstCurrency) return undefined
+    const chainId = dstCurrency.chainId
+    const addressKey = dstCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
+  }, [pricesData, dstCurrency])
 
   const [showCalculatingTimeout, setShowCalculatingTimeout] = useState(false)
 
   useEffect(() => {
-    if (!inputAmount || !srcPriceWithFallback) {
+    if (!inputAmount || !srcPrice) {
       const timer = setTimeout(() => {
         setShowCalculatingTimeout(true)
       }, 5000)
@@ -98,17 +76,17 @@ export function TransactionSummary({
     } else {
       setShowCalculatingTimeout(false)
     }
-  }, [inputAmount, srcPriceWithFallback])
+  }, [inputAmount, srcPrice])
 
   const inputUsd = useMemo(() => {
-    if (!inputAmount || !srcPriceWithFallback) return undefined
-    return Number(inputAmount) * srcPriceWithFallback
-  }, [inputAmount, srcPriceWithFallback])
+    if (!inputAmount || !srcPrice) return undefined
+    return Number(inputAmount) * srcPrice
+  }, [inputAmount, srcPrice])
 
   const outputUsd = useMemo(() => {
-    if (!outputAmount || !dstPriceWithFallback) return undefined
-    return Number(outputAmount) * dstPriceWithFallback
-  }, [outputAmount, dstPriceWithFallback])
+    if (!outputAmount || !dstPrice) return undefined
+    return Number(outputAmount) * dstPrice
+  }, [outputAmount, dstPrice])
 
   const srcChainName = useMemo(() => {
     if (!srcCurrency?.chainId || !chains) return srcCurrency?.chainId
@@ -123,7 +101,6 @@ export function TransactionSummary({
   if (!shouldShow) return null
 
   const hasInputAmount = inputAmount && Number(inputAmount) > 0
-  const isCalculating = !hasInputAmount && (srcPriceLoading || dstPriceLoading || !srcPriceWithFallback)
   const formattedInput = hasInputAmount ? formatDisplayAmount(inputAmount) : showCalculatingTimeout ? 'Price unavailable' : 'Calculating...'
   const formattedOutput = formatDisplayAmount(outputAmount || '0')
 

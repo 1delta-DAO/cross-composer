@@ -1,1 +1,3 @@
-export type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
+import type { RawCurrency } from '../../../../types/currency'
+
+export type TokenListsMeta = Record<string, Record<string, RawCurrency>>

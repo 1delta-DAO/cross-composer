@@ -3,12 +3,11 @@ import { Bridge, getBridges } from '@1delta/bridge-configs'
 import type { GenericTrade, RawCurrency } from '@1delta/lib-utils'
 import type { AcrossBaseInput, AxelarBaseInput, BaseBridgeInput, DeltaCall } from '@1delta/trade-sdk/dist/types'
 import type { Address } from 'viem'
-import { getPricesCallback } from '../../lib/trade-helpers/prices'
 import { getCurrency as getCurrencyRaw } from '../../lib/trade-helpers/utils'
 import { fetchAxelarTradeWithSwaps } from '@1delta/trade-sdk/dist/composedTrades/axelar/axelarWithSwaps'
 import { fetchAcrossTradeWithSwaps } from '@1delta/trade-sdk/dist/composedTrades/across/acrossWithSwaps'
-import { fetchPrices } from '../../hooks/prices/usePriceQuery'
-import { setPricesFromDexscreener } from '../../lib/trade-helpers/prices'
+import type { PricesRecord } from '../../hooks/prices/usePriceQuery'
+import type { useGeneralPricesCallbackType } from '@1delta/lib-utils/dist/types/priceQuery'
 
 type ExtendedBridgeInput = BaseBridgeInput & {
   additionalCalls?: DeltaCall[]
@@ -25,18 +24,31 @@ function getCurrency(chainId: string | undefined, tokenAddress: string | undefin
   return currency
 }
 
-async function fetchPricesForCurrencies(currencies: RawCurrency[]): Promise<void> {
-  if (currencies.length === 0) return
-
-  try {
-    const prices = await fetchPrices(currencies)
-    setPricesFromDexscreener(prices)
-  } catch {}
+function buildPricesCallbackFromRecord(prices?: PricesRecord): useGeneralPricesCallbackType {
+  const record = prices || {}
+  return (priceQueries) => {
+    return priceQueries.map((q) => {
+      if (!q.chainId || !q.asset) {
+        return 0
+      }
+      const chainPrices = record[q.chainId]
+      if (!chainPrices) {
+        return 0
+      }
+      const assetLower = q.asset.toLowerCase()
+      const priceObj = chainPrices[assetLower]
+      if (!priceObj || !Number.isFinite(priceObj.usd) || priceObj.usd <= 0) {
+        return 0
+      }
+      return priceObj.usd
+    })
+  }
 }
 
 export async function fetchAllActionTrades(
   input: ExtendedBridgeInput,
   controller?: AbortController,
+  prices?: PricesRecord,
 ): Promise<Array<{ action: string; trade: GenericTrade }>> {
   const availableBridges = getBridges()
   const hasAdditionalCalls = Boolean(input.additionalCalls && input.additionalCalls.length > 0)
@@ -54,8 +66,6 @@ export async function fetchAllActionTrades(
 
         if (hasAdditionalCalls) {
           if (bridge === Bridge.AXELAR) {
-            await fetchPricesForCurrencies([input.fromCurrency, input.toCurrency].filter(Boolean) as RawCurrency[])
-
             const composedInput: AxelarBaseInput = {
               ...input,
               payFeeWithNative: true,
@@ -64,7 +74,8 @@ export async function fetchAllActionTrades(
                 gasLimit: input.destinationGasLimit,
               },
             }
-            trade = await fetchAxelarTradeWithSwaps(composedInput, getCurrency, getPricesCallback, controller)
+            const pricesCallback = buildPricesCallbackFromRecord(prices)
+            trade = await fetchAxelarTradeWithSwaps(composedInput, getCurrency, pricesCallback, controller)
           } else if (bridge === Bridge.ACROSS) {
             const composedInput: AcrossBaseInput = {
               ...input,

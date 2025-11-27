@@ -11,6 +11,8 @@ import type { DeltaCall } from '@1delta/trade-sdk'
 import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
 import { fetchAllActionTrades } from '../trade-helpers/actionSelector'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
+import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
+import type { PricesRecord } from '../../hooks/prices/usePriceQuery'
 import { useConnection } from 'wagmi'
 import { validateQuoteOutput, calculateAdjustedBuffer, calculateReverseQuoteBuffer } from '../../lib/reverseQuote'
 
@@ -71,6 +73,18 @@ export function useTradeQuotes({
   const prevIsSameChainRef = useRef<boolean | null>(null)
   const prevDestinationCallsKeyRef = useRef<string>('')
   const isUserSelectionRef = useRef<boolean>(false)
+
+  const axelarPriceCurrencies = useMemo(() => {
+    const currencies: RawCurrency[] = []
+    if (srcCurrency) currencies.push(srcCurrency)
+    if (dstCurrency) currencies.push(dstCurrency)
+    return currencies
+  }, [srcCurrency, dstCurrency])
+
+  const { data: axelarPrices } = usePriceQuery({
+    currencies: axelarPriceCurrencies,
+    enabled: axelarPriceCurrencies.length > 0,
+  })
 
   useEffect(() => {
     if (prevSrcKeyRef.current !== debouncedSrcKey || prevDstKeyRef.current !== debouncedDstKey) {
@@ -363,6 +377,7 @@ export function useTradeQuotes({
               destinationGasLimit,
             } as any,
             controller,
+            (axelarPrices || {}) as PricesRecord,
           )
           console.log('All actions received from trade-sdk:', { actions: actionTrades.map((t) => t.action), actionTrades })
           allQuotes = actionTrades.map((t) => ({ label: t.action, trade: t.trade }))

@@ -8,7 +8,7 @@ import type { DestinationActionHandler } from './types'
 export type ActionType = string
 export type ActionCategory = 'all' | 'defi' | 'lending' | 'gaming' | 'yield'
 
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
+type TokenListsMeta = Record<string, Record<string, RawCurrency>>
 
 export interface ActionLoaderContext {
   srcCurrency?: RawCurrency

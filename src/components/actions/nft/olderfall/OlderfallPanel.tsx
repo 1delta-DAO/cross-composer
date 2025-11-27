@@ -9,11 +9,10 @@ import { formatListingPriceLabel } from './utils'
 import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from './Generic'
 import { buildCalls } from './callBuilder'
 import type { OlderfallListing } from './api'
+import type { TokenListsMeta } from './types'
 import { useConnection } from 'wagmi'
 import { isValidAddress, isEmptyAddress } from '../../../../utils/addressValidation'
 import type { Address } from 'viem'
-
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
 
 interface OlderfallPanelProps {
   tokenLists?: TokenListsMeta

@@ -12,7 +12,7 @@ import { DUMMY_ADDRESS } from '../../../lib/consts'
 import { Logo } from '../../common/Logo'
 import { useConnection } from 'wagmi'
 
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string; logoURI?: string }>>
+type TokenListsMeta = Record<string, Record<string, RawCurrency>>
 
 interface SwapPanelProps {
   srcCurrency?: RawCurrency
@@ -143,22 +143,6 @@ export function SwapPanel({
       setDestinationInfo(currencyAmount, undefined, [])
     }
   }
-
-  const tokenListsMeta = useMemo(() => {
-    if (!tokenLists) return undefined
-    const meta: Record<string, Record<string, { symbol?: string; decimals?: number }>> = {}
-    for (const chainId in tokenLists) {
-      meta[chainId] = {}
-      for (const address in tokenLists[chainId]) {
-        const token = tokenLists[chainId][address]
-        meta[chainId][address.toLowerCase()] = {
-          symbol: token.symbol,
-          decimals: token.decimals,
-        }
-      }
-    }
-    return meta
-  }, [tokenLists])
 
   useEffect(() => {
     if (resetKey !== undefined && resetKey > 0) {

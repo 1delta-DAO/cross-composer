@@ -11,7 +11,7 @@ import { useConnection } from 'wagmi'
 import { usePriceQuery } from '../../../../hooks/prices/usePriceQuery'
 import { getCurrency } from '../../../../lib/trade-helpers/utils'
 
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
+type TokenListsMeta = Record<string, Record<string, RawCurrency>>
 
 interface StellaStakingPanelProps {
   tokenLists?: TokenListsMeta
@@ -43,12 +43,18 @@ export function StellaStakingPanel({ tokenLists, setDestinationInfo, srcCurrency
 
   const xcDOTPrice = useMemo(() => {
     if (!pricesData || !xcDotCurrency) return undefined
-    return pricesData[xcDotCurrency.chainId]?.[CurrencyHandler.wrappedAddress(xcDotCurrency)!]?.usd
+    const chainId = xcDotCurrency.chainId
+    const addressKey = xcDotCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
   }, [pricesData, xcDotCurrency])
 
   const srcTokenPrice = useMemo(() => {
     if (!pricesData || !srcCurrency) return undefined
-    return pricesData[srcCurrency.chainId]?.[CurrencyHandler.wrappedAddress(srcCurrency)!]?.usd
+    const chainId = srcCurrency.chainId
+    const addressKey = srcCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
   }, [pricesData, srcCurrency])
 
   const calculatedInputAmount = useMemo(() => {

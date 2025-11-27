@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import type { Address } from 'viem'
-import type { GenericTrade } from '../sdk/types'
-import { useTokenPrice } from './prices/useTokenPrice'
-import { zeroAddress } from 'viem'
-import { CurrencyHandler } from '../sdk/types'
+import { CurrencyHandler, type GenericTrade } from '../sdk/types'
+import { usePriceQuery } from './prices/usePriceQuery'
+import { getCurrency } from '../lib/trade-helpers/utils'
+import { Address } from 'viem'
 
 export function usePriceImpact({
   selectedTrade,
@@ -22,33 +21,43 @@ export function usePriceImpact({
   srcChainId?: string
   dstChainId?: string
 }): number | undefined {
-  const srcTokenPriceAddr = useMemo(() => {
+  const srcCurrency = useMemo(() => {
     if (!srcToken || !srcChainId) return undefined
-    if (srcToken.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(srcChainId, zeroAddress) as Address | undefined
-    }
-    return srcToken
+    return getCurrency(srcChainId, srcToken as any)
   }, [srcToken, srcChainId])
 
-  const { price: srcPrice } = useTokenPrice({
-    chainId: srcChainId || '',
-    tokenAddress: srcTokenPriceAddr,
-    enabled: Boolean(srcToken && srcChainId),
-  })
-
-  const dstTokenPriceAddr = useMemo(() => {
+  const dstCurrency = useMemo(() => {
     if (!dstToken || !dstChainId) return undefined
-    if (dstToken.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(dstChainId, zeroAddress) as Address | undefined
-    }
-    return dstToken
+    return getCurrency(dstChainId, dstToken as any)
   }, [dstToken, dstChainId])
 
-  const { price: dstPrice } = useTokenPrice({
-    chainId: dstChainId || '',
-    tokenAddress: dstTokenPriceAddr,
-    enabled: Boolean(dstToken && dstChainId),
+  const priceCurrencies = useMemo(() => {
+    const currencies: any[] = []
+    if (srcCurrency) currencies.push(srcCurrency)
+    if (dstCurrency) currencies.push(dstCurrency)
+    return currencies
+  }, [srcCurrency, dstCurrency])
+
+  const { data: pricesData } = usePriceQuery({
+    currencies: priceCurrencies,
+    enabled: priceCurrencies.length > 0,
   })
+
+  const srcPrice = useMemo(() => {
+    if (!pricesData || !srcCurrency) return undefined
+    const chainId = srcCurrency.chainId
+    const addressKey = srcCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
+  }, [pricesData, srcCurrency])
+
+  const dstPrice = useMemo(() => {
+    if (!pricesData || !dstCurrency) return undefined
+    const chainId = dstCurrency.chainId
+    const addressKey = dstCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
+  }, [pricesData, dstCurrency])
 
   return useMemo(() => {
     if (!selectedTrade || !amount || !quoteOut || !srcToken || !dstToken || !srcChainId || !dstChainId) {

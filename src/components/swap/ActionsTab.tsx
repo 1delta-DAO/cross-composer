@@ -20,7 +20,6 @@ import { formatDisplayAmount, pickPreferredToken } from './swapUtils'
 import type { DestinationCall } from '../../lib/types/destinationAction'
 import { reverseQuote } from '../../lib/reverseQuote'
 import { getRegisteredActions } from '../actions/shared/actionRegistry'
-import { getPriceWithFallback } from '../../lib/trade-helpers/prices'
 
 type Props = {
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
@@ -57,12 +56,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
     if (!pick) return
     const meta = tokensMap[pick.toLowerCase()]
     if (!meta) return
-    setInputCurrency({
-      chainId: DEFAULT_INPUT_CHAIN_ID,
-      address: pick,
-      decimals: meta.decimals ?? 18,
-      symbol: meta.symbol,
-    })
+    setInputCurrency(meta)
   }, [inputCurrency, lists, chains])
 
   const inputAddressesWithNative = useMemo(() => {
@@ -252,22 +246,6 @@ export function ActionsTab({ onResetStateChange }: Props) {
       let priceIn = inputPrice ?? 0
       let priceOut = actionTokenPrice ?? 0
 
-      if (priceIn <= 0 && inputCurrency) {
-        const inputPriceAddr =
-          inputCurrency.address.toLowerCase() === zeroAddress.toLowerCase()
-            ? (CurrencyHandler.wrappedAddressFromAddress(inputCurrency.chainId, zeroAddress) as Address | undefined) || (zeroAddress as Address)
-            : (inputCurrency.address as Address)
-        priceIn = getPriceWithFallback(inputCurrency.chainId, inputPriceAddr)
-      }
-
-      if (priceOut <= 0 && actionCur) {
-        const actionPriceAddr =
-          actionCur.address.toLowerCase() === zeroAddress.toLowerCase()
-            ? (CurrencyHandler.wrappedAddressFromAddress(actionCur.chainId, zeroAddress) as Address | undefined) || (zeroAddress as Address)
-            : (actionCur.address as Address)
-        priceOut = getPriceWithFallback(actionCur.chainId, actionPriceAddr)
-      }
-
       if (priceIn <= 0 || priceOut <= 0) {
         setDestinationInfoState({ currencyAmount, actionLabel, actionId })
         setDestinationCalls(destinationCalls)
@@ -297,23 +275,6 @@ export function ActionsTab({ onResetStateChange }: Props) {
 
     let priceIn = inputPrice ?? 0
     let priceOut = actionTokenPrice ?? 0
-
-    if (priceIn <= 0 && inputCurrency) {
-      const inputPriceAddr =
-        inputCurrency.address.toLowerCase() === zeroAddress.toLowerCase()
-          ? (CurrencyHandler.wrappedAddressFromAddress(inputCurrency.chainId, zeroAddress) as Address | undefined) || (zeroAddress as Address)
-          : (inputCurrency.address as Address)
-      priceIn = getPriceWithFallback(inputCurrency.chainId, inputPriceAddr)
-    }
-
-    if (priceOut <= 0 && destinationInfo.currencyAmount) {
-      const actionCur = destinationInfo.currencyAmount.currency as RawCurrency
-      const actionPriceAddr =
-        actionCur.address.toLowerCase() === zeroAddress.toLowerCase()
-          ? (CurrencyHandler.wrappedAddressFromAddress(actionCur.chainId, zeroAddress) as Address | undefined) || (zeroAddress as Address)
-          : (actionCur.address as Address)
-      priceOut = getPriceWithFallback(actionCur.chainId, actionPriceAddr)
-    }
 
     if (priceIn > 0 && priceOut > 0) {
       const lastPrices = lastCalculatedPricesRef.current

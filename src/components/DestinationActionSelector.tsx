@@ -17,7 +17,7 @@ import type { GenericTrade } from '@1delta/lib-utils'
 interface DestinationActionSelectorProps {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
-  tokenLists?: Record<string, Record<string, { symbol?: string; decimals?: number }>> | undefined
+  tokenLists?: Record<string, Record<string, RawCurrency>> | undefined
   setDestinationInfo?: DestinationActionHandler
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
@@ -55,24 +55,6 @@ export default function DestinationActionSelector({
 
   const dstToken = useMemo(() => dstCurrency?.address as string | undefined, [dstCurrency])
   const dstChainId = useMemo(() => dstCurrency?.chainId as string | undefined, [dstCurrency])
-
-  const tokenListsMeta = useMemo(() => {
-    if (!tokenLists) return undefined
-    const meta: Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>> = {}
-    for (const chainId in tokenLists) {
-      meta[chainId] = {}
-      for (const address in tokenLists[chainId]) {
-        const token = tokenLists[chainId][address]
-        meta[chainId][address.toLowerCase()] = {
-          symbol: token.symbol,
-          decimals: token.decimals ?? 18,
-          address: address,
-          chainId: chainId,
-        }
-      }
-    }
-    return meta
-  }, [tokenLists])
 
   // Get available actions based on srcCurrency
   const availableActions = useMemo(() => {
@@ -142,7 +124,7 @@ export default function DestinationActionSelector({
       const loaderContext: ActionLoaderContext = {
         srcCurrency,
         dstCurrency,
-        tokenLists: tokenListsMeta,
+        tokenLists,
         chainId: dstChainId,
       }
 
@@ -165,7 +147,7 @@ export default function DestinationActionSelector({
     }
 
     loadActionData()
-  }, [availableActions, srcCurrency, dstCurrency, tokenListsMeta, dstChainId])
+  }, [availableActions, srcCurrency, dstCurrency, tokenLists, dstChainId])
 
   const prevSelectedActionRef = useRef<ActionType | null>(null)
 
@@ -233,7 +215,7 @@ export default function DestinationActionSelector({
 
     const Panel = actionDef.panel
     const context = {
-      tokenLists: tokenListsMeta,
+      tokenLists,
       setDestinationInfo: wrappedSetDestinationInfo,
       srcCurrency,
       dstCurrency,

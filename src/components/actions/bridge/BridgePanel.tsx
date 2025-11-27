@@ -6,11 +6,10 @@ import { BridgeCard } from './BridgeCard'
 import { TokenSelectorModal } from '../../modals/TokenSelectorModal'
 import { parseUnits, zeroAddress } from 'viem'
 import type { Address } from 'viem'
-import { useTokenPrice } from '../../../hooks/prices/useTokenPrice'
 import { useDebounce } from '../../../hooks/useDebounce'
 import type { GenericTrade } from '@1delta/lib-utils'
 
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
+type TokenListsMeta = Record<string, Record<string, RawCurrency>>
 
 interface BridgePanelProps {
   srcCurrency?: RawCurrency
