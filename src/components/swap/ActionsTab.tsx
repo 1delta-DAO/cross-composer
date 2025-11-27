@@ -6,7 +6,6 @@ import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
 import { useTokenLists } from '../../hooks/useTokenLists'
 import { useEvmBalances } from '../../hooks/balances/useEvmBalances'
 import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
-import { useTokenPrice } from '../../hooks/prices/useTokenPrice'
 import { useDebounce } from '../../hooks/useDebounce'
 import { CurrencyHandler, SupportedChainId } from '../../sdk/types'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
@@ -108,43 +107,35 @@ export function ActionsTab({ onResetStateChange }: Props) {
     enabled: inputPriceCurrencies.length > 0,
   })
 
-  const inputTokenPriceAddr = useMemo(() => {
-    if (!inputCurrency) return undefined
-    if (inputCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(inputCurrency.chainId, zeroAddress) as Address | undefined
+  const currenciesForPriceFetch = useMemo(() => {
+    const currencies: RawCurrency[] = []
+    if (inputCurrency) {
+      currencies.push(inputCurrency)
     }
-    return inputCurrency.address as Address
-  }, [inputCurrency])
+    if (actionCurrency) {
+      currencies.push(actionCurrency)
+    }
+    return currencies
+  }, [inputCurrency, actionCurrency])
 
-  const inputTokenPriceInCache = inputTokenPriceAddr && inputPrices?.[inputCurrency?.chainId || inputChainId]?.[inputTokenPriceAddr.toLowerCase()]
-
-  const { price: inputTokenPrice, isLoading: isLoadingInputPrice } = useTokenPrice({
-    chainId: inputCurrency?.chainId || inputChainId,
-    tokenAddress: inputTokenPriceAddr,
-    enabled: Boolean(inputCurrency && !inputTokenPriceInCache),
+  const { data: pricesData, isLoading: isLoadingPrices } = usePriceQuery({
+    currencies: currenciesForPriceFetch,
+    enabled: currenciesForPriceFetch.length > 0,
   })
 
   const inputPrice = useMemo(() => {
-    if (inputTokenPrice !== undefined) return inputTokenPrice
-    if (inputTokenPriceAddr && inputPrices?.[inputCurrency?.chainId || inputChainId]?.[inputTokenPriceAddr.toLowerCase()]?.usd) {
-      return inputPrices[inputCurrency?.chainId || inputChainId][inputTokenPriceAddr.toLowerCase()].usd
-    }
-    return undefined
-  }, [inputTokenPrice, inputTokenPriceAddr, inputPrices, inputCurrency, inputChainId])
+    if (!inputCurrency || !pricesData) return undefined
+    const chainId = inputCurrency.chainId || inputChainId
+    const priceKey = inputCurrency.address.toLowerCase()
+    return pricesData[chainId]?.[priceKey]?.usd
+  }, [inputCurrency, pricesData, inputChainId])
 
-  const actionTokenPriceAddr = useMemo(() => {
-    if (!actionCurrency) return undefined
-    if (actionCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(actionCurrency.chainId, zeroAddress) as Address | undefined
-    }
-    return actionCurrency.address as Address
-  }, [actionCurrency])
-
-  const { price: actionTokenPrice, isLoading: isLoadingActionPrice } = useTokenPrice({
-    chainId: actionCurrency?.chainId || actionChainId || '',
-    tokenAddress: actionTokenPriceAddr,
-    enabled: Boolean(actionCurrency),
-  })
+  const actionTokenPrice = useMemo(() => {
+    if (!actionCurrency || !pricesData) return undefined
+    const chainId = actionCurrency.chainId || actionChainId
+    const priceKey = actionCurrency.address.toLowerCase()
+    return pricesData[chainId!]?.[priceKey]?.usd
+  }, [actionCurrency, pricesData, actionChainId])
 
   const debouncedAmount = useDebounce(amount, 1000)
   const inputKey = useMemo(
@@ -285,7 +276,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       return
     }
 
-    if (isLoadingInputPrice || isLoadingActionPrice) return
+    if (isLoadingPrices) return
 
     const priceIn = inputPrice ?? 0
     const priceOut = actionTokenPrice ?? 0
@@ -309,7 +300,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
     } else {
       lastCalculatedPricesRef.current = null
     }
-  }, [destinationInfo, inputPrice, actionTokenPrice, isLoadingInputPrice, isLoadingActionPrice, calculatedInputAmount, slippage])
+  }, [destinationInfo, inputPrice, actionTokenPrice, isLoadingPrices, calculatedInputAmount, slippage])
 
   return (
     <div>

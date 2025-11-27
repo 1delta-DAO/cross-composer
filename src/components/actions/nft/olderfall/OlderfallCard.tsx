@@ -1,8 +1,3 @@
-import type { Hex } from 'viem'
-import type { DestinationActionConfig } from '../../../../lib/types/destinationAction'
-
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals?: number }>>
-
 interface OlderfallListingCardProps {
   listing: any
   title: string

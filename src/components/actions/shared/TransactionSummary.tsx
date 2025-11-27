@@ -39,8 +39,8 @@ export function TransactionSummary({
   }, [outputAmountProp, currencyAmount])
 
   const shouldShow = useMemo(() => {
-    return srcCurrency && dstCurrency && inputAmount && Number(inputAmount) > 0 && outputAmount && Number(outputAmount) > 0
-  }, [srcCurrency, dstCurrency, inputAmount, outputAmount])
+    return srcCurrency && dstCurrency && outputAmount && Number(outputAmount) > 0
+  }, [srcCurrency, dstCurrency, outputAmount])
 
   const srcTokenPriceAddr = useMemo(() => {
     if (!srcCurrency) return undefined
@@ -92,7 +92,8 @@ export function TransactionSummary({
 
   if (!shouldShow) return null
 
-  const formattedInput = formatDisplayAmount(inputAmount || '0')
+  const hasInputAmount = inputAmount && Number(inputAmount) > 0
+  const formattedInput = hasInputAmount ? formatDisplayAmount(inputAmount) : 'Calculating...'
   const formattedOutput = formatDisplayAmount(outputAmount || '0')
 
   return (
@@ -104,7 +105,13 @@ export function TransactionSummary({
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm opacity-70">You'll pay:</span>
               <span className="font-medium">
-                {formattedInput} {srcCurrency?.symbol}
+                {hasInputAmount ? (
+                  <>
+                    {formattedInput} {srcCurrency?.symbol}
+                  </>
+                ) : (
+                  <span className="opacity-60">{formattedInput}</span>
+                )}
               </span>
             </div>
             <div className="flex justify-between items-center">
