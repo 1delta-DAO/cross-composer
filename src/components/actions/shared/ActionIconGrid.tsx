@@ -143,7 +143,7 @@ export function ActionIconGrid({
       {/* Action Icons */}
       {isExpanded ? (
         /* Expanded View - Grid */
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {filteredActions.map((action) => {
             const Icon = action.icon
             const isSelected = selectedAction === action.id
@@ -160,7 +160,7 @@ export function ActionIconGrid({
                 disabled={!isReady}
               >
                 {isLoading && <span className="loading loading-spinner loading-xs absolute top-1 right-1"></span>}
-                <Icon className={isSelected ? 'text-primary' : ''} />
+                <Icon className={`w-8 h-8 ${isSelected ? 'text-primary' : ''}`} />
                 <span className="text-xs">{action.label}</span>
               </button>
             )
