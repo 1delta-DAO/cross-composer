@@ -122,7 +122,9 @@ export async function fetchAllActionTrades(
   const trades = (results.filter(Boolean) as Array<{ action: string; trade: GenericTrade }>).filter(
     ({ trade }) => {
       const hasAssemble = typeof (trade as any)?.assemble === 'function'
-      const hasTx = Boolean((trade as any)?.transaction)
+      const tx = (trade as any)?.transaction
+      const hasTx =
+        Boolean(tx) && Boolean((tx as any).to) && Boolean((tx as any).calldata ?? (tx as any).data)
       return hasAssemble || hasTx
     }
   )

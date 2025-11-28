@@ -47,9 +47,10 @@ export function useTradeQuotes({
   const lastQuotedKeyRef = useRef<string | null>(null)
   const lastQuotedAtRef = useRef<number>(0)
 
-  const refreshHelpers = useQuoteRefreshHelpers()
+  const { clearRefreshTimeout, scheduleRefresh, cleanup } = useQuoteRefreshHelpers()
 
   const validation = useQuoteValidation(slippage)
+  const { validateAndUpdateQuotes } = validation
 
   const srcCurrency = useMemo(() => srcAmount?.currency, [srcAmount])
   const srcKey = useMemo(() => generateCurrencyKey(srcCurrency), [srcCurrency])
@@ -76,12 +77,12 @@ export function useTradeQuotes({
     setQuoting(false)
     requestInProgressRef.current = false
     lastQuotedKeyRef.current = null
-    refreshHelpers.cleanup()
+    cleanup()
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
     }
-  }, [refreshHelpers])
+  }, [cleanup])
 
   useEffect(() => {
     if (!shouldFetch) {
@@ -130,7 +131,7 @@ export function useTradeQuotes({
     const controller = new AbortController()
     abortControllerRef.current = controller
 
-    refreshHelpers.clearRefreshTimeout()
+    clearRefreshTimeout()
 
     const fetchQuote = async () => {
       try {
@@ -165,7 +166,7 @@ export function useTradeQuotes({
           setQuotes(allQuotes)
           onQuotesChange?.(allQuotes)
 
-          validation.validateAndUpdateQuotes(allQuotes, isRefresh, false)
+          validateAndUpdateQuotes(allQuotes, isRefresh, false)
         } else {
           throw new Error('No quote available from any aggregator/bridge')
         }
@@ -182,20 +183,27 @@ export function useTradeQuotes({
         }
         console.error('Quote fetch error:', error)
       } finally {
-        if (!cancel && !controller.signal.aborted) {
+        const isCurrent = abortControllerRef.current === controller
+
+        if (isCurrent) {
+          requestInProgressRef.current = false
+        }
+
+        if (isCurrent) {
           setQuoting(false)
         }
-        requestInProgressRef.current = false
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = null
-        }
-        if (!cancel && !controller.signal.aborted) {
+
+        if (isCurrent && !cancel && !controller.signal.aborted) {
           const scheduledKey = lastQuotedKeyRef.current
-          refreshHelpers.scheduleRefresh(() => {
+          scheduleRefresh(() => {
             if (scheduledKey === lastQuotedKeyRef.current) {
               setRefreshTrigger((prev) => prev + 1)
             }
           })
+        }
+
+        if (isCurrent) {
+          abortControllerRef.current = null
         }
       }
     }
@@ -205,11 +213,12 @@ export function useTradeQuotes({
     return () => {
       cancel = true
       controller.abort()
-      requestInProgressRef.current = false
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null
       }
-      refreshHelpers.cleanup()
+      requestInProgressRef.current = false
+      setQuoting(false)
+      cleanup()
     }
   }, [
     srcAmount,
@@ -218,16 +227,15 @@ export function useTradeQuotes({
     slippage,
     refreshTrigger,
     shouldFetch,
-    srcCurrency,
     destinationCallsKey,
     destinationCalls,
     receiverAddress,
-    axelarPrices,
-    validation,
-    refreshHelpers,
+    validateAndUpdateQuotes,
+    clearRefreshTimeout,
+    scheduleRefresh,
+    cleanup,
     clearQuotes,
     onQuotesChange,
-    quotes.length,
     toast,
   ])
 
@@ -240,11 +248,11 @@ export function useTradeQuotes({
       abortControllerRef.current.abort()
       abortControllerRef.current = null
     }
-    refreshHelpers.cleanup()
+    cleanup()
     requestInProgressRef.current = false
     setQuoting(false)
     lastQuotedKeyRef.current = null
-  }, [refreshHelpers])
+  }, [cleanup])
 
   return {
     quotes,

@@ -150,6 +150,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
   const lastCalculatedPricesRef = useRef<{ priceIn: number; priceOut: number } | null>(null)
 
   const [selectedQuoteIndex, setSelectedQuoteIndex] = useState(0)
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
   const isUserSelectionRef = useRef<boolean>(false)
 
   const prevSrcKeyRef = useRef<string>('')
@@ -184,8 +185,8 @@ export function ActionsTab({ onResetStateChange }: Props) {
   const validation = useQuoteValidation(slippage)
 
   const shouldFetchQuotes = useMemo(() => {
-    return !txInProgress && Boolean(srcAmount && actionCurrency)
-  }, [txInProgress, srcAmount, actionCurrency])
+    return !txInProgress && autoRefreshEnabled && Boolean(srcAmount && actionCurrency)
+  }, [txInProgress, autoRefreshEnabled, srcAmount, actionCurrency])
 
   const handleQuotesChange = useCallback(
     (newQuotes: Quote[]) => {
@@ -230,6 +231,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       }
       prevSrcKeyRef.current = srcKey
       prevDstKeyRef.current = dstKey
+      setAutoRefreshEnabled(true)
     }
   }, [srcKey, dstKey, quotes.length, txInProgress, clearQuotes])
 
@@ -241,6 +243,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
         isUserSelectionRef.current = false
       }
       prevDestinationCallsKeyRef.current = destinationCallsKey
+      setAutoRefreshEnabled(true)
     }
   }, [destinationCallsKey, quotes.length, txInProgress, clearQuotes])
 
@@ -259,6 +262,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       clearQuotes()
       setSelectedQuoteIndex(0)
       isUserSelectionRef.current = false
+      setAutoRefreshEnabled(true)
     }
     prevIsSameChainRef.current = isSameChain
   }, [srcAmount, actionCurrency, clearQuotes])
@@ -276,6 +280,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
       clearQuotes()
       setSelectedQuoteIndex(0)
       isUserSelectionRef.current = false
+      setAutoRefreshEnabled(true)
     }
     prevTxInProgressRef.current = txInProgress
   }, [txInProgress, abortQuotes, clearQuotes])
@@ -283,6 +288,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
   const wrappedSetSelectedQuoteIndex = useCallback((index: number) => {
     isUserSelectionRef.current = true
     setSelectedQuoteIndex(index)
+    setAutoRefreshEnabled(false)
   }, [])
 
   const highSlippageLossWarning = validation.highSlippageLossWarning

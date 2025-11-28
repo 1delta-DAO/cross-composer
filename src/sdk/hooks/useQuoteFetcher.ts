@@ -34,8 +34,31 @@ export async function fetchQuotes(params: QuoteFetcherParams): Promise<Quote[]> 
   const srcCurrency = srcAmount.currency
   const srcChainId = srcCurrency.chainId
   const dstChainId = dstCurrency.chainId
-  const amountInWei = srcAmount.amount.toString()
-  const isSameChain = srcChainId === dstChainId
+
+  const rawAmount = (srcAmount as any)?.amount
+  if (rawAmount === undefined || rawAmount === null) {
+    console.warn('Invalid quote input: missing srcAmount.amount', {
+      srcCurrency,
+      dstCurrency,
+      srcAmount,
+    })
+    throw new Error('Invalid quote input: missing amount')
+  }
+
+  const amountInWei = rawAmount.toString()
+  const hasValidChainIds = Boolean(srcChainId && dstChainId)
+  const isSameChain = hasValidChainIds && srcChainId === dstChainId
+
+  if (!hasValidChainIds || !amountInWei) {
+    console.warn('Invalid quote input detected', {
+      srcChainId,
+      dstChainId,
+      amountInWei,
+      srcCurrencySymbol: srcCurrency.symbol,
+      dstCurrencySymbol: dstCurrency.symbol,
+    })
+    throw new Error('Invalid quote input: missing chainId or amount')
+  }
 
   console.debug('Fetching quote:', {
     isSameChain,
