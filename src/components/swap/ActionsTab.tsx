@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { Address } from 'viem'
-import { zeroAddress } from 'viem'
+import { zeroAddress, parseUnits } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
 import { useTokenLists } from '../../hooks/useTokenLists'
@@ -136,18 +136,6 @@ export function ActionsTab({ onResetStateChange }: Props) {
   }, [actionCurrency, pricesData, actionChainId])
 
   const debouncedAmount = useDebounce(amount, 1000)
-  const inputKey = useMemo(
-    () =>
-      `${inputCurrency?.chainId || inputChainId}|${(inputCurrency?.address || '').toLowerCase()}`,
-    [inputCurrency, inputChainId]
-  )
-  const actionKey = useMemo(
-    () =>
-      `${actionCurrency?.chainId || actionChainId}|${(actionCurrency?.address || '').toLowerCase()}`,
-    [actionCurrency, actionChainId]
-  )
-  const debouncedInputKey = useDebounce(inputKey, 1000)
-  const debouncedActionKey = useDebounce(actionKey, 1000)
 
   const { slippage, setPriceImpact } = useSlippage()
   const [txInProgress, setTxInProgress] = useState(false)
@@ -165,6 +153,18 @@ export function ActionsTab({ onResetStateChange }: Props) {
     return actionDef?.requiresExactDestinationAmount ?? false
   }, [destinationInfo?.actionId])
 
+  const srcAmount = useMemo<RawCurrencyAmount | undefined>(() => {
+    if (!inputCurrency || !debouncedAmount) return undefined
+    const amountNum = Number(debouncedAmount)
+    if (!Number.isFinite(amountNum) || amountNum <= 0) return undefined
+    try {
+      const amountWei = parseUnits(debouncedAmount, inputCurrency.decimals)
+      return CurrencyHandler.fromRawAmount(inputCurrency, amountWei.toString())
+    } catch {
+      return undefined
+    }
+  }, [inputCurrency, debouncedAmount])
+
   const {
     quotes,
     quoting,
@@ -176,11 +176,8 @@ export function ActionsTab({ onResetStateChange }: Props) {
     highSlippageLossWarning,
     currentBuffer,
   } = useTradeQuotes({
-    srcCurrency: inputCurrency,
+    srcAmount,
     dstCurrency: actionCurrency,
-    debouncedAmount,
-    debouncedSrcKey: debouncedInputKey,
-    debouncedDstKey: debouncedActionKey,
     slippage,
     txInProgress,
     destinationCalls,

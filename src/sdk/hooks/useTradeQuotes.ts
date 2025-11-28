@@ -1,43 +1,34 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { Address } from 'viem'
-import type { GenericTrade } from '@1delta/lib-utils'
-import { TradeType } from '@1delta/lib-utils'
-import { convertAmountToWei, convertActionCallsToDeltaCalls } from '../../lib/trade-helpers/utils'
-import { fetchAllAggregatorTrades } from '../../lib/trade-helpers/aggregatorSelector'
 import { DUMMY_ADDRESS } from '../../lib/consts'
 import { useToast } from '../../components/common/ToastHost'
 import type { ActionCall } from '../../lib/types/actionCalls'
-import { DeltaCall } from '@1delta/lib-utils'
-import { fetchAllActionTrades } from '../trade-helpers/actionSelector'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
 import type { PricesRecord } from '../../hooks/prices/usePriceQuery'
 import { useConnection } from 'wagmi'
+import { fetchQuotes, type Quote } from './useQuoteFetcher'
+import { useQuoteValidation } from './useQuoteValidation'
+import { useQuoteRefreshHelpers, REFRESH_INTERVAL_MS } from './useQuoteRefresh'
 import {
-  validateQuoteOutput,
-  calculateAdjustedBuffer,
-  calculateReverseQuoteBuffer,
-} from '../../lib/reverseQuote'
-
-type Quote = { label: string; trade: GenericTrade }
+  generateDestinationCallsKey,
+  generateQuoteKey,
+  generateCurrencyKey,
+  areQuoteKeysEqual,
+} from './useTradeQuotes/stateHelpers'
+import { validateInputs, detectChainTransition } from './useTradeQuotes/inputValidation'
 
 export function useTradeQuotes({
-  srcCurrency,
+  srcAmount,
   dstCurrency,
-  debouncedAmount,
-  debouncedSrcKey,
-  debouncedDstKey,
   slippage,
   txInProgress,
   destinationCalls,
   minRequiredAmount,
   enableRequoting,
 }: {
-  srcCurrency?: RawCurrency
+  srcAmount?: RawCurrencyAmount
   dstCurrency?: RawCurrency
-  debouncedAmount: string
-  debouncedSrcKey: string
-  debouncedDstKey: string
   slippage: number
   txInProgress: boolean
   destinationCalls?: ActionCall[]
@@ -46,36 +37,34 @@ export function useTradeQuotes({
 }) {
   const { address: userAddress } = useConnection()
   const receiverAddress = userAddress || DUMMY_ADDRESS
+  const toast = useToast()
 
   const [quoting, setQuoting] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [selectedQuoteIndex, setSelectedQuoteIndex] = useState(0)
   const [amountWei, setAmountWei] = useState<string | undefined>(undefined)
-  const [highSlippageLossWarning, setHighSlippageLossWarning] = useState(false)
-  const [currentBuffer, setCurrentBuffer] = useState<number>(calculateReverseQuoteBuffer(slippage))
-  const toast = useToast()
-
-  const srcChainId = useMemo(() => srcCurrency?.chainId, [srcCurrency])
-  const srcToken = useMemo(() => srcCurrency?.address as Address | undefined, [srcCurrency])
-  const dstChainId = useMemo(() => dstCurrency?.chainId, [dstCurrency])
-  const dstToken = useMemo(() => dstCurrency?.address as Address | undefined, [dstCurrency])
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const requestInProgressRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
-
   const lastQuotedKeyRef = useRef<string | null>(null)
   const lastQuotedAtRef = useRef<number>(0)
-  const refreshTickRef = useRef<number>(0)
-  const [refreshTick, setRefreshTick] = useState(0)
-  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const requotingStartTimeRef = useRef<number | null>(null)
-  const requotingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const prevSrcKeyRef = useRef<string>(debouncedSrcKey)
-  const prevDstKeyRef = useRef<string>(debouncedDstKey)
+  const prevSrcKeyRef = useRef<string>('')
+  const prevDstKeyRef = useRef<string>('')
   const prevIsSameChainRef = useRef<boolean | null>(null)
-  const prevDestinationCallsKeyRef = useRef<string>('')
   const isUserSelectionRef = useRef<boolean>(false)
+
+  const refreshHelpers = useQuoteRefreshHelpers()
+
+  const validation = useQuoteValidation(enableRequoting ?? false, slippage)
+
+  const srcCurrency = useMemo(() => srcAmount?.currency, [srcAmount])
+  const srcKey = useMemo(() => generateCurrencyKey(srcCurrency), [srcCurrency])
+  const dstKey = useMemo(() => generateCurrencyKey(dstCurrency), [dstCurrency])
+  const destinationCallsKey = useMemo(
+    () => generateDestinationCallsKey(destinationCalls),
+    [destinationCalls]
+  )
 
   const axelarPriceCurrencies = useMemo(() => {
     const currencies: RawCurrency[] = []
@@ -89,50 +78,44 @@ export function useTradeQuotes({
     enabled: axelarPriceCurrencies.length > 0,
   })
 
-  useEffect(() => {
-    if (prevSrcKeyRef.current !== debouncedSrcKey || prevDstKeyRef.current !== debouncedDstKey) {
-      if (quotes.length > 0 && !txInProgress) {
-        setQuotes([])
-        setSelectedQuoteIndex(0)
-        isUserSelectionRef.current = false
-      }
-      prevSrcKeyRef.current = debouncedSrcKey
-      prevDstKeyRef.current = debouncedDstKey
+  const clearQuotesAndReset = useCallback(() => {
+    setQuotes([])
+    setSelectedQuoteIndex(0)
+    isUserSelectionRef.current = false
+    setQuoting(false)
+    requestInProgressRef.current = false
+    lastQuotedKeyRef.current = null
+    refreshHelpers.cleanup()
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
     }
-  }, [debouncedSrcKey, debouncedDstKey, quotes.length, txInProgress])
+  }, [refreshHelpers])
 
-  const destinationCallsKey = JSON.stringify(
-    (destinationCalls || []).map((c) => ({
-      t: 'target' in c && c.target ? c.target.toLowerCase() : '',
-      v: 'value' in c && c.value ? c.value.toString() : '',
-      dStart: 'callData' in c && c.callData ? c.callData.slice(0, 10) : '',
-      dEnd: 'callData' in c && c.callData ? c.callData.slice(-10) : '',
-      g: c.gasLimit ? c.gasLimit.toString() : '',
-      ct: typeof c.callType === 'number' ? c.callType : 0,
-      ta: 'tokenAddress' in c && c.tokenAddress ? c.tokenAddress.toLowerCase() : '',
-      bi:
-        'balanceOfInjectIndex' in c && typeof c.balanceOfInjectIndex === 'number'
-          ? c.balanceOfInjectIndex
-          : 0,
-    }))
-  )
+  useEffect(() => {
+    if (prevSrcKeyRef.current !== srcKey || prevDstKeyRef.current !== dstKey) {
+      if (quotes.length > 0 && !txInProgress) {
+        clearQuotesAndReset()
+      }
+      prevSrcKeyRef.current = srcKey
+      prevDstKeyRef.current = dstKey
+    }
+  }, [srcKey, dstKey, quotes.length, txInProgress, clearQuotesAndReset])
 
+  const prevDestinationCallsKeyRef = useRef<string>('')
   useEffect(() => {
     if (prevDestinationCallsKeyRef.current !== destinationCallsKey) {
       if (quotes.length > 0 && !txInProgress) {
-        setQuotes([])
-        setSelectedQuoteIndex(0)
-        isUserSelectionRef.current = false
+        clearQuotesAndReset()
       }
       if (!txInProgress) {
         lastQuotedKeyRef.current = null
       }
       prevDestinationCallsKeyRef.current = destinationCallsKey
     }
-  }, [destinationCallsKey, quotes.length, txInProgress])
+  }, [destinationCallsKey, quotes.length, txInProgress, clearQuotesAndReset])
 
   const prevTxInProgressRef = useRef(txInProgress)
-
   useEffect(() => {
     if (txInProgress) {
       console.debug('Skipping quote fetch: transaction in progress')
@@ -142,15 +125,7 @@ export function useTradeQuotes({
         abortControllerRef.current.abort()
         abortControllerRef.current = null
       }
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current)
-        refreshTimeoutRef.current = null
-      }
-      if (requotingTimeoutRef.current) {
-        clearTimeout(requotingTimeoutRef.current)
-        requotingTimeoutRef.current = null
-      }
-      requotingStartTimeRef.current = null
+      refreshHelpers.cleanup()
       prevTxInProgressRef.current = txInProgress
       return
     }
@@ -160,126 +135,73 @@ export function useTradeQuotes({
       lastQuotedKeyRef.current = null
       requestInProgressRef.current = false
       setQuoting(false)
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current)
-        refreshTimeoutRef.current = null
-      }
-      if (requotingTimeoutRef.current) {
-        clearTimeout(requotingTimeoutRef.current)
-        requotingTimeoutRef.current = null
-      }
-      requotingStartTimeRef.current = null
+      refreshHelpers.cleanup()
     }
     prevTxInProgressRef.current = txInProgress
+  }, [txInProgress, refreshHelpers])
 
-    const [sc, st] = [srcChainId, srcToken]
-    const [dc, dt] = [dstChainId, dstToken]
-    const amountOk = Boolean(debouncedAmount) && Number(debouncedAmount) > 0
-    const inputsOk = Boolean(debouncedSrcKey && debouncedDstKey && sc && st && dc && dt)
+  useEffect(() => {
+    if (txInProgress) {
+      return
+    }
 
-    const isSameChain = sc === dc
+    const inputValidation = validateInputs(srcAmount, dstCurrency)
+
+    if (!inputValidation.isValid) {
+      clearQuotesAndReset()
+      return
+    }
+
     const wasSameChain = prevIsSameChainRef.current
-    const transitionedBetweenBridgeAndSwap = wasSameChain !== null && wasSameChain !== isSameChain
+    const transitionedBetweenBridgeAndSwap = detectChainTransition(
+      inputValidation.isSameChain,
+      wasSameChain
+    )
 
     if (transitionedBetweenBridgeAndSwap) {
       console.debug('Transitioned between bridge and swap, clearing quote cache')
-      lastQuotedKeyRef.current = null
-      requestInProgressRef.current = false
-      setQuoting(false)
-      setQuotes([])
-      setSelectedQuoteIndex(0)
-      isUserSelectionRef.current = false
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current)
-        refreshTimeoutRef.current = null
-      }
-      if (requotingTimeoutRef.current) {
-        clearTimeout(requotingTimeoutRef.current)
-        requotingTimeoutRef.current = null
-      }
-      requotingStartTimeRef.current = null
+      clearQuotesAndReset()
     }
-    prevIsSameChainRef.current = isSameChain
-
-    if (!amountOk || !inputsOk) {
-      setQuotes([])
-      setSelectedQuoteIndex(0)
-      isUserSelectionRef.current = false
-      setQuoting(false)
-      requestInProgressRef.current = false
-      lastQuotedKeyRef.current = null
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current)
-        refreshTimeoutRef.current = null
-      }
-      if (requotingTimeoutRef.current) {
-        clearTimeout(requotingTimeoutRef.current)
-        requotingTimeoutRef.current = null
-      }
-      requotingStartTimeRef.current = null
-      return
-    }
+    prevIsSameChainRef.current = inputValidation.isSameChain
 
     if (requestInProgressRef.current) {
       console.debug('Request already in progress, skipping...')
       return
     }
 
-    const currentKey = `${debouncedAmount}|${debouncedSrcKey}|${debouncedDstKey}|${slippage}|${receiverAddress}|${destinationCallsKey}`
+    const currentKey = generateQuoteKey(
+      srcAmount,
+      dstCurrency,
+      slippage,
+      receiverAddress,
+      destinationCallsKey
+    )
+
     const now = Date.now()
-    const sameAsLast = lastQuotedKeyRef.current === currentKey
+    const sameAsLast = areQuoteKeysEqual(lastQuotedKeyRef.current, currentKey)
     const elapsed = now - lastQuotedAtRef.current
-    const isRefreshTrigger = refreshTickRef.current === refreshTick
 
     if (lastQuotedKeyRef.current !== null && lastQuotedKeyRef.current !== currentKey) {
       lastQuotedKeyRef.current = null
       isUserSelectionRef.current = false
-      requotingStartTimeRef.current = null
-      if (requotingTimeoutRef.current) {
-        clearTimeout(requotingTimeoutRef.current)
-        requotingTimeoutRef.current = null
-      }
+      refreshHelpers.resetRequoting()
     }
 
-    if (sameAsLast && !transitionedBetweenBridgeAndSwap && elapsed < 30000 && isRefreshTrigger) {
+    if (sameAsLast && !transitionedBetweenBridgeAndSwap && elapsed < REFRESH_INTERVAL_MS) {
       console.debug('Skipping re-quote: inputs unchanged and refresh interval not reached')
       return
     }
 
-    const nowForTimeout = Date.now()
-    if (requotingStartTimeRef.current === null) {
-      requotingStartTimeRef.current = nowForTimeout
-    } else {
-      const elapsedRequoting = nowForTimeout - requotingStartTimeRef.current
-      if (elapsedRequoting >= 120000) {
-        console.debug(
-          'Requoting timeout reached (2 minutes), stopping to prevent API rate limiting'
-        )
-        setQuoting(false)
-        requestInProgressRef.current = false
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort()
-          abortControllerRef.current = null
-        }
-        if (refreshTimeoutRef.current) {
-          clearTimeout(refreshTimeoutRef.current)
-          refreshTimeoutRef.current = null
-        }
-        if (requotingTimeoutRef.current) {
-          clearTimeout(requotingTimeoutRef.current)
-          requotingTimeoutRef.current = null
-        }
-        requotingStartTimeRef.current = null
-        return
+    if (refreshHelpers.checkRequotingTimeout()) {
+      console.debug('Requoting timeout reached (2 minutes), stopping to prevent API rate limiting')
+      setQuoting(false)
+      requestInProgressRef.current = false
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
       }
+      refreshHelpers.cleanup()
+      return
     }
 
     if (abortControllerRef.current) {
@@ -293,89 +215,27 @@ export function useTradeQuotes({
     const controller = new AbortController()
     abortControllerRef.current = controller
 
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current)
-      refreshTimeoutRef.current = null
-    }
+    refreshHelpers.clearRefreshTimeout()
 
     const fetchQuote = async () => {
       try {
-        const isRefresh = lastQuotedKeyRef.current === currentKey
+        const isRefresh = areQuoteKeysEqual(lastQuotedKeyRef.current, currentKey)
         lastQuotedKeyRef.current = currentKey
         lastQuotedAtRef.current = Date.now()
-        const fromCurrency = srcCurrency
-        const toCurrency = dstCurrency
 
-        if (!fromCurrency || !toCurrency) {
+        if (!srcAmount || !dstCurrency) {
           throw new Error('Failed to convert tokens to SDK format')
         }
 
-        const amountInWei = convertAmountToWei(debouncedAmount, fromCurrency.decimals)
-        setAmountWei(amountInWei)
-        const isSameChain = sc === dc
-
-        console.debug('Fetching quote:', {
-          isSameChain,
-          chainId: sc,
-          fromCurrency: fromCurrency.symbol,
-          toCurrency: toCurrency.symbol,
-          amount: debouncedAmount,
-          amountInWei,
+        const allQuotes = await fetchQuotes({
+          srcAmount,
+          dstCurrency,
           slippage,
+          receiverAddress: receiverAddress as Address,
+          destinationCalls,
+          controller,
+          axelarPrices: (axelarPrices || {}) as PricesRecord,
         })
-
-        let allQuotes: Quote[] = []
-
-        let additionalCalls: DeltaCall[] | undefined
-        let destinationGasLimit: bigint | undefined
-        if (destinationCalls && destinationCalls.length > 0) {
-          additionalCalls = convertActionCallsToDeltaCalls(destinationCalls)
-          destinationGasLimit = destinationCalls.reduce((acc, c) => acc + (c.gasLimit || 0n), 0n)
-        }
-
-        if (isSameChain) {
-          const trades = await fetchAllAggregatorTrades(
-            sc!,
-            {
-              chainId: sc!,
-              fromCurrency,
-              toCurrency,
-              swapAmount: amountInWei,
-              slippage,
-              caller: receiverAddress,
-              receiver: receiverAddress,
-              tradeType: TradeType.EXACT_INPUT,
-              flashSwap: false,
-              usePermit: false,
-            } as any,
-            controller,
-            additionalCalls
-          )
-          allQuotes = trades.map((t) => ({ label: t.aggregator.toString(), trade: t.trade }))
-        } else {
-          const actionTrades = await fetchAllActionTrades(
-            {
-              slippage,
-              tradeType: TradeType.EXACT_INPUT,
-              fromCurrency,
-              toCurrency,
-              swapAmount: amountInWei,
-              caller: receiverAddress,
-              receiver: receiverAddress,
-              order: 'CHEAPEST',
-              usePermit: false,
-              ...(additionalCalls ? { additionalCalls } : {}),
-              destinationGasLimit,
-            } as any,
-            controller,
-            (axelarPrices || {}) as PricesRecord
-          )
-          console.log('All actions received from trade-sdk:', {
-            actions: actionTrades.map((t) => t.action),
-            actionTrades,
-          })
-          allQuotes = actionTrades.map((t) => ({ label: t.action, trade: t.trade }))
-        }
 
         if (cancel || controller.signal.aborted) {
           console.debug('Request cancelled or aborted')
@@ -384,61 +244,27 @@ export function useTradeQuotes({
 
         if (allQuotes.length > 0) {
           console.debug('Quotes received:', allQuotes.length)
-          requotingStartTimeRef.current = null
-          if (requotingTimeoutRef.current) {
-            clearTimeout(requotingTimeoutRef.current)
-            requotingTimeoutRef.current = null
+
+          setAmountWei(srcAmount.amount.toString())
+
+          setQuotes(allQuotes)
+          setSelectedQuoteIndex((prevIndex) => {
+            const isValidIndex = prevIndex >= 0 && prevIndex < allQuotes.length
+            const shouldPreserve = isRefresh && isValidIndex && isUserSelectionRef.current
+            return shouldPreserve ? prevIndex : 0
+          })
+          if (!isRefresh || !isUserSelectionRef.current) {
+            isUserSelectionRef.current = false
           }
 
-          const updateQuotesAndSelection = () => {
-            setQuotes(allQuotes)
-            setSelectedQuoteIndex((prevIndex) => {
-              const isValidIndex = prevIndex >= 0 && prevIndex < allQuotes.length
-              const shouldPreserve = isRefresh && isValidIndex && isUserSelectionRef.current
-              return shouldPreserve ? prevIndex : 0
-            })
-            if (!isRefresh || !isUserSelectionRef.current) {
-              isUserSelectionRef.current = false
-            }
-          }
+          validation.validateAndUpdateQuotes(
+            allQuotes,
+            minRequiredAmount,
+            isRefresh,
+            isUserSelectionRef.current
+          )
 
-          if (enableRequoting && minRequiredAmount && allQuotes.length > 0) {
-            const bestQuote = allQuotes[0]
-            const outputAmount = bestQuote.trade.outputAmountRealized
-            const validation = validateQuoteOutput(outputAmount, minRequiredAmount)
-
-            if (!validation.isValid) {
-              console.debug('Quote validation failed:', validation)
-
-              if (validation.hasHighSlippageLoss) {
-                setHighSlippageLossWarning(true)
-                setCurrentBuffer(0.05)
-                updateQuotesAndSelection()
-              } else {
-                const adjustedBuffer = calculateAdjustedBuffer(
-                  currentBuffer,
-                  validation.requiredBuffer,
-                  slippage
-                )
-                setCurrentBuffer(adjustedBuffer)
-                setHighSlippageLossWarning(false)
-
-                if (adjustedBuffer > currentBuffer) {
-                  console.debug(
-                    'Buffer adjusted, but quotes already fetched. Validation warning may apply.'
-                  )
-                }
-
-                updateQuotesAndSelection()
-              }
-            } else {
-              setHighSlippageLossWarning(false)
-              updateQuotesAndSelection()
-            }
-          } else {
-            setHighSlippageLossWarning(false)
-            updateQuotesAndSelection()
-          }
+          refreshHelpers.resetRequoting()
         } else {
           throw new Error('No quote available from any aggregator/bridge')
         }
@@ -463,12 +289,11 @@ export function useTradeQuotes({
         }
         if (!cancel && !controller.signal.aborted && !txInProgress) {
           const scheduledKey = lastQuotedKeyRef.current
-          refreshTickRef.current = refreshTick + 1
-          refreshTimeoutRef.current = setTimeout(() => {
+          refreshHelpers.scheduleRefresh(() => {
             if (scheduledKey === lastQuotedKeyRef.current && !txInProgress) {
               setRefreshTick((x: number) => x + 1)
             }
-          }, 30000)
+          })
         }
       }
     }
@@ -482,79 +307,46 @@ export function useTradeQuotes({
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null
       }
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current)
-        refreshTimeoutRef.current = null
-      }
-      if (requotingTimeoutRef.current) {
-        clearTimeout(requotingTimeoutRef.current)
-        requotingTimeoutRef.current = null
-      }
+      refreshHelpers.cleanup()
     }
   }, [
-    debouncedAmount,
-    debouncedSrcKey,
-    debouncedDstKey,
+    srcAmount,
+    dstCurrency,
     userAddress,
     slippage,
     refreshTick,
     txInProgress,
     srcCurrency,
-    dstCurrency,
     destinationCallsKey,
     destinationCalls,
     receiverAddress,
     minRequiredAmount,
     enableRequoting,
+    axelarPrices,
+    validation,
+    refreshHelpers,
+    clearQuotesAndReset,
+    toast,
   ])
 
-  const refreshQuotes = () => {
-    setRefreshTick((x: number) => x + 1)
-  }
+  useEffect(() => {
+    validation.checkSelectedQuoteValidation(quotes, selectedQuoteIndex, minRequiredAmount)
+  }, [quotes, selectedQuoteIndex, minRequiredAmount, validation])
 
-  const abortQuotes = () => {
+  const refreshQuotes = useCallback(() => {
+    setRefreshTick((x: number) => x + 1)
+  }, [])
+
+  const abortQuotes = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
     }
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current)
-      refreshTimeoutRef.current = null
-    }
-    if (requotingTimeoutRef.current) {
-      clearTimeout(requotingTimeoutRef.current)
-      requotingTimeoutRef.current = null
-    }
+    refreshHelpers.cleanup()
     requestInProgressRef.current = false
     setQuoting(false)
     lastQuotedKeyRef.current = null
-    requotingStartTimeRef.current = null
-  }
-
-  useEffect(() => {
-    if (
-      enableRequoting &&
-      minRequiredAmount &&
-      quotes.length > 0 &&
-      selectedQuoteIndex < quotes.length
-    ) {
-      const selectedQuote = quotes[selectedQuoteIndex]
-      const outputAmount = selectedQuote.trade.outputAmountRealized
-      const validation = validateQuoteOutput(outputAmount, minRequiredAmount)
-
-      if (validation.hasHighSlippageLoss) {
-        setHighSlippageLossWarning(true)
-      } else {
-        setHighSlippageLossWarning(false)
-      }
-    } else {
-      setHighSlippageLossWarning(false)
-    }
-  }, [quotes, selectedQuoteIndex, minRequiredAmount, enableRequoting])
-
-  useEffect(() => {
-    setCurrentBuffer(calculateReverseQuoteBuffer(slippage))
-  }, [slippage])
+  }, [refreshHelpers])
 
   const wrappedSetSelectedQuoteIndex = useCallback((index: number) => {
     isUserSelectionRef.current = true
@@ -569,7 +361,7 @@ export function useTradeQuotes({
     amountWei,
     refreshQuotes,
     abortQuotes,
-    highSlippageLossWarning,
-    currentBuffer,
+    highSlippageLossWarning: validation.highSlippageLossWarning,
+    currentBuffer: validation.currentBuffer,
   }
 }
