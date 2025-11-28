@@ -16,24 +16,26 @@ import {
   generateCurrencyKey,
   areQuoteKeysEqual,
 } from './useTradeQuotes/stateHelpers'
-import { validateInputs, detectChainTransition } from './useTradeQuotes/inputValidation'
+import { validateInputs } from './useTradeQuotes/inputValidation'
 
 export function useTradeQuotes({
   srcAmount,
   dstCurrency,
   slippage,
-  txInProgress,
   destinationCalls,
   minRequiredAmount,
   enableRequoting,
+  onQuotesChange,
+  shouldFetch,
 }: {
   srcAmount?: RawCurrencyAmount
   dstCurrency?: RawCurrency
   slippage: number
-  txInProgress: boolean
   destinationCalls?: ActionCall[]
   minRequiredAmount?: RawCurrencyAmount
   enableRequoting?: boolean
+  onQuotesChange?: (quotes: Quote[]) => void
+  shouldFetch?: boolean
 }) {
   const { address: userAddress } = useConnection()
   const receiverAddress = userAddress || DUMMY_ADDRESS
@@ -41,18 +43,13 @@ export function useTradeQuotes({
 
   const [quoting, setQuoting] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])
-  const [selectedQuoteIndex, setSelectedQuoteIndex] = useState(0)
   const [amountWei, setAmountWei] = useState<string | undefined>(undefined)
-  const [refreshTick, setRefreshTick] = useState(0)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const requestInProgressRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const lastQuotedKeyRef = useRef<string | null>(null)
   const lastQuotedAtRef = useRef<number>(0)
-  const prevSrcKeyRef = useRef<string>('')
-  const prevDstKeyRef = useRef<string>('')
-  const prevIsSameChainRef = useRef<boolean | null>(null)
-  const isUserSelectionRef = useRef<boolean>(false)
 
   const refreshHelpers = useQuoteRefreshHelpers()
 
@@ -78,10 +75,8 @@ export function useTradeQuotes({
     enabled: axelarPriceCurrencies.length > 0,
   })
 
-  const clearQuotesAndReset = useCallback(() => {
+  const clearQuotes = useCallback(() => {
     setQuotes([])
-    setSelectedQuoteIndex(0)
-    isUserSelectionRef.current = false
     setQuoting(false)
     requestInProgressRef.current = false
     lastQuotedKeyRef.current = null
@@ -93,76 +88,18 @@ export function useTradeQuotes({
   }, [refreshHelpers])
 
   useEffect(() => {
-    if (prevSrcKeyRef.current !== srcKey || prevDstKeyRef.current !== dstKey) {
-      if (quotes.length > 0 && !txInProgress) {
-        clearQuotesAndReset()
-      }
-      prevSrcKeyRef.current = srcKey
-      prevDstKeyRef.current = dstKey
-    }
-  }, [srcKey, dstKey, quotes.length, txInProgress, clearQuotesAndReset])
-
-  const prevDestinationCallsKeyRef = useRef<string>('')
-  useEffect(() => {
-    if (prevDestinationCallsKeyRef.current !== destinationCallsKey) {
-      if (quotes.length > 0 && !txInProgress) {
-        clearQuotesAndReset()
-      }
-      if (!txInProgress) {
-        lastQuotedKeyRef.current = null
-      }
-      prevDestinationCallsKeyRef.current = destinationCallsKey
-    }
-  }, [destinationCallsKey, quotes.length, txInProgress, clearQuotesAndReset])
-
-  const prevTxInProgressRef = useRef(txInProgress)
-  useEffect(() => {
-    if (txInProgress) {
-      console.debug('Skipping quote fetch: transaction in progress')
-      setQuoting(false)
-      requestInProgressRef.current = false
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-      refreshHelpers.cleanup()
-      prevTxInProgressRef.current = txInProgress
-      return
-    }
-
-    if (prevTxInProgressRef.current && !txInProgress) {
-      console.debug('Transaction completed, resetting quote cache')
-      lastQuotedKeyRef.current = null
-      requestInProgressRef.current = false
-      setQuoting(false)
-      refreshHelpers.cleanup()
-    }
-    prevTxInProgressRef.current = txInProgress
-  }, [txInProgress, refreshHelpers])
-
-  useEffect(() => {
-    if (txInProgress) {
+    if (!shouldFetch) {
       return
     }
 
     const inputValidation = validateInputs(srcAmount, dstCurrency)
 
     if (!inputValidation.isValid) {
-      clearQuotesAndReset()
+      if (quotes.length > 0) {
+        clearQuotes()
+      }
       return
     }
-
-    const wasSameChain = prevIsSameChainRef.current
-    const transitionedBetweenBridgeAndSwap = detectChainTransition(
-      inputValidation.isSameChain,
-      wasSameChain
-    )
-
-    if (transitionedBetweenBridgeAndSwap) {
-      console.debug('Transitioned between bridge and swap, clearing quote cache')
-      clearQuotesAndReset()
-    }
-    prevIsSameChainRef.current = inputValidation.isSameChain
 
     if (requestInProgressRef.current) {
       console.debug('Request already in progress, skipping...')
@@ -183,11 +120,10 @@ export function useTradeQuotes({
 
     if (lastQuotedKeyRef.current !== null && lastQuotedKeyRef.current !== currentKey) {
       lastQuotedKeyRef.current = null
-      isUserSelectionRef.current = false
       refreshHelpers.resetRequoting()
     }
 
-    if (sameAsLast && !transitionedBetweenBridgeAndSwap && elapsed < REFRESH_INTERVAL_MS) {
+    if (sameAsLast && elapsed < REFRESH_INTERVAL_MS) {
       console.debug('Skipping re-quote: inputs unchanged and refresh interval not reached')
       return
     }
@@ -248,21 +184,9 @@ export function useTradeQuotes({
           setAmountWei(srcAmount.amount.toString())
 
           setQuotes(allQuotes)
-          setSelectedQuoteIndex((prevIndex) => {
-            const isValidIndex = prevIndex >= 0 && prevIndex < allQuotes.length
-            const shouldPreserve = isRefresh && isValidIndex && isUserSelectionRef.current
-            return shouldPreserve ? prevIndex : 0
-          })
-          if (!isRefresh || !isUserSelectionRef.current) {
-            isUserSelectionRef.current = false
-          }
+          onQuotesChange?.(allQuotes)
 
-          validation.validateAndUpdateQuotes(
-            allQuotes,
-            minRequiredAmount,
-            isRefresh,
-            isUserSelectionRef.current
-          )
+          validation.validateAndUpdateQuotes(allQuotes, minRequiredAmount, isRefresh, false)
 
           refreshHelpers.resetRequoting()
         } else {
@@ -276,8 +200,9 @@ export function useTradeQuotes({
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch quote'
         toast.showError(errorMessage)
         setQuotes([])
-        setSelectedQuoteIndex(0)
-        isUserSelectionRef.current = false
+        if (shouldFetch) {
+          onQuotesChange?.([])
+        }
         console.error('Quote fetch error:', error)
       } finally {
         if (!cancel && !controller.signal.aborted) {
@@ -287,11 +212,11 @@ export function useTradeQuotes({
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null
         }
-        if (!cancel && !controller.signal.aborted && !txInProgress) {
+        if (!cancel && !controller.signal.aborted) {
           const scheduledKey = lastQuotedKeyRef.current
           refreshHelpers.scheduleRefresh(() => {
-            if (scheduledKey === lastQuotedKeyRef.current && !txInProgress) {
-              setRefreshTick((x: number) => x + 1)
+            if (scheduledKey === lastQuotedKeyRef.current) {
+              setRefreshTrigger((prev) => prev + 1)
             }
           })
         }
@@ -314,8 +239,8 @@ export function useTradeQuotes({
     dstCurrency,
     userAddress,
     slippage,
-    refreshTick,
-    txInProgress,
+    refreshTrigger,
+    shouldFetch,
     srcCurrency,
     destinationCallsKey,
     destinationCalls,
@@ -325,16 +250,14 @@ export function useTradeQuotes({
     axelarPrices,
     validation,
     refreshHelpers,
-    clearQuotesAndReset,
+    clearQuotes,
+    onQuotesChange,
+    quotes.length,
     toast,
   ])
 
-  useEffect(() => {
-    validation.checkSelectedQuoteValidation(quotes, selectedQuoteIndex, minRequiredAmount)
-  }, [quotes, selectedQuoteIndex, minRequiredAmount, validation])
-
   const refreshQuotes = useCallback(() => {
-    setRefreshTick((x: number) => x + 1)
+    setRefreshTrigger((prev) => prev + 1)
   }, [])
 
   const abortQuotes = useCallback(() => {
@@ -348,20 +271,12 @@ export function useTradeQuotes({
     lastQuotedKeyRef.current = null
   }, [refreshHelpers])
 
-  const wrappedSetSelectedQuoteIndex = useCallback((index: number) => {
-    isUserSelectionRef.current = true
-    setSelectedQuoteIndex(index)
-  }, [])
-
   return {
     quotes,
     quoting,
-    selectedQuoteIndex,
-    setSelectedQuoteIndex: wrappedSetSelectedQuoteIndex,
     amountWei,
     refreshQuotes,
     abortQuotes,
-    highSlippageLossWarning: validation.highSlippageLossWarning,
-    currentBuffer: validation.currentBuffer,
+    clearQuotes,
   }
 }

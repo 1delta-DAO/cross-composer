@@ -13,6 +13,8 @@ import { getCurrency } from '../../lib/trade-helpers/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSlippage } from '../../contexts/SlippageContext'
 import { useTradeQuotes } from '../../sdk/hooks/useTradeQuotes'
+import { useQuoteValidation } from '../../sdk/hooks/useQuoteValidation'
+import type { Quote } from '../../sdk/hooks/useQuoteFetcher'
 import { usePriceImpact } from '../../hooks/usePriceImpact'
 import ExecuteButton from './ExecuteButton'
 import { ActionsPanel } from './ActionsPanel'
@@ -20,6 +22,11 @@ import { formatDisplayAmount, pickPreferredToken } from './swapUtils'
 import type { ActionCall } from '../../lib/types/actionCalls'
 import { reverseQuote } from '../../lib/reverseQuote'
 import { getRegisteredActions } from '../actions/shared/actionRegistry'
+import {
+  generateDestinationCallsKey,
+  generateCurrencyKey,
+} from '../../sdk/hooks/useTradeQuotes/stateHelpers'
+import { detectChainTransition } from '../../sdk/hooks/useTradeQuotes/inputValidation'
 
 type Props = {
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
@@ -143,6 +150,15 @@ export function ActionsTab({ onResetStateChange }: Props) {
   const [actionResetKey, setActionResetKey] = useState(0)
   const lastCalculatedPricesRef = useRef<{ priceIn: number; priceOut: number } | null>(null)
 
+  const [selectedQuoteIndex, setSelectedQuoteIndex] = useState(0)
+  const isUserSelectionRef = useRef<boolean>(false)
+
+  const prevSrcKeyRef = useRef<string>('')
+  const prevDstKeyRef = useRef<string>('')
+  const prevIsSameChainRef = useRef<boolean | null>(null)
+  const prevDestinationCallsKeyRef = useRef<string>('')
+  const prevTxInProgressRef = useRef(txInProgress)
+
   const isSwapOrBridge = useMemo(() => {
     return Boolean(inputCurrency && actionCurrency)
   }, [inputCurrency, actionCurrency])
@@ -165,25 +181,129 @@ export function ActionsTab({ onResetStateChange }: Props) {
     }
   }, [inputCurrency, debouncedAmount])
 
-  const {
-    quotes,
-    quoting,
-    selectedQuoteIndex,
-    setSelectedQuoteIndex,
-    amountWei,
-    refreshQuotes,
-    abortQuotes,
-    highSlippageLossWarning,
-    currentBuffer,
-  } = useTradeQuotes({
+  const srcKey = useMemo(() => generateCurrencyKey(inputCurrency), [inputCurrency])
+  const dstKey = useMemo(() => generateCurrencyKey(actionCurrency), [actionCurrency])
+  const destinationCallsKey = useMemo(
+    () => generateDestinationCallsKey(destinationCalls),
+    [destinationCalls]
+  )
+
+  const validation = useQuoteValidation(enableRequoting ?? false, slippage)
+
+  const shouldFetchQuotes = useMemo(() => {
+    return !txInProgress && Boolean(srcAmount && actionCurrency)
+  }, [txInProgress, srcAmount, actionCurrency])
+
+  const handleQuotesChange = useCallback(
+    (newQuotes: Quote[]) => {
+      if (txInProgress) {
+        return
+      }
+
+      if (newQuotes.length === 0) {
+        setSelectedQuoteIndex(0)
+        isUserSelectionRef.current = false
+        return
+      }
+
+      setSelectedQuoteIndex((prevIndex) => {
+        const isValidIndex = prevIndex >= 0 && prevIndex < newQuotes.length
+        const shouldPreserve = isValidIndex && isUserSelectionRef.current
+        return shouldPreserve ? prevIndex : 0
+      })
+
+      if (!isUserSelectionRef.current) {
+        isUserSelectionRef.current = false
+      }
+    },
+    [txInProgress]
+  )
+
+  const { quotes, quoting, amountWei, refreshQuotes, abortQuotes, clearQuotes } = useTradeQuotes({
     srcAmount,
     dstCurrency: actionCurrency,
     slippage,
-    txInProgress,
     destinationCalls,
     minRequiredAmount: destinationInfo?.currencyAmount,
     enableRequoting,
+    onQuotesChange: handleQuotesChange,
+    shouldFetch: shouldFetchQuotes,
   })
+
+  useEffect(() => {
+    if (prevSrcKeyRef.current !== srcKey || prevDstKeyRef.current !== dstKey) {
+      if (quotes.length > 0 && !txInProgress) {
+        clearQuotes()
+        setSelectedQuoteIndex(0)
+        isUserSelectionRef.current = false
+      }
+      prevSrcKeyRef.current = srcKey
+      prevDstKeyRef.current = dstKey
+    }
+  }, [srcKey, dstKey, quotes.length, txInProgress, clearQuotes])
+
+  useEffect(() => {
+    if (prevDestinationCallsKeyRef.current !== destinationCallsKey) {
+      if (quotes.length > 0 && !txInProgress) {
+        clearQuotes()
+        setSelectedQuoteIndex(0)
+        isUserSelectionRef.current = false
+      }
+      prevDestinationCallsKeyRef.current = destinationCallsKey
+    }
+  }, [destinationCallsKey, quotes.length, txInProgress, clearQuotes])
+
+  useEffect(() => {
+    if (!srcAmount || !actionCurrency) {
+      prevIsSameChainRef.current = null
+      return
+    }
+
+    const isSameChain = srcAmount.currency.chainId === actionCurrency.chainId
+    const wasSameChain = prevIsSameChainRef.current
+    const transitionedBetweenBridgeAndSwap = detectChainTransition(isSameChain, wasSameChain)
+
+    if (transitionedBetweenBridgeAndSwap) {
+      console.debug('Transitioned between bridge and swap, clearing quote cache')
+      clearQuotes()
+      setSelectedQuoteIndex(0)
+      isUserSelectionRef.current = false
+    }
+    prevIsSameChainRef.current = isSameChain
+  }, [srcAmount, actionCurrency, clearQuotes])
+
+  useEffect(() => {
+    if (txInProgress) {
+      console.debug('Skipping quote fetch: transaction in progress')
+      abortQuotes()
+      prevTxInProgressRef.current = txInProgress
+      return
+    }
+
+    if (prevTxInProgressRef.current && !txInProgress) {
+      console.debug('Transaction completed, resetting quote cache')
+      clearQuotes()
+      setSelectedQuoteIndex(0)
+      isUserSelectionRef.current = false
+    }
+    prevTxInProgressRef.current = txInProgress
+  }, [txInProgress, abortQuotes, clearQuotes])
+
+  const wrappedSetSelectedQuoteIndex = useCallback((index: number) => {
+    isUserSelectionRef.current = true
+    setSelectedQuoteIndex(index)
+  }, [])
+
+  useEffect(() => {
+    validation.checkSelectedQuoteValidation(
+      quotes,
+      selectedQuoteIndex,
+      destinationInfo?.currencyAmount
+    )
+  }, [quotes, selectedQuoteIndex, destinationInfo?.currencyAmount, validation])
+
+  const highSlippageLossWarning = validation.highSlippageLossWarning
+  const currentBuffer = validation.currentBuffer
 
   const selectedTrade = quotes[selectedQuoteIndex]?.trade
   const [preservedTrade, setPreservedTrade] = useState<typeof selectedTrade | undefined>(undefined)
@@ -330,7 +450,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
         setDestinationInfo={setDestinationInfo}
         quotes={quotes}
         selectedQuoteIndex={selectedQuoteIndex}
-        setSelectedQuoteIndex={setSelectedQuoteIndex}
+        setSelectedQuoteIndex={wrappedSetSelectedQuoteIndex}
         slippage={slippage}
         onSrcCurrencyChange={setInputCurrency}
         calculatedInputAmount={calculatedInputAmount}
