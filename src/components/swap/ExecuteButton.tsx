@@ -13,7 +13,7 @@ import type { GenericTrade } from '../../sdk/types'
 import { SupportedChainId } from '../../sdk/types'
 import { buildTransactionUrl } from '../../lib/explorer'
 import { ERC20_ABI } from '../../lib/abi'
-import type { DestinationCall } from '../../lib/types/destinationAction'
+import type { ActionCall } from '../../lib/types/actionCalls'
 import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
 import { useToast } from '../common/ToastHost'
 import { WalletConnect } from '../connect'
@@ -80,16 +80,12 @@ async function trackBridgeCompletion(
         const statusInfo = statusAny?.statusInfo
         const bridgeStatus = (statusInfo?.status || statusAny?.status) as string | undefined
 
-        console.debug('Bridge status poll result:', { srcHash, status })
-
         if (status?.toHash) {
-          console.debug('Bridge completed:', { srcHash, dstHash: status.toHash })
           onDone({ src: srcHash, dst: status.toHash, completed: true })
           return
         }
 
         if (bridgeStatus === 'DONE' || bridgeStatus === 'COMPLETED') {
-          console.debug('Bridge completed without destination hash:', { srcHash, status })
           onDone({ src: srcHash, completed: true })
           return
         }
@@ -144,7 +140,7 @@ type ExecuteButtonProps = {
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
   onTransactionStart?: () => void
   onTransactionEnd?: () => void
-  destinationCalls?: DestinationCall[]
+  actionCalls?: ActionCall[]
   quoting?: boolean
 }
 
@@ -159,7 +155,7 @@ export default function ExecuteButton({
   onResetStateChange,
   onTransactionStart,
   onTransactionEnd,
-  destinationCalls,
+  actionCalls: destinationCalls,
   quoting,
 }: ExecuteButtonProps) {
   const { address } = useConnection()
@@ -250,7 +246,6 @@ export default function ExecuteButton({
     }
   }, [isConfirmed, srcHash, onReset, onResetStateChange, resetCallback])
 
-  // Extract transaction data from trade
   const getTransactionData = useCallback(async () => {
     if (!trade) return null
 
@@ -297,13 +292,7 @@ export default function ExecuteButton({
 
       let approvalHash: Address | undefined
 
-      if (
-        needsApproval &&
-        srcToken &&
-        amountWei &&
-        spender &&
-        !(srcChainId === SupportedChainId.MOONBEAM && dstChainId === SupportedChainId.MOONBEAM)
-      ) {
+      if (needsApproval && srcToken && amountWei && spender) {
         setStep('approving')
         approvalHash = await writeContractAsync({
           address: srcToken,
@@ -328,15 +317,6 @@ export default function ExecuteButton({
         (trade as any).additionalCalls ||
         (trade as any).destinationCalls ||
         (trade as any).crossChainParams?.additionalCalls
-      console.debug('=== Destination Calls Debug ===')
-      console.debug('Destination calls from prop:', destinationCalls)
-      console.debug('Destination calls from trade object:', tradeDestinationCalls)
-      console.debug('Trade object keys:', Object.keys(trade || {}))
-      console.debug('Trade crossChainParams:', (trade as any).crossChainParams)
-      console.debug('Is bridge:', isBridge)
-      console.debug('Source chain:', srcChainId)
-      console.debug('Destination chain:', dstChainId)
-      console.debug('================================')
 
       let hash: Address
       setStep('broadcast')
@@ -375,7 +355,6 @@ export default function ExecuteButton({
         })
       }
 
-      // Wait for confirmation asynchronously
       if (publicClient) {
         publicClient
           .waitForTransactionReceipt({ hash: hash as any })
@@ -389,12 +368,6 @@ export default function ExecuteButton({
             }
 
             if (isBridge && trade?.crossChainParams) {
-              const bridgeDestinationCalls =
-                (trade as any).crossChainParams?.additionalCalls || (trade as any).additionalCalls
-              console.debug('=== Bridge Transaction with Destination Calls ===')
-              console.debug('Bridge destination calls from trade:', bridgeDestinationCalls)
-              console.debug('Cross chain params:', trade.crossChainParams)
-              console.debug('================================================')
               setIsBridgeTracking(true)
               setBridgeTrackingStopped(false)
               trackBridgeCompletion(trade, srcChainId!, dstChainId!, hash, (hashes) => {
@@ -415,41 +388,6 @@ export default function ExecuteButton({
                 onTransactionEnd?.()
                 onDone(hashes)
               })
-            } else if (
-              !isBridge &&
-              srcChainId === SupportedChainId.MOONBEAM &&
-              dstChainId === SupportedChainId.MOONBEAM &&
-              destinationCalls &&
-              destinationCalls.length > 0 &&
-              address
-            ) {
-              try {
-                console.debug('=== Executing Destination Calls ===')
-                console.debug('Number of destination calls:', destinationCalls.length)
-                console.debug('Destination calls to execute:', destinationCalls)
-                for (const call of destinationCalls) {
-                  console.debug('Executing destination call:', {
-                    target: call.target,
-                    calldata: call.calldata,
-                    value: call.value?.toString(),
-                    gasLimit: call.gasLimit?.toString(),
-                  })
-                  await sendTransactionAsync({
-                    to: call.target,
-                    data: call.calldata,
-                    value: (call.value ?? 0n) as any,
-                  })
-                }
-                console.debug('All destination calls executed successfully')
-                console.debug('=====================================')
-                onTransactionEnd?.()
-                onDone({ src: hash })
-              } catch (e) {
-                console.error('Destination actions execution failed:', e)
-                toast.showError('Failed to execute destination actions')
-                onTransactionEnd?.()
-                onDone({ src: hash })
-              }
             } else {
               onTransactionEnd?.()
               onDone({ src: hash })
@@ -469,12 +407,6 @@ export default function ExecuteButton({
         }
 
         if (isBridge && trade?.crossChainParams) {
-          const bridgeDestinationCalls =
-            (trade as any).crossChainParams?.additionalCalls || (trade as any).additionalCalls
-          console.debug('=== Bridge Transaction with Destination Calls (no publicClient) ===')
-          console.debug('Bridge destination calls from trade:', bridgeDestinationCalls)
-          console.debug('Cross chain params:', trade.crossChainParams)
-          console.debug('================================================================')
           setIsBridgeTracking(true)
           setBridgeTrackingStopped(false)
           trackBridgeCompletion(trade, srcChainId!, dstChainId!, hash, (hashes) => {

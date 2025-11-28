@@ -17,7 +17,7 @@ import { usePriceImpact } from '../../hooks/usePriceImpact'
 import ExecuteButton from './ExecuteButton'
 import { ActionsPanel } from './ActionsPanel'
 import { formatDisplayAmount, pickPreferredToken } from './swapUtils'
-import type { DestinationCall } from '../../lib/types/destinationAction'
+import type { ActionCall } from '../../lib/types/actionCalls'
 import { reverseQuote } from '../../lib/reverseQuote'
 import { getRegisteredActions } from '../actions/shared/actionRegistry'
 
@@ -151,7 +151,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
 
   const { slippage, setPriceImpact } = useSlippage()
   const [txInProgress, setTxInProgress] = useState(false)
-  const [destinationCalls, setDestinationCalls] = useState<DestinationCall[]>([])
+  const [destinationCalls, setDestinationCalls] = useState<ActionCall[]>([])
   const [actionResetKey, setActionResetKey] = useState(0)
   const lastCalculatedPricesRef = useRef<{ priceIn: number; priceOut: number } | null>(null)
 
@@ -224,7 +224,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
     (
       currencyAmount: RawCurrencyAmount | undefined,
       receiverAddress: string | undefined,
-      destinationCalls: DestinationCall[],
+      destinationCalls: ActionCall[],
       actionLabel?: string,
       actionId?: string
     ) => {
@@ -367,7 +367,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
             srcCurrency={inputCurrency}
             dstCurrency={actionCurrency}
             amountWei={amountWei}
-            destinationCalls={destinationCalls}
+            actionCalls={destinationCalls}
             chains={chains}
             quoting={quoting && !tradeToUse}
             onDone={(hashes) => {

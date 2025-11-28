@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { DestinationActionType } from '../../../lib/types/destinationAction'
+import type { ActionType } from '../../../lib/types/actionCalls'
 import type { RawCurrency, RawCurrencyAmount } from '../../../types/currency'
 import type { GenericTrade } from '@1delta/lib-utils'
 import { getRegisteredActions } from './actionRegistry'
@@ -51,7 +51,7 @@ export interface ActionDefinition {
   icon: ComponentType<{ className?: string }>
   panel: ComponentType<any>
   priority: number
-  actionType: DestinationActionType
+  actionType: ActionType
   requiresSrcCurrency?: boolean
   requiresMarkets?: boolean
   requiresExactDestinationAmount?: boolean

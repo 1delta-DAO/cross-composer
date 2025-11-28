@@ -1,7 +1,7 @@
 import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from 'viem'
-import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
+import { DeltaCallType } from '@1delta/lib-utils'
 import { ComposerLendingActions, TransferToLenderType } from '@1delta/calldata-sdk'
-import type { DestinationCall } from '../../../../lib/types/destinationAction'
+import type { ActionCall } from '../../../../lib/types/actionCalls'
 import type { RawCurrency } from '../../../../types/currency'
 import type { DestinationCallBuilder } from '../../shared/types'
 import { encodeComposerCompose } from '../../../../lib/calldata/encodeComposerCompose'
@@ -39,24 +39,24 @@ export const buildCalls: DestinationCallBuilder<DepositCallBuilderParams> = asyn
 
   const wrapDepositInCompose = encodeComposerCompose(depositCall as Hex)
 
-  const transferCall: DestinationCall = {
-    target: underlying.address as Address,
-    calldata: encodeFunctionData({
+  const transferCall: ActionCall = {
+    callType: DeltaCallType.FULL_TOKEN_BALANCE,
+    target: underlying.address,
+    callData: encodeFunctionData({
       abi: erc20Abi,
       functionName: 'transfer',
       args: [composerAddress, 0n],
     }),
     value: 0n,
-    callType: DeltaCallType.FULL_TOKEN_BALANCE,
-    tokenAddress: underlying.address as Address,
+    tokenAddress: underlying.address,
     balanceOfInjectIndex: 1,
     gasLimit: 500000n,
   }
 
-  const composerCall: DestinationCall = {
-    target: composerAddress,
-    calldata: wrapDepositInCompose,
+  const composerCall: ActionCall = {
     callType: DeltaCallType.FULL_NATIVE_BALANCE,
+    target: composerAddress,
+    callData: wrapDepositInCompose,
     gasLimit: 1000000n,
   }
 

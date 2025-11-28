@@ -1,9 +1,10 @@
 import { Address, Hex, Abi } from 'viem'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
+import type { DeltaCall } from '@1delta/lib-utils'
 
-export type DestinationActionType = 'game_token' | 'buy_ticket' | 'lending' | 'staking'
+export type ActionType = 'game_token' | 'buy_ticket' | 'lending' | 'staking'
 
-export interface DestinationActionMeta {
+export interface ActionMeta {
   underlying?: RawCurrency
   minDstAmount?: RawCurrencyAmount
   usePermitPrecompile?: boolean
@@ -18,20 +19,20 @@ export interface DestinationActionMeta {
   [key: string]: unknown
 }
 
-export interface DestinationAction {
+export interface Action {
   address: Address
   functionSelectors: Hex[]
   abi: Abi
-  actionType: DestinationActionType
+  actionType: ActionType
   group?: string
-  meta?: DestinationActionMeta
+  meta?: ActionMeta
   name: string
   description: string
   icon?: string
   defaultFunctionSelector?: Hex
 }
 
-export interface EncodedDestinationAction {
+export interface EncodedAction {
   target: Address
   calldata: Hex
   value?: bigint
@@ -40,7 +41,7 @@ export interface EncodedDestinationAction {
   tokenAddress?: Address
 }
 
-export interface DestinationActionBuildContext {
+export interface ActionBuildContext {
   userAddress: Address
   dstChainId?: string
   selector: Hex
@@ -48,11 +49,11 @@ export interface DestinationActionBuildContext {
   value?: bigint
 }
 
-export interface DestinationActionConfig extends DestinationAction {
+export interface ActionConfig extends Action {
   defaultParams?: Record<string, unknown>
-  buildCalls?: (ctx: DestinationActionBuildContext) => Promise<EncodedDestinationAction[]>
+  buildCalls?: (ctx: ActionBuildContext) => Promise<DeltaCall[]>
 }
 
-export interface DestinationCall extends EncodedDestinationAction {
+export type ActionCall = DeltaCall & {
   gasLimit?: bigint
 }

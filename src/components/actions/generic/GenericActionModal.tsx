@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Abi, Hex, Address } from 'viem'
 import { formatUnits, toFunctionSelector, parseUnits, parseUnits as parseUnitsFn } from 'viem'
-import type { DestinationActionConfig } from '../../../lib/types/destinationAction'
+import type { ActionConfig } from '../../../lib/types/actionCalls'
 import { useTokenBalance } from '../../../hooks/balances/useTokenBalance'
 import { useBorrowBalance } from '../../../hooks/balances/useBorrowBalance'
 import { SupportedChainId } from '../../../sdk/types'
@@ -11,13 +11,13 @@ import { useAccountLiquidity } from '../../../hooks/balances/useAccountLiquidity
 type LendingActionModalProps = {
   open: boolean
   onClose: () => void
-  actionConfig: DestinationActionConfig | null
+  actionConfig: ActionConfig | null
   selector: Hex | null
   initialArgs?: any[]
   initialValue?: string
   userAddress?: Address
   chainId?: string
-  onConfirm: (config: DestinationActionConfig, selector: Hex, args: any[], value?: string) => void
+  onConfirm: (config: ActionConfig, selector: Hex, args: any[], value?: string) => void
 }
 
 function findFunctionBySelector(abi: Abi, selector: Hex): any {

@@ -2,13 +2,12 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { Address } from 'viem'
 import type { GenericTrade } from '@1delta/lib-utils'
 import { TradeType } from '@1delta/lib-utils'
-import { convertAmountToWei } from '../../lib/trade-helpers/utils'
+import { convertAmountToWei, convertActionCallsToDeltaCalls } from '../../lib/trade-helpers/utils'
 import { fetchAllAggregatorTrades } from '../../lib/trade-helpers/aggregatorSelector'
 import { DUMMY_ADDRESS } from '../../lib/consts'
 import { useToast } from '../../components/common/ToastHost'
-import type { DestinationCall } from '../../lib/types/destinationAction'
-import type { DeltaCall } from '@1delta/trade-sdk'
-import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
+import type { ActionCall } from '../../lib/types/actionCalls'
+import { DeltaCall } from '@1delta/lib-utils'
 import { fetchAllActionTrades } from '../trade-helpers/actionSelector'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
@@ -41,7 +40,7 @@ export function useTradeQuotes({
   debouncedDstKey: string
   slippage: number
   txInProgress: boolean
-  destinationCalls?: DestinationCall[]
+  destinationCalls?: ActionCall[]
   minRequiredAmount?: RawCurrencyAmount
   enableRequoting?: boolean
 }) {
@@ -104,14 +103,17 @@ export function useTradeQuotes({
 
   const destinationCallsKey = JSON.stringify(
     (destinationCalls || []).map((c) => ({
-      t: c.target ? c.target.toLowerCase() : '',
-      v: c.value ? c.value.toString() : '',
-      dStart: c.calldata ? c.calldata.slice(0, 10) : '',
-      dEnd: c.calldata ? c.calldata.slice(-10) : '',
+      t: 'target' in c && c.target ? c.target.toLowerCase() : '',
+      v: 'value' in c && c.value ? c.value.toString() : '',
+      dStart: 'callData' in c && c.callData ? c.callData.slice(0, 10) : '',
+      dEnd: 'callData' in c && c.callData ? c.callData.slice(-10) : '',
       g: c.gasLimit ? c.gasLimit.toString() : '',
       ct: typeof c.callType === 'number' ? c.callType : 0,
-      ta: c.tokenAddress ? c.tokenAddress.toLowerCase() : '',
-      bi: typeof c.balanceOfInjectIndex === 'number' ? c.balanceOfInjectIndex : 0,
+      ta: 'tokenAddress' in c && c.tokenAddress ? c.tokenAddress.toLowerCase() : '',
+      bi:
+        'balanceOfInjectIndex' in c && typeof c.balanceOfInjectIndex === 'number'
+          ? c.balanceOfInjectIndex
+          : 0,
     }))
   )
 
@@ -324,6 +326,13 @@ export function useTradeQuotes({
 
         let allQuotes: Quote[] = []
 
+        let additionalCalls: DeltaCall[] | undefined
+        let destinationGasLimit: bigint | undefined
+        if (destinationCalls && destinationCalls.length > 0) {
+          additionalCalls = convertActionCallsToDeltaCalls(destinationCalls)
+          destinationGasLimit = destinationCalls.reduce((acc, c) => acc + (c.gasLimit || 0n), 0n)
+        }
+
         if (isSameChain) {
           const trades = await fetchAllAggregatorTrades(
             sc!,
@@ -337,38 +346,13 @@ export function useTradeQuotes({
               receiver: receiverAddress,
               tradeType: TradeType.EXACT_INPUT,
               flashSwap: false,
-              usePermit: true,
+              usePermit: false,
             } as any,
-            controller
+            controller,
+            additionalCalls
           )
           allQuotes = trades.map((t) => ({ label: t.aggregator.toString(), trade: t.trade }))
         } else {
-          let additionalCalls: DeltaCall[] | undefined
-          let destinationGasLimit: bigint | undefined
-          if (destinationCalls && destinationCalls.length > 0) {
-            additionalCalls = destinationCalls.map((c) => {
-              const callType = c.callType ?? DeltaCallType.DEFAULT
-              const base: DeltaCall = {
-                callType,
-                target: c.target,
-                value: c.value && c.value > 0n ? c.value : undefined,
-                callData: c.calldata,
-              }
-
-              if (callType === DeltaCallType.FULL_TOKEN_BALANCE) {
-                return {
-                  ...base,
-                  tokenAddress: c.tokenAddress,
-                  balanceOfInjectIndex:
-                    typeof c.balanceOfInjectIndex === 'number' ? c.balanceOfInjectIndex : 0,
-                }
-              }
-
-              return base
-            })
-            destinationGasLimit = destinationCalls.reduce((acc, c) => acc + (c.gasLimit || 0n), 0n)
-          }
-
           const actionTrades = await fetchAllActionTrades(
             {
               slippage,
@@ -379,7 +363,7 @@ export function useTradeQuotes({
               caller: receiverAddress,
               receiver: receiverAddress,
               order: 'CHEAPEST',
-              usePermit: true,
+              usePermit: false,
               ...(additionalCalls ? { additionalCalls } : {}),
               destinationGasLimit,
             } as any,

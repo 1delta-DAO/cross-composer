@@ -5,8 +5,8 @@ import type {
   AcrossBaseInput,
   AxelarBaseInput,
   BaseBridgeInput,
-  DeltaCall,
 } from '@1delta/trade-sdk/dist/types'
+import type { DeltaCall } from '@1delta/lib-utils'
 import type { Address } from 'viem'
 import { getCurrency as getCurrencyRaw } from '../../lib/trade-helpers/utils'
 import { fetchAxelarTradeWithSwaps } from '@1delta/trade-sdk/dist/composedTrades/axelar/axelarWithSwaps'
