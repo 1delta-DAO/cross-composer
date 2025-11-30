@@ -17,11 +17,11 @@ import {
 } from './actions/shared/actionDefinitions'
 import { DestinationActionHandler } from './actions/shared/types'
 import type { GenericTrade } from '@1delta/lib-utils'
+import { getTokenListsCache } from '../lib/assetLists'
 
-interface DestinationActionSelectorProps {
+interface ActionSelectorProps {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
-  tokenLists?: Record<string, Record<string, RawCurrency>> | undefined
   setDestinationInfo?: DestinationActionHandler
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
@@ -32,10 +32,9 @@ interface DestinationActionSelectorProps {
   destinationInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string }
 }
 
-export default function DestinationActionSelector({
+export default function ActionSelector({
   srcCurrency,
   dstCurrency,
-  tokenLists,
   setDestinationInfo,
   quotes,
   selectedQuoteIndex,
@@ -44,7 +43,7 @@ export default function DestinationActionSelector({
   resetKey,
   onSrcCurrencyChange,
   destinationInfo,
-}: DestinationActionSelectorProps) {
+}: ActionSelectorProps) {
   const [marketsReady, setMarketsReady] = useState(isMarketsReady())
   const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null)
@@ -55,10 +54,8 @@ export default function DestinationActionSelector({
   const [actionDataLoading, setActionDataLoading] = useState<Record<string, boolean>>({})
   const [panelResetKey, setPanelResetKey] = useState(0)
 
-  const dstToken = useMemo(() => dstCurrency?.address as string | undefined, [dstCurrency])
   const dstChainId = useMemo(() => dstCurrency?.chainId as string | undefined, [dstCurrency])
 
-  // Get available actions based on srcCurrency
   const availableActions = useMemo(() => {
     return getRegisteredActions().filter((action) => {
       if (action.requiresSrcCurrency) {
@@ -107,7 +104,6 @@ export default function DestinationActionSelector({
     return loading
   }, [availableActions, actionDataLoading, marketsLoading, isActionReady])
 
-  // Subscribe to market cache changes
   useEffect(() => {
     setMarketsReady(isMarketsReady())
     setMarketsLoading(isMarketsLoading())
@@ -126,7 +122,6 @@ export default function DestinationActionSelector({
       const loaderContext: ActionLoaderContext = {
         srcCurrency,
         dstCurrency,
-        tokenLists,
         chainId: dstChainId,
       }
 
@@ -149,7 +144,7 @@ export default function DestinationActionSelector({
     }
 
     loadActionData()
-  }, [availableActions, srcCurrency, dstCurrency, tokenLists, dstChainId])
+  }, [availableActions, srcCurrency, dstCurrency, dstChainId])
 
   const prevSelectedActionRef = useRef<ActionType | null>(null)
 
@@ -223,7 +218,6 @@ export default function DestinationActionSelector({
 
     const Panel = actionDef.panel
     const context = {
-      tokenLists,
       setDestinationInfo: wrappedSetDestinationInfo,
       srcCurrency,
       dstCurrency,
@@ -240,7 +234,7 @@ export default function DestinationActionSelector({
     const props = actionDef.buildPanelProps
       ? actionDef.buildPanelProps(context)
       : {
-          tokenLists: context.tokenLists,
+          tokenLists: getTokenListsCache(),
           setDestinationInfo: context.setDestinationInfo,
         }
 
