@@ -5,9 +5,8 @@ import { TokenSelector } from '../tokenSelector'
 import type { RawCurrency } from '../../types/currency'
 import { getCurrency } from '../../lib/trade-helpers/utils'
 import { Chain } from '@1delta/chain-registry'
-import { useConnection } from 'wagmi'
 
-type Props = {
+type TokenSelectorModalProps = {
   open: boolean
   onClose: () => void
   currency?: RawCurrency
@@ -31,7 +30,7 @@ export function TokenSelectorModal({
   excludeAddresses,
   showChainSelector = true,
   initialChainId,
-}: Props) {
+}: TokenSelectorModalProps) {
   const [chainId, setChainId] = useState<string | undefined>(
     initialChainId ?? currency?.chainId ?? Chain.POLYGON_MAINNET
   )

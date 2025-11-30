@@ -13,7 +13,7 @@ import { TokenSelectorListMode } from './ListMode'
 import type { TokenRowData } from './types'
 import { useConnection } from 'wagmi'
 
-type Props = {
+type TokenSelectorProps = {
   chainId: string
   value?: Address
   onChange: (address: Address) => void
@@ -33,7 +33,7 @@ export function TokenSelector({
   onQueryChange,
   showSearch = true,
   listMode = false,
-}: Props) {
+}: TokenSelectorProps) {
   const { address: userAddress } = useConnection()
   const { data: lists, isLoading: listsLoading } = useTokenLists()
   const { data: chains } = useChainsRegistry()
@@ -67,7 +67,7 @@ export function TokenSelector({
 
   // Include zero address for native token balance
   const addressesWithNative = useMemo(() => {
-    const addrs = [...allAddrs.slice(0, 300)]
+    const addrs = [...allAddrs]
     if (!addrs.includes(zeroAddress as Address)) {
       addrs.unshift(zeroAddress as Address)
     }
@@ -266,9 +266,7 @@ export function TokenSelector({
           !excludeAddresses ||
           !excludeAddresses.map((a) => a.toLowerCase()).includes(addr.toLowerCase())
       )
-      .filter(({ addr, token, isRelevant }) => {
-        // Always include relevant tokens in the list, regardless of search query
-        if (isRelevant) return true
+      .filter(({ addr, token }) => {
         if (!q) return true
         const addrLower = addr.toLowerCase()
         const symbolLower = token.symbol.toLowerCase()

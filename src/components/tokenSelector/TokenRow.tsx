@@ -62,16 +62,18 @@ export function TokenRow({
         <div className="text-xs opacity-70">{token.symbol}</div>
       </div>
       <div className="text-right min-w-24">
-        {showBalanceLoading ? (
+        {showBalanceLoading || showPriceLoading ? (
           <span className="loading loading-spinner loading-xs" />
-        ) : balanceText ? (
-          <div className="font-mono text-sm opacity-80">{balanceText}</div>
-        ) : null}
-        {showPriceLoading ? (
-          <span className="loading loading-spinner loading-xs ml-2" />
-        ) : usd !== undefined && isFinite(usd) ? (
-          <div className="text-xs opacity-60">${usd.toFixed(2)}</div>
-        ) : null}
+        ) : (
+          <>
+            {!showBalanceLoading && balanceText && (
+              <div className="font-mono text-sm opacity-80">{balanceText}</div>
+            )}
+            {!showPriceLoading && usd !== undefined && isFinite(usd) && (
+              <div className="text-xs opacity-60">${usd.toFixed(2)}</div>
+            )}
+          </>
+        )}
       </div>
     </button>
   )

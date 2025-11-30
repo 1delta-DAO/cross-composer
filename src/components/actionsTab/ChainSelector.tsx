@@ -4,18 +4,18 @@ import { SUPPORTED_CHAIN_IDS } from '../../lib/data/chainIds'
 import { Logo } from '../common/Logo'
 import { SupportedChainId } from '../../sdk/types'
 
-type Props = {
+type ChainSelectorProps = {
   value?: string
   onChange: (chainId: string) => void
 }
 
 const RELEVANT_CHAIN_IDS = [
+  SupportedChainId.MOONBEAM,
   SupportedChainId.OP_MAINNET,
   SupportedChainId.BASE,
-  SupportedChainId.MOONBEAM,
 ]
 
-export function ChainSelector({ value, onChange }: Props) {
+export function ChainSelector({ value, onChange }: ChainSelectorProps) {
   const { data, isLoading } = useChainsRegistry()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
