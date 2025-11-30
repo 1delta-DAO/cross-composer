@@ -36,7 +36,7 @@ export function registerDepositAction(): void {
     panel: DepositPanel,
     priority: 1,
     actionType: 'lending',
-    dataLoader: async (context: ActionLoaderContext): Promise<MoonwellMarket[]> => {
+    dataLoader: async (_context: ActionLoaderContext): Promise<MoonwellMarket[]> => {
       return await waitForMarkets()
     },
     buildPanelProps: (context) => ({

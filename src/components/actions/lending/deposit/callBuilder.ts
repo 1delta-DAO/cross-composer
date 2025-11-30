@@ -1,6 +1,10 @@
 import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from 'viem'
 import { DeltaCallType } from '@1delta/lib-utils'
-import { ComposerLendingActions, TransferToLenderType } from '@1delta/calldata-sdk'
+import {
+  ComposerLendingActions,
+  getComposerAddress,
+  TransferToLenderType,
+} from '@1delta/calldata-sdk'
 import type { ActionCall } from '../../../../lib/types/actionCalls'
 import type { RawCurrency } from '../../../../types/currency'
 import type { DestinationCallBuilder } from '../../shared/types'
@@ -11,25 +15,21 @@ export type DepositCallBuilderParams = {
   amountHuman: string
   underlying: RawCurrency
   userAddress: Address
-  dstChainId?: string
-  composerAddress: Address
-  callForwarderAddress: Address
 }
 
 export const buildCalls: DestinationCallBuilder<DepositCallBuilderParams> = async ({
   amountHuman,
   underlying,
   userAddress,
-  dstChainId,
-  composerAddress,
 }) => {
   const amountRaw = parseUnits(amountHuman, underlying.decimals)
+  const composerAddress = getComposerAddress(underlying.chainId)
 
   const depositCall = ComposerLendingActions.createDeposit({
     receiver: userAddress,
     amount: amountRaw,
     asset: underlying.address,
-    chainId: dstChainId || underlying.chainId,
+    chainId: underlying.chainId,
     lender: 'MOONWELL' as any,
     transferType: TransferToLenderType.ContractBalance,
     useOverride: {

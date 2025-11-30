@@ -62,12 +62,9 @@ export function DepositActionModal({
   const handleConfirm = async () => {
     if (!amount || !underlying) return
 
-    const chainId = underlying.chainId
     const destinationCalls = await buildCalls({
       amountHuman: amount,
       underlying: market.underlyingCurrency, // keep using market.underlyingCurrency for protocol calls
-      callForwarderAddress: getForwarderAddress(chainId)! as any,
-      composerAddress: getComposerAddress(chainId)! as any,
       userAddress: userAddress as any,
     })
 
