@@ -1,7 +1,31 @@
 import { registerAction } from '../../shared/actionRegistry'
 import { DepositPanel } from './DepositPanel'
 import { DepositIcon } from './DepositIcon'
-import type { ActionDefinition } from '../../shared/actionDefinitions'
+import type { ActionDefinition, ActionLoaderContext } from '../../shared/actionDefinitions'
+import {
+  getCachedMarkets,
+  isMarketsReady,
+  subscribeToCacheChanges,
+  type MoonwellMarket,
+} from '../../../../lib/moonwell/marketCache'
+
+async function waitForMarkets(): Promise<MoonwellMarket[]> {
+  return new Promise((resolve) => {
+    if (isMarketsReady()) {
+      const markets = getCachedMarkets()
+      resolve(markets || [])
+      return
+    }
+
+    const unsubscribe = subscribeToCacheChanges(() => {
+      if (isMarketsReady()) {
+        const markets = getCachedMarkets()
+        unsubscribe()
+        resolve(markets || [])
+      }
+    })
+  })
+}
 
 export function registerDepositAction(): void {
   const depositAction: ActionDefinition = {
@@ -12,15 +36,16 @@ export function registerDepositAction(): void {
     panel: DepositPanel,
     priority: 1,
     actionType: 'lending',
-    requiresMarkets: true,
-    requiresExactDestinationAmount: false,
+    dataLoader: async (context: ActionLoaderContext): Promise<MoonwellMarket[]> => {
+      return await waitForMarkets()
+    },
     buildPanelProps: (context) => ({
       tokenLists: context.tokenLists,
       setDestinationInfo: context.setDestinationInfo,
       chainId: context.chainId,
       destinationInfo: context.destinationInfo,
+      markets: context.actionData,
     }),
-    isReady: (context) => context.marketsReady,
   }
 
   registerAction(depositAction)

@@ -36,30 +36,28 @@ export function ActionsPanel({
   const { data: chains } = useChainsRegistry()
 
   return (
-    <div className="card bg-base-200 shadow-lg border border-primary/30 mt-4">
-      <div className="card-body">
-        <ActionSelector
-          resetKey={resetKey}
-          srcCurrency={srcCurrency}
-          dstCurrency={dstCurrency}
-          setDestinationInfo={setDestinationInfo}
-          quotes={quotes}
-          selectedQuoteIndex={selectedQuoteIndex}
-          setSelectedQuoteIndex={setSelectedQuoteIndex}
-          slippage={slippage}
-          onSrcCurrencyChange={onSrcCurrencyChange}
-          destinationInfo={destinationInfo}
-        />
+    <>
+      <ActionSelector
+        resetKey={resetKey}
+        srcCurrency={srcCurrency}
+        dstCurrency={dstCurrency}
+        setDestinationInfo={setDestinationInfo}
+        quotes={quotes}
+        selectedQuoteIndex={selectedQuoteIndex}
+        setSelectedQuoteIndex={setSelectedQuoteIndex}
+        slippage={slippage}
+        onSrcCurrencyChange={onSrcCurrencyChange}
+        destinationInfo={destinationInfo}
+      />
 
-        <TransactionSummary
-          srcCurrency={srcCurrency}
-          dstCurrency={dstCurrency}
-          inputAmount={calculatedInputAmount}
-          currencyAmount={destinationInfo?.currencyAmount}
-          destinationActionLabel={destinationInfo?.actionLabel}
-          chains={chains}
-        />
-      </div>
-    </div>
+      <TransactionSummary
+        srcCurrency={srcCurrency}
+        dstCurrency={dstCurrency}
+        inputAmount={calculatedInputAmount}
+        currencyAmount={destinationInfo?.currencyAmount}
+        destinationActionLabel={destinationInfo?.actionLabel}
+        chains={chains}
+      />
+    </>
   )
 }

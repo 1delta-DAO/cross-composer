@@ -1,11 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import {
-  getCachedMarkets,
-  isMarketsReady,
-  isMarketsLoading,
-  subscribeToCacheChanges,
-  type MoonwellMarket,
-} from '../../../../lib/moonwell/marketCache'
+import { type MoonwellMarket } from '../../../../lib/moonwell/marketCache'
 import { DepositActionModal } from './DepositModal'
 import { DepositCard } from './DepositCard'
 import { DestinationActionHandler } from '../../shared/types'
@@ -18,6 +12,7 @@ type DepositPanelProps = {
   setDestinationInfo?: DestinationActionHandler
   resetKey?: number
   destinationInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string }
+  markets?: MoonwellMarket[]
 }
 
 export function DepositPanel({
@@ -25,26 +20,10 @@ export function DepositPanel({
   setDestinationInfo,
   resetKey,
   destinationInfo,
+  markets = [],
 }: DepositPanelProps) {
   const { address } = useConnection()
   const [isExpanded, setIsExpanded] = useState(false)
-  const [marketsReady, setMarketsReady] = useState(isMarketsReady())
-  const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
-
-  // Subscribe to market cache changes
-  useEffect(() => {
-    setMarketsReady(isMarketsReady())
-    setMarketsLoading(isMarketsLoading())
-
-    const unsubscribe = subscribeToCacheChanges(() => {
-      setMarketsReady(isMarketsReady())
-      setMarketsLoading(isMarketsLoading())
-    })
-
-    return unsubscribe
-  }, [])
-
-  const markets = useMemo(() => getCachedMarkets() || [], [marketsReady])
 
   // Only listed markets can be used for deposits
   const depositMarkets = useMemo(() => {
@@ -90,17 +69,7 @@ export function DepositPanel({
     setLastSelectedMarketAddress(market.mTokenCurrency.address)
   }
 
-  // Loading / empty states
-  if (marketsLoading && !marketsReady) {
-    return (
-      <div className="alert alert-info">
-        <span className="loading loading-spinner loading-sm"></span>
-        <span>Loading markets...</span>
-      </div>
-    )
-  }
-
-  if (!marketsReady || markets.length === 0) {
+  if (markets.length === 0) {
     return (
       <div className="alert alert-warning">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

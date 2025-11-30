@@ -24,7 +24,6 @@ export interface ActionPanelContext {
   slippage?: number
   chainId?: string
   actionData?: any
-  marketsReady?: boolean
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
   setSelectedQuoteIndex?: (index: number) => void
@@ -34,8 +33,6 @@ export interface ActionPanelContext {
 }
 
 export interface ActionReadinessContext {
-  marketsReady: boolean
-  marketsLoading: boolean
   srcCurrency?: RawCurrency
 }
 

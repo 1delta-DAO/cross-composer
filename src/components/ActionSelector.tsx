@@ -1,9 +1,4 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
-import {
-  isMarketsLoading,
-  isMarketsReady,
-  subscribeToCacheChanges,
-} from '../lib/moonwell/marketCache'
 import type { RawCurrency, RawCurrencyAmount } from '../types/currency'
 import { ActionIconGrid } from './actions/shared/ActionIconGrid'
 import { SelectedActionHeader } from './actions/shared/SelectedActionHeader'
@@ -44,8 +39,6 @@ export default function ActionSelector({
   onSrcCurrencyChange,
   destinationInfo,
 }: ActionSelectorProps) {
-  const [marketsReady, setMarketsReady] = useState(isMarketsReady())
-  const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<ActionCategory>('all')
   const [isExpanded, setIsExpanded] = useState(true)
@@ -73,8 +66,6 @@ export default function ActionSelector({
   const isActionReady = useMemo(() => {
     const ready: Record<string, boolean> = {}
     const readinessContext: ActionReadinessContext = {
-      marketsReady,
-      marketsLoading,
       srcCurrency,
     }
 
@@ -87,34 +78,21 @@ export default function ActionSelector({
       } else if (action.isReady) {
         ready[action.id] = action.isReady(readinessContext)
       } else {
-        ready[action.id] = !action.requiresMarkets || marketsReady
+        ready[action.id] = true
       }
     })
 
     return ready
-  }, [availableActions, marketsReady, marketsLoading, srcCurrency, actionDataLoading, actionData])
+  }, [availableActions, srcCurrency, actionDataLoading, actionData])
 
   const isActionLoading = useMemo(() => {
     const loading: Record<string, boolean> = {}
     availableActions.forEach((action) => {
       const isDataLoading = actionDataLoading[action.id] === true
-      const isMarketsLoading = action.requiresMarkets && marketsLoading && !isActionReady[action.id]
-      loading[action.id] = isDataLoading || (isMarketsLoading ?? false)
+      loading[action.id] = isDataLoading
     })
     return loading
-  }, [availableActions, actionDataLoading, marketsLoading, isActionReady])
-
-  useEffect(() => {
-    setMarketsReady(isMarketsReady())
-    setMarketsLoading(isMarketsLoading())
-
-    const unsubscribe = subscribeToCacheChanges(() => {
-      setMarketsReady(isMarketsReady())
-      setMarketsLoading(isMarketsLoading())
-    })
-
-    return unsubscribe
-  }, [])
+  }, [availableActions, actionDataLoading])
 
   // Load data for actions with dataLoaders
   useEffect(() => {
@@ -224,7 +202,6 @@ export default function ActionSelector({
       slippage,
       chainId: dstChainId,
       actionData: actionData[selectedAction],
-      marketsReady,
       quotes,
       selectedQuoteIndex,
       setSelectedQuoteIndex,
