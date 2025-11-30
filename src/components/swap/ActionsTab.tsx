@@ -388,6 +388,10 @@ export function ActionsTab({ onResetStateChange }: Props) {
       return
     }
 
+    if (!inputCurrency) {
+      return
+    }
+
     if (isLoadingPrices) return
 
     let priceIn = inputPrice ?? 0
@@ -398,7 +402,10 @@ export function ActionsTab({ onResetStateChange }: Props) {
       const pricesChanged =
         !lastPrices || lastPrices.priceIn !== priceIn || lastPrices.priceOut !== priceOut
 
-      if (pricesChanged || !calculatedInputAmount) {
+      const needsRecalculation =
+        pricesChanged || !calculatedInputAmount || calculatedInputAmount === ''
+
+      if (needsRecalculation) {
         const actionCur = destinationInfo.currencyAmount.currency as RawCurrency
         const decimalsOut = actionCur.decimals
         try {
@@ -421,6 +428,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
     }
   }, [
     destinationInfo,
+    inputCurrency,
     inputPrice,
     actionTokenPrice,
     isLoadingPrices,
@@ -435,7 +443,6 @@ export function ActionsTab({ onResetStateChange }: Props) {
         srcCurrency={inputCurrency}
         dstCurrency={actionCurrency}
         currentChainId={currentChainId}
-        tokenLists={lists}
         setDestinationInfo={setDestinationInfo}
         quotes={quotes}
         selectedQuoteIndex={selectedQuoteIndex}

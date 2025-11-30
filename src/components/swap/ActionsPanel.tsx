@@ -1,4 +1,4 @@
-import DestinationActionSelector from '../DestinationActionSelector'
+import ActionSelector from '../ActionSelector'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { DestinationActionHandler } from '../actions/shared/types'
 import type { GenericTrade } from '@1delta/lib-utils'
@@ -9,7 +9,6 @@ type ActionsPanelProps = {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
   currentChainId: number
-  tokenLists?: Record<string, Record<string, { symbol?: string; decimals?: number }>> | undefined
   setDestinationInfo?: DestinationActionHandler
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
@@ -24,7 +23,6 @@ type ActionsPanelProps = {
 export function ActionsPanel({
   srcCurrency,
   dstCurrency,
-  tokenLists,
   setDestinationInfo,
   quotes,
   selectedQuoteIndex,
@@ -40,11 +38,10 @@ export function ActionsPanel({
   return (
     <div className="card bg-base-200 shadow-lg border border-primary/30 mt-4">
       <div className="card-body">
-        <DestinationActionSelector
+        <ActionSelector
           resetKey={resetKey}
           srcCurrency={srcCurrency}
           dstCurrency={dstCurrency}
-          tokenLists={tokenLists}
           setDestinationInfo={setDestinationInfo}
           quotes={quotes}
           selectedQuoteIndex={selectedQuoteIndex}

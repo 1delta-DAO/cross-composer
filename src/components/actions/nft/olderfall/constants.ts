@@ -1,3 +1,4 @@
+import { Chain } from '@1delta/chain-registry'
 import type { Abi, Address } from 'viem'
 
 export const SEQUENCE_MARKET_ADDRESS: Address = '0xfdb42A198a932C8D3B506Ffa5e855bC4b348a712'
@@ -88,3 +89,4 @@ export const SEQUENCE_PROJECT_ACCESS_KEY = import.meta.env.VITE_SEQUENCE_PROJECT
 export const SEQUENCE_PROJECT_ID = import.meta.env.VITE_SEQUENCE_PROJECT_ID as string | undefined
 
 export const SEQUENCE_MARKETPLACE_API_URL = 'https://marketplace-api.sequence.app'
+export const OLDERFALL_SUPPORTED_CHAINS = [String(Chain.POLYGON_MAINNET), String(Chain.MOONBEAM)]

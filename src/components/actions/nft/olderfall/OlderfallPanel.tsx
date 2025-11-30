@@ -1,22 +1,19 @@
-// ./actions/nft/olderfall/OlderfallPanel.tsx
-
 import { useEffect, useState } from 'react'
 import { CurrencyHandler, SupportedChainId } from '../../../../sdk/types'
-import { DestinationActionHandler } from '../../shared/types'
+import { DestinationActionHandler as ActionHandler } from '../../shared/types'
 import { Chain } from '@1delta/chain-registry'
 import { OlderfallListingCard } from './OlderfallCard'
 import { formatListingPriceLabel } from './utils'
 import { OlderfallEmptyState, OlderfallHeader, OlderfallLoadingState } from './Generic'
 import { buildCalls } from './callBuilder'
 import type { OlderfallListing } from './api'
-import type { TokenListsMeta } from './types'
 import { useConnection } from 'wagmi'
 import { isValidAddress, isEmptyAddress } from '../../../../utils/addressValidation'
 import type { Address } from 'viem'
+import { getTokenFromCache, isTokenListsReady } from '../../../../lib/data/tokenListsCache'
 
 interface OlderfallPanelProps {
-  tokenLists?: TokenListsMeta
-  setDestinationInfo?: DestinationActionHandler
+  setDestinationInfo?: ActionHandler
   preloadedListings?: Record<string, OlderfallListing[]>
   resetKey?: number
 }
@@ -24,7 +21,6 @@ interface OlderfallPanelProps {
 interface OlderfallListingsListProps {
   listings: any[]
   dstChainId?: string | number
-  tokenLists?: TokenListsMeta
   selectedOrderId: string
   onSelectOrderId: (orderId: string) => void
 }
@@ -32,7 +28,6 @@ interface OlderfallListingsListProps {
 function OlderfallListingsList({
   listings,
   dstChainId,
-  tokenLists,
   selectedOrderId,
   onSelectOrderId,
 }: OlderfallListingsListProps) {
@@ -42,7 +37,7 @@ function OlderfallListingsList({
     <div className="grid grid-cols-1 min-[600px]:grid-cols-2 min-[800px]:grid-cols-3 min-[1000px]:grid-cols-4 gap-2 max-h-64 overflow-y-auto">
       {listings.map((l) => {
         const isSelected = selectedOrderId === l.orderId
-        const priceLabel = formatListingPriceLabel(l, tokenChainId, tokenLists)
+        const priceLabel = formatListingPriceLabel(l, tokenChainId)
         const title = l.name || `Armor #${l.tokenId}`
 
         return (
@@ -78,7 +73,6 @@ const OLDERFALL_OPTIONS = [
 /* ---------- Main unified panel with tabs ---------- */
 
 export function OlderfallPanel({
-  tokenLists,
   setDestinationInfo,
   preloadedListings,
   resetKey,
@@ -120,13 +114,17 @@ export function OlderfallPanel({
 
     if (!receiverAddressValid || !finalReceiverAddress) return
 
+    if (!isTokenListsReady()) return
+
     // Pick the first Olderfall config (they all share the same group)
     const listing = olderfallListings.find((l) => l.orderId === selectedOlderfallOrderId)
 
     if (!listing) return
 
-    // read selected option
-    const { chainId, token } = selectedOption
+    const { chainId } = selectedOption
+
+    const purchaseTokenData = getTokenFromCache(dstChainId, listing.currency)
+    if (!purchaseTokenData) return
 
     // create calldata
     const destinationCalls = await buildCalls({
@@ -135,12 +133,11 @@ export function OlderfallPanel({
       userAddress: address,
       listing,
     })
-    console.log('listing.pricePerToken', listing.pricePerToken, setDestinationInfo)
     const nftName = listing.name || `NFT #${listing.tokenId}`
     setDestinationInfo?.(
       // define output amount
       CurrencyHandler.fromRawAmount(
-        tokenLists?.[chainId]?.[token.toLowerCase()]!,
+        purchaseTokenData,
         listing.pricePerToken // amount to pay
       ),
       undefined, // intermediate receiver: default
@@ -197,10 +194,9 @@ export function OlderfallPanel({
         <OlderfallListingsList
           listings={olderfallListings}
           dstChainId={dstChainId}
-          tokenLists={tokenLists}
           selectedOrderId={selectedOlderfallOrderId}
           onSelectOrderId={async (id) => {
-            await setSelectedOlderfallOrderId(id)
+            setSelectedOlderfallOrderId(id)
             await handleAddClick(id)
           }}
         />

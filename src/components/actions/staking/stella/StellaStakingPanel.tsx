@@ -10,11 +10,9 @@ import { useDebounce } from '../../../../hooks/useDebounce'
 import { useConnection } from 'wagmi'
 import { usePriceQuery } from '../../../../hooks/prices/usePriceQuery'
 import { getCurrency } from '../../../../lib/trade-helpers/utils'
-
-type TokenListsMeta = Record<string, Record<string, RawCurrency>>
+import { getTokenFromCache, isTokenListsReady } from '../../../../lib/data/tokenListsCache'
 
 interface StellaStakingPanelProps {
-  tokenLists?: TokenListsMeta
   setDestinationInfo?: DestinationActionHandler
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
@@ -23,7 +21,6 @@ interface StellaStakingPanelProps {
 }
 
 export function StellaStakingPanel({
-  tokenLists,
   setDestinationInfo,
   srcCurrency,
   dstCurrency,
@@ -38,9 +35,9 @@ export function StellaStakingPanel({
   const debouncedOutputAmount = useDebounce(outputAmount, 1000)
 
   const xcDOTToken = useMemo(() => {
-    if (!tokenLists || !chainId) return undefined
-    return tokenLists[chainId]?.[XCDOT_ADDRESS.toLowerCase()]
-  }, [tokenLists, chainId])
+    if (!chainId || !isTokenListsReady()) return undefined
+    return getTokenFromCache(String(chainId), XCDOT_ADDRESS)
+  }, [chainId])
 
   const xcDotCurrency = getCurrency(chainId, XCDOT_ADDRESS)
   const { data: pricesData } = usePriceQuery({

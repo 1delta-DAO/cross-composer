@@ -1,22 +1,18 @@
-/* ---------- Small helpers ---------- */
-
 import { CurrencyHandler, SupportedChainId } from '@1delta/lib-utils'
-import { TokenListsMeta } from './types'
-import { getTokenFromCache } from '../../../../lib/data/tokenListsCache'
+import { getTokenFromCache, isTokenListsReady } from '../../../../lib/data/tokenListsCache'
 
 export function formatListingPriceLabel(
   listing: any,
-  tokenChainId: string | number | undefined,
-  tokenLists?: TokenListsMeta
+  tokenChainId: string | number | undefined
 ): string {
   const tokenMeta =
-    tokenLists && tokenChainId && listing.currency
-      ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()]
+    !!tokenChainId && isTokenListsReady()
+      ? getTokenFromCache(tokenChainId.toString(), listing.currency)
       : undefined
 
   const decimals =
     typeof tokenMeta?.decimals === 'number' ? tokenMeta.decimals : listing.priceDecimals
-  const symbol = tokenMeta?.symbol || 'TOKEN'
+  const symbol = tokenMeta?.symbol || ''
 
   try {
     const base = BigInt(listing.pricePerToken)
@@ -37,43 +33,25 @@ export function formatListingPriceLabel(
   }
 }
 
-export function buildCurrencyMetaForListing(
-  listing: any,
-  dstChainId?: string,
-  tokenLists?: TokenListsMeta
-) {
+export function buildCurrencyMetaForListing(listing: any, dstChainId?: string) {
   const tokenChainId = dstChainId || SupportedChainId.MOONBEAM
   const tokenMeta =
-    tokenLists && tokenChainId && listing.currency
-      ? tokenLists[tokenChainId]?.[listing.currency.toLowerCase()]
+    !!tokenChainId && isTokenListsReady()
+      ? getTokenFromCache(tokenChainId.toString(), listing.currency)
       : undefined
-
-  const cachedToken = getTokenFromCache(tokenChainId, listing.currency)
 
   const currency: {
     chainId: string
     address: string
     symbol?: string
     decimals: number
-  } = cachedToken
-    ? {
-        chainId: cachedToken.chainId,
-        address: cachedToken.address,
-        symbol: cachedToken.symbol,
-        decimals: cachedToken.decimals,
+  } = !!tokenMeta
+    ? tokenMeta
+    : {
+        chainId: tokenChainId,
+        address: listing.currency,
+        decimals: listing.priceDecimals,
       }
-    : tokenMeta
-      ? {
-          chainId: tokenChainId,
-          address: listing.currency,
-          symbol: tokenMeta.symbol,
-          decimals: tokenMeta.decimals ?? listing.priceDecimals,
-        }
-      : {
-          chainId: tokenChainId,
-          address: listing.currency,
-          decimals: listing.priceDecimals,
-        }
 
   const minDstAmount = CurrencyHandler.fromRawAmount(currency, listing.pricePerToken)
 

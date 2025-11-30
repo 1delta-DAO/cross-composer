@@ -53,7 +53,6 @@ export interface ActionDefinition {
   actionType: ActionType
   requiresSrcCurrency?: boolean
   requiresMarkets?: boolean
-  requiresExactDestinationAmount?: boolean
   dataLoader?: DataLoader
   buildPanelProps?: PanelPropsBuilder
   isReady?: ReadinessChecker

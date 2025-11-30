@@ -13,9 +13,7 @@ export function registerBridgeAction(): void {
     priority: 3,
     actionType: 'lending',
     requiresSrcCurrency: true,
-    requiresExactDestinationAmount: false,
     buildPanelProps: (context) => ({
-      tokenLists: context.tokenLists,
       setDestinationInfo: context.setDestinationInfo,
       srcCurrency: context.srcCurrency,
       dstCurrency: context.dstCurrency,

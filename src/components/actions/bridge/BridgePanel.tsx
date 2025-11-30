@@ -8,13 +8,11 @@ import { parseUnits, zeroAddress } from 'viem'
 import type { Address } from 'viem'
 import { useDebounce } from '../../../hooks/useDebounce'
 import type { GenericTrade } from '@1delta/lib-utils'
-
-type TokenListsMeta = Record<string, Record<string, RawCurrency>>
+import { getTokenFromCache } from '../../../lib/data/tokenListsCache'
 
 interface BridgePanelProps {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
-  tokenLists?: TokenListsMeta
   setDestinationInfo?: DestinationActionHandler
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
@@ -26,7 +24,6 @@ interface BridgePanelProps {
 export function BridgePanel({
   srcCurrency,
   dstCurrency: initialDstCurrency,
-  tokenLists,
   setDestinationInfo,
   quotes,
   selectedQuoteIndex = 0,
@@ -59,7 +56,11 @@ export function BridgePanel({
       return
     }
 
-    const dstTokenMeta = tokenLists?.[dstCurrency.chainId]?.[dstCurrency.address.toLowerCase()]
+    if (!dstCurrency.chainId || !dstCurrency.address) {
+      return
+    }
+
+    const dstTokenMeta = getTokenFromCache(String(dstCurrency.chainId), dstCurrency.address)
     if (!dstTokenMeta) {
       return
     }
@@ -68,7 +69,7 @@ export function BridgePanel({
     const currencyAmount = CurrencyHandler.fromRawAmount(dstTokenMeta, outputAmountWei.toString())
 
     setDestinationInfo(currencyAmount, undefined, [])
-  }, [srcCurrency, dstCurrency, debouncedOutputAmount, setDestinationInfo, tokenLists])
+  }, [srcCurrency, dstCurrency, debouncedOutputAmount, setDestinationInfo])
 
   const handleOutputAmountChange = (value: string) => {
     setOutputAmount(value)
@@ -91,7 +92,11 @@ export function BridgePanel({
 
     setSelectedQuoteIndex(index)
 
-    const dstTokenMeta = tokenLists?.[dstCurrency.chainId]?.[dstCurrency.address.toLowerCase()]
+    if (!dstCurrency.chainId || !dstCurrency.address) {
+      return
+    }
+
+    const dstTokenMeta = getTokenFromCache(String(dstCurrency.chainId), dstCurrency.address)
 
     if (dstTokenMeta && outputAmount) {
       const outputAmountWei = parseUnits(outputAmount, dstCurrency.decimals)

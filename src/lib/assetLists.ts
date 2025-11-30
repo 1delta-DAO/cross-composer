@@ -67,8 +67,7 @@ export function getTokenListsCache(): TokenListsRecord | null {
 }
 
 export function getTokenFromCache(chainId: string, address: string): RawCurrency | undefined {
-  const lower = address.toLowerCase()
-  return cachedTokenLists?.[chainId]?.[lower]
+  return cachedTokenLists?.[chainId]?.[address.toLowerCase()]
 }
 
 export function isTokenListsReady(): boolean {
