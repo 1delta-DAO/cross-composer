@@ -212,6 +212,34 @@ export function ActionsTab({ onResetStateChange }: Props) {
     [txInProgress]
   )
 
+  const actionInfo = useMemo(() => {
+    if (!inputCurrency || !actionCurrency) return undefined
+
+    const isSameChain = inputCurrency.chainId === actionCurrency.chainId
+
+    if (destinationCalls && destinationCalls.length > 0) {
+      return {
+        actionType: destinationInfo?.actionId || 'action',
+        actionLabel: destinationInfo?.actionLabel,
+        actionId: destinationInfo?.actionId,
+      }
+    }
+
+    if (isSameChain) {
+      return {
+        actionType: 'swap',
+        actionLabel: 'Swap',
+        actionId: 'swap',
+      }
+    }
+
+    return {
+      actionType: 'bridge',
+      actionLabel: 'Bridge',
+      actionId: 'bridge',
+    }
+  }, [inputCurrency, actionCurrency, destinationCalls, destinationInfo])
+
   const { quotes, quoting, amountWei, refreshQuotes, abortQuotes, clearQuotes } = useTradeQuotes({
     srcAmount,
     dstCurrency: actionCurrency,
@@ -219,6 +247,7 @@ export function ActionsTab({ onResetStateChange }: Props) {
     destinationCalls,
     onQuotesChange: handleQuotesChange,
     shouldFetch: shouldFetchQuotes,
+    actionInfo,
   })
 
   useEffect(() => {

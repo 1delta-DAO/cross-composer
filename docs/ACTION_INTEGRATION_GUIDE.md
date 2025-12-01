@@ -36,17 +36,18 @@ Here's the minimal code needed to create and register an action:
 // src/components/actions/myaction/MyActionPanel.tsx
 import { useEffect } from "react"
 import { useConnection } from "wagmi"
-import type { DestinationActionHandler } from "../shared/types"
-
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string; logoURI?: string }>>
+import type { ActionHandler } from "../shared/types"
+import type { ActionCall } from "../shared/types"
+import type { RawCurrencyAmount } from "../../../types/currency"
+import { useTokenLists } from "../../../hooks/useTokenLists"
 
 interface MyActionPanelProps {
-  tokenLists?: TokenListsMeta
-  setDestinationInfo?: DestinationActionHandler
+  setDestinationInfo?: ActionHandler
   resetKey?: number
 }
 
-export function MyActionPanel({ tokenLists, setDestinationInfo, resetKey }: MyActionPanelProps) {
+export function MyActionPanel({ setDestinationInfo, resetKey }: MyActionPanelProps) {
+  const { data: tokenLists } = useTokenLists()
   const { address } = useConnection()
 
   useEffect(() => {
@@ -106,21 +107,20 @@ Create a React component that implements the panel interface:
 ```typescript
 import { useState, useEffect } from "react"
 import { useConnection } from "wagmi"
-import { DestinationActionHandler } from "../shared/types"
+import type { ActionHandler } from "../shared/types"
+import type { ActionCall } from "../shared/types"
 import type { RawCurrencyAmount } from "../../../types/currency"
-import type { DestinationCall } from "../../../lib/types/destinationAction"
-
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string; logoURI?: string }>>
+import { useTokenLists } from "../../../hooks/useTokenLists"
 
 interface MyActionPanelProps {
-  tokenLists?: TokenListsMeta
-  setDestinationInfo?: DestinationActionHandler
+  setDestinationInfo?: ActionHandler
   resetKey?: number
   // Add any custom props your action needs
   customProp?: string
 }
 
-export function MyActionPanel({ tokenLists, setDestinationInfo, customProp, resetKey }: MyActionPanelProps) {
+export function MyActionPanel({ setDestinationInfo, customProp, resetKey }: MyActionPanelProps) {
+  const { data: tokenLists } = useTokenLists()
   const { address } = useConnection()
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
 
@@ -134,8 +134,8 @@ export function MyActionPanel({ tokenLists, setDestinationInfo, customProp, rese
   const handleAction = () => {
     if (!setDestinationInfo || !address) return
 
-    // Build your destination calls
-    const destinationCalls: DestinationCall[] = [
+    // Build your action calls
+    const actionCalls: ActionCall[] = [
       // Your encoded calls here
     ]
 
@@ -143,7 +143,9 @@ export function MyActionPanel({ tokenLists, setDestinationInfo, customProp, rese
     setDestinationInfo(
       currencyAmount, // RawCurrencyAmount | undefined
       address, // string | undefined (receiver address)
-      destinationCalls // DestinationCall[]
+      actionCalls, // ActionCall[]
+      "My Action Label", // optional: actionLabel?: string
+      "myaction" // optional: actionId?: string
     )
   }
 
@@ -159,9 +161,10 @@ export function MyActionPanel({ tokenLists, setDestinationInfo, customProp, rese
 **Key Requirements:**
 
 - Must accept a `resetKey?: number` prop and watch it in a `useEffect` to reset state when it changes
-- Should accept at least `tokenLists` and `setDestinationInfo` props
+- Should accept at least `setDestinationInfo` prop
+- Should use `useTokenLists()` hook to access token lists data
 - Should call `setDestinationInfo` when the user completes an action
-- Import types from `../../../types/currency` and `../../../lib/types/destinationAction` as needed
+- Import types from `../shared/types` and `../../../types/currency` as needed
 
 ### Step 2: Create the Icon Component
 
@@ -210,7 +213,6 @@ export function registerMyAction(): void {
     actionType: 'lending',
     requiresSrcCurrency: false,
     buildPanelProps: (context) => ({
-      tokenLists: context.tokenLists,
       setDestinationInfo: context.setDestinationInfo,
       customProp: 'custom value',
     }),
@@ -235,7 +237,7 @@ export function registerActions(): void {
 }
 ```
 
-The `registerActions()` function is automatically called during app initialization in `src/lib/trade-helpers/initialize.ts`.
+The `registerActions()` function is automatically called during app initialization in `src/initialize.ts`.
 
 ## Available Features
 
@@ -249,7 +251,7 @@ The `registerActions()` function is automatically called during app initializati
 | `icon`       | `ComponentType`         | React component for the action icon                        |
 | `panel`      | `ComponentType`         | React component for the action panel                       |
 | `priority`   | `number`                | Lower numbers appear first in collapsed view (top 3 shown) |
-| `actionType` | `DestinationActionType` | Type: "lending", "staking", "game_token", or "buy_ticket"  |
+| `actionType` | `ActionType` | Type: any string (e.g., "lending", "staking", "game_token", or "buy_ticket")  |
 
 ### Optional Fields
 
@@ -265,7 +267,7 @@ If `true`, the action will only be shown when a source currency is available.
 
 #### `requiresMarkets?: boolean`
 
-If `true`, the action will only be shown when markets are ready. Use this for actions that depend on market data.
+If `true`, the action will only be shown when markets are ready. Use this for actions that depend on market data. Note: This field exists in the type definition but is not currently used for readiness checks.
 
 ```typescript
 {
@@ -275,36 +277,27 @@ If `true`, the action will only be shown when markets are ready. Use this for ac
 
 #### `buildPanelProps?: (context: ActionPanelContext) => Record<string, any>`
 
-Custom function to build props passed to your panel component. If not provided, only common props (`tokenLists`, `setDestinationInfo`) are passed.
+Custom function to build props passed to your panel component. If not provided, only common props (`setDestinationInfo`) are passed.
 
 ```typescript
 {
   buildPanelProps: (context) => ({
-    tokenLists: context.tokenLists,
     setDestinationInfo: context.setDestinationInfo,
     srcCurrency: context.srcCurrency,
     dstCurrency: context.dstCurrency,
     slippage: context.slippage,
-    chainId: context.chainId,
     customData: context.actionData, // Preloaded data from dataLoader
     quotes: context.quotes, // Available quotes (for swap/bridge actions)
     selectedQuoteIndex: context.selectedQuoteIndex,
     setSelectedQuoteIndex: context.setSelectedQuoteIndex,
+    requiresExactDestinationAmount: context.requiresExactDestinationAmount,
+    destinationInfo: context.destinationInfo,
+    isRequoting: context.isRequoting,
   }),
 }
 ```
 
-#### `isReady?: (context: ActionReadinessContext) => boolean`
-
-Custom function to determine if the action is ready to be used. If not provided, defaults to checking `requiresMarkets`.
-
-```typescript
-{
-  isReady: (context) => {
-    return context.marketsReady && !!context.srcCurrency
-  },
-}
-```
+**Note:** `tokenLists` is not available in `ActionPanelContext`. Use the `useTokenLists()` hook in your panel component to access token data instead.
 
 #### `dataLoader?: (context: ActionLoaderContext) => Promise<any>`
 

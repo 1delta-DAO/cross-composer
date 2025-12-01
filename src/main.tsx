@@ -10,6 +10,7 @@ import App from './App'
 import { ToastProvider } from './components/common/ToastHost'
 import { SlippageProvider } from './contexts/SlippageContext'
 import { TxHistoryProvider } from './contexts/TxHistoryContext'
+import { QuoteTraceProvider } from './contexts/QuoteTraceContext'
 import { rainbowDaisyTheme } from './rainbowkitTheme'
 import { initAll } from './initialize'
 
@@ -88,7 +89,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <ToastProvider>
             <SlippageProvider>
               <TxHistoryProvider>
-                <RootApp />
+                <QuoteTraceProvider>
+                  <RootApp />
+                </QuoteTraceProvider>
               </TxHistoryProvider>
             </SlippageProvider>
           </ToastProvider>

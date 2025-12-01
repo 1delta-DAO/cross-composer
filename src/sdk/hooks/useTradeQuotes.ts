@@ -17,6 +17,9 @@ import {
   areQuoteKeysEqual,
 } from './useTradeQuotes/stateHelpers'
 import { validateInputs } from './useTradeQuotes/inputValidation'
+import { useQuoteTrace } from '../../contexts/QuoteTraceContext'
+
+const TRACE_QUOTING_ENABLED = import.meta.env.VITE_TRACE_QUOTING === 'true'
 
 export function useTradeQuotes({
   srcAmount,
@@ -25,6 +28,7 @@ export function useTradeQuotes({
   destinationCalls,
   onQuotesChange,
   shouldFetch,
+  actionInfo,
 }: {
   srcAmount?: RawCurrencyAmount
   dstCurrency?: RawCurrency
@@ -32,10 +36,17 @@ export function useTradeQuotes({
   destinationCalls?: ActionCall[]
   onQuotesChange?: (quotes: Quote[]) => void
   shouldFetch?: boolean
+  actionInfo?: {
+    actionType?: string
+    actionLabel?: string
+    actionId?: string
+  }
 }) {
   const { address: userAddress } = useConnection()
   const receiverAddress = userAddress || DUMMY_ADDRESS
   const toast = useToast()
+
+  const quoteTrace = useQuoteTrace()
 
   const [quoting, setQuoting] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])
@@ -167,6 +178,25 @@ export function useTradeQuotes({
           onQuotesChange?.(allQuotes)
 
           validateAndUpdateQuotes(allQuotes, isRefresh, false)
+
+          if (TRACE_QUOTING_ENABLED) {
+            quoteTrace.addTrace({
+              quotes: allQuotes,
+              actionInfo: {
+                actionType: actionInfo?.actionType,
+                actionLabel: actionInfo?.actionLabel,
+                actionId: actionInfo?.actionId,
+                destinationCalls,
+              },
+              requestInfo: {
+                srcCurrency: srcAmount.currency,
+                dstCurrency,
+                amount: srcAmount.amount.toString(),
+                slippage,
+              },
+              success: true,
+            })
+          }
         } else {
           throw new Error('No quote available from any aggregator/bridge')
         }
@@ -182,6 +212,26 @@ export function useTradeQuotes({
           onQuotesChange?.([])
         }
         console.error('Quote fetch error:', error)
+
+        if (TRACE_QUOTING_ENABLED && srcAmount && dstCurrency) {
+          quoteTrace.addTrace({
+            quotes: [],
+            error: errorMessage,
+            actionInfo: {
+              actionType: actionInfo?.actionType,
+              actionLabel: actionInfo?.actionLabel,
+              actionId: actionInfo?.actionId,
+              destinationCalls,
+            },
+            requestInfo: {
+              srcCurrency: srcAmount.currency,
+              dstCurrency,
+              amount: srcAmount.amount.toString(),
+              slippage,
+            },
+            success: false,
+          })
+        }
       } finally {
         const isCurrent = abortControllerRef.current === controller
 
