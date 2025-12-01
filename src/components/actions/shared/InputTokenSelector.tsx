@@ -3,12 +3,12 @@ import type { RawCurrency } from '../../../types/currency'
 import { zeroAddress } from 'viem'
 import { Logo } from '../../common/Logo'
 import { TokenSelectorModal } from '../../modals/TokenSelectorModal'
+import { useTokenLists } from '../../../hooks/useTokenLists'
 
 interface InputTokenSelectorProps {
   srcCurrency?: RawCurrency
   onCurrencyChange: (currency: RawCurrency) => void
   onChainChange?: (chainId: string) => void
-  tokenLists?: Record<string, Record<string, RawCurrency>>
   chains?: Record<string, { data?: { name?: string } }>
 }
 
@@ -16,11 +16,11 @@ export function InputTokenSelector({
   srcCurrency,
   onCurrencyChange,
   onChainChange,
-  tokenLists,
   chains,
 }: InputTokenSelectorProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const { data: tokenLists } = useTokenLists()
 
   const chainName = useMemo(
     () => srcCurrency?.chainId && chains?.[srcCurrency.chainId]?.data?.name,

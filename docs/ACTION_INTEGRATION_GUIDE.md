@@ -222,7 +222,7 @@ export function registerMyAction(): void {
 }
 ```
 
-**Then add the registration function** to `src/components/actions/shared/registerActions.ts`:
+**Then add the registration function** to [registerActions.ts](../src/components/actions/shared/registerActions.ts):
 
 ```typescript
 import { registerMyAction } from '../myaction/registerMyAction'

@@ -5,7 +5,6 @@ import type { RawCurrency } from '../../../types/currency'
 import { useContainerWidth } from '../../../hooks/useContainerWidth'
 import { InputTokenSelector } from './InputTokenSelector'
 import { useChainsRegistry } from '../../../sdk/hooks/useChainsRegistry'
-import { useTokenLists } from '../../../hooks/useTokenLists'
 
 interface ActionIconGridProps {
   actions: ActionDefinition[]
@@ -38,7 +37,6 @@ export function ActionIconGrid({
 }: ActionIconGridProps) {
   const { containerRef, width } = useContainerWidth()
   const { data: chains } = useChainsRegistry()
-  const { data: lists } = useTokenLists()
 
   const filteredActions = useMemo(() => {
     if (selectedCategory === 'all') {
@@ -122,7 +120,6 @@ export function ActionIconGrid({
               <InputTokenSelector
                 srcCurrency={srcCurrency}
                 onCurrencyChange={onSrcCurrencyChange}
-                tokenLists={lists}
                 chains={chains}
               />
             )}
