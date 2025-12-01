@@ -243,15 +243,15 @@ The `registerActions()` function is automatically called during app initializati
 
 ### Required Fields
 
-| Field        | Type                    | Description                                                |
-| ------------ | ----------------------- | ---------------------------------------------------------- |
-| `id`         | `string`                | Unique identifier for the action (e.g., "swap", "bridge")  |
-| `label`      | `string`                | Display name shown in the action grid                      |
-| `category`   | `ActionCategory`        | Category: "all", "defi", "lending", "gaming", or "yield"   |
-| `icon`       | `ComponentType`         | React component for the action icon                        |
-| `panel`      | `ComponentType`         | React component for the action panel                       |
-| `priority`   | `number`                | Lower numbers appear first in collapsed view (top 3 shown) |
-| `actionType` | `ActionType` | Type: any string (e.g., "lending", "staking", "game_token", or "buy_ticket")  |
+| Field        | Type             | Description                                                                  |
+| ------------ | ---------------- | ---------------------------------------------------------------------------- |
+| `id`         | `string`         | Unique identifier for the action (e.g., "swap", "bridge")                    |
+| `label`      | `string`         | Display name shown in the action grid                                        |
+| `category`   | `ActionCategory` | Category: "all", "defi", "lending", "gaming", or "yield"                     |
+| `icon`       | `ComponentType`  | React component for the action icon                                          |
+| `panel`      | `ComponentType`  | React component for the action panel                                         |
+| `priority`   | `number`         | Lower numbers appear first in collapsed view (top 3 shown)                   |
+| `actionType` | `ActionType`     | Type: any string (e.g., "lending", "staking", "game_token", or "buy_ticket") |
 
 ### Optional Fields
 
@@ -306,7 +306,8 @@ Async function to preload data when actions become available. The loaded data is
 ```typescript
 {
   dataLoader: async (context) => {
-    const data = await fetchMyData(context.chainId)
+    // Note: context only has srcCurrency and dstCurrency
+    const data = await fetchMyData(context.srcCurrency, context.dstCurrency)
     return data
   },
   buildPanelProps: (context) => ({
@@ -324,19 +325,21 @@ Available in `buildPanelProps`:
 
 ```typescript
 interface ActionPanelContext {
-  tokenLists?: TokenListsMeta // Available tokens by chain
-  setDestinationInfo?: DestinationActionHandler // Callback to set destination
+  setDestinationInfo?: ActionHandler // Callback to set destination
   srcCurrency?: RawCurrency // Source currency (if available)
   dstCurrency?: RawCurrency // Destination currency (if available)
   slippage?: number // Slippage tolerance
-  chainId?: string // Destination chain ID
   actionData?: any // Preloaded data from dataLoader
-  marketsReady?: boolean // Whether markets are ready
   quotes?: Array<{ label: string; trade: GenericTrade }> // Available quotes (for swap/bridge)
   selectedQuoteIndex?: number // Currently selected quote index
   setSelectedQuoteIndex?: (index: number) => void // Function to set selected quote
+  requiresExactDestinationAmount?: boolean // Whether exact destination amount is required
+  destinationInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string } // Current destination info
+  isRequoting?: boolean // Whether requoting is in progress
 }
 ```
+
+**Note:** `tokenLists` is not available in `ActionPanelContext`. Use the `useTokenLists()` hook in your panel component to access token data instead.
 
 ### ActionLoaderContext
 
@@ -346,24 +349,10 @@ Available in `dataLoader`:
 interface ActionLoaderContext {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
-  tokenLists?: TokenListsMeta
-  chainId?: string
 }
 ```
 
-**Note:** `userAddress` is not available in the loader context. If you need the user's address in your data loader, you'll need to pass it through `buildPanelProps` or access it differently.
-
-### ActionReadinessContext
-
-Available in `isReady`:
-
-```typescript
-interface ActionReadinessContext {
-  marketsReady: boolean
-  marketsLoading: boolean
-  srcCurrency?: RawCurrency
-}
-```
+**Note:** `userAddress`, `tokenLists`, and `chainId` are not available in the loader context. If you need these in your data loader, you'll need to pass them through `buildPanelProps` or access them differently.
 
 ## Examples
 
@@ -403,12 +392,10 @@ registerAction({
   actionType: 'lending',
   requiresSrcCurrency: true,
   buildPanelProps: (context) => ({
-    tokenLists: context.tokenLists,
     setDestinationInfo: context.setDestinationInfo,
     srcCurrency: context.srcCurrency,
     dstCurrency: context.dstCurrency,
     slippage: context.slippage,
-    chainId: context.chainId,
   }),
 })
 ```
@@ -425,19 +412,17 @@ registerAction({
   priority: 3,
   actionType: 'game_token',
   dataLoader: async (context) => {
-    if (!context.chainId) return {}
-    const listings = await fetchListings(context.chainId)
+    const listings = await fetchListings(context.srcCurrency, context.dstCurrency)
     return listings
   },
   buildPanelProps: (context) => ({
-    tokenLists: context.tokenLists,
     setDestinationInfo: context.setDestinationInfo,
     preloadedListings: context.actionData, // Preloaded listings from dataLoader
   }),
 })
 ```
 
-### Example 4: Action with Custom Readiness Check
+### Example 4: Action with Destination Info
 
 ```typescript
 registerAction({
@@ -449,13 +434,11 @@ registerAction({
   priority: 2,
   actionType: 'lending',
   requiresMarkets: true,
-  isReady: (context) => {
-    return context.marketsReady && !!context.srcCurrency
-  },
   buildPanelProps: (context) => ({
-    tokenLists: context.tokenLists,
     setDestinationInfo: context.setDestinationInfo,
-    chainId: context.chainId,
+    requiresExactDestinationAmount: context.requiresExactDestinationAmount,
+    destinationInfo: context.destinationInfo,
+    isRequoting: context.isRequoting,
   }),
 })
 ```
@@ -473,7 +456,6 @@ registerAction({
   actionType: 'lending',
   requiresSrcCurrency: true,
   buildPanelProps: (context) => ({
-    tokenLists: context.tokenLists,
     setDestinationInfo: context.setDestinationInfo,
     srcCurrency: context.srcCurrency,
     dstCurrency: context.dstCurrency,
@@ -491,9 +473,10 @@ registerAction({
 
 - Always accept a `resetKey?: number` prop and watch it in `useEffect` to reset state when it changes
 - Keep panel state local to the component
-- Call `setDestinationInfo` when user completes an action
+- Use `useTokenLists()` hook to access token lists data (don't expect `tokenLists` as a prop)
+- Call `setDestinationInfo` when user completes an action, optionally providing `actionLabel` and `actionId`
 - Handle loading and error states gracefully
-- Import types from `../../../types/currency` and `../../../lib/types/destinationAction` as needed
+- Import types from `../shared/types` and `../../../types/currency` as needed
 
 ### 2. Icon Design
 
@@ -516,20 +499,15 @@ registerAction({
 - Cache data appropriately
 - Access loaded data via `context.actionData` in `buildPanelProps`
 
-### 5. Readiness Checks
-
-- Use `isReady` for complex readiness logic
-- Keep checks simple and fast
-- Consider user experience (show loading states)
-
-### 6. Error Handling
+### 5. Error Handling
 
 - Always check for required props before using them
 - Provide user-friendly error messages
 - Log errors for debugging
 - Gracefully degrade when data is unavailable
+- Use `useTokenLists()` hook for token data access instead of expecting it as a prop
 
-### 7. Performance
+### 6. Performance
 
 - Minimize re-renders with proper memoization
 - Use `dataLoader` to preload data
@@ -542,22 +520,23 @@ registerAction({
 
 ```typescript
 // Panel that allows selecting a token and amount
+// Note: Use useTokenLists() hook in the panel component for token data
 buildPanelProps: (context) => ({
-  tokenLists: context.tokenLists,
   setDestinationInfo: context.setDestinationInfo,
   srcCurrency: context.srcCurrency,
   dstCurrency: context.dstCurrency,
 })
 ```
 
-### Pattern 2: Chain-Specific Action
+### Pattern 2: Action with Destination Info
 
 ```typescript
-// Action that works on a specific chain
+// Action that needs destination info and requoting state
 buildPanelProps: (context) => ({
-  tokenLists: context.tokenLists,
   setDestinationInfo: context.setDestinationInfo,
-  chainId: context.chainId,
+  requiresExactDestinationAmount: context.requiresExactDestinationAmount,
+  destinationInfo: context.destinationInfo,
+  isRequoting: context.isRequoting,
 })
 ```
 
@@ -566,7 +545,6 @@ buildPanelProps: (context) => ({
 ```typescript
 // Action that needs slippage tolerance
 buildPanelProps: (context) => ({
-  tokenLists: context.tokenLists,
   setDestinationInfo: context.setDestinationInfo,
   srcCurrency: context.srcCurrency,
   dstCurrency: context.dstCurrency,
@@ -579,7 +557,6 @@ buildPanelProps: (context) => ({
 ```typescript
 // Action that displays and manages quotes (swap/bridge)
 buildPanelProps: (context) => ({
-  tokenLists: context.tokenLists,
   setDestinationInfo: context.setDestinationInfo,
   srcCurrency: context.srcCurrency,
   dstCurrency: context.dstCurrency,
@@ -596,7 +573,6 @@ buildPanelProps: (context) => ({
 
 - Check that registration function is called
 - Verify `requiresSrcCurrency` and `requiresMarkets` settings
-- Check `isReady` function if provided
 - Ensure action ID is unique
 
 ### Panel Not Resetting
@@ -610,6 +586,7 @@ buildPanelProps: (context) => ({
 - Use `buildPanelProps` to pass custom props
 - Check `ActionPanelContext` for available data
 - Verify props are included in the returned object
+- Use `useTokenLists()` hook for token data instead of expecting it as a prop
 
 ### Data Not Loading
 
@@ -628,16 +605,12 @@ buildPanelProps: (context) => ({
 - Check `src/components/actions/shared/actionDefinitions.ts` for type definitions
 - Review `src/components/actions/shared/actionRegistry.ts` for registration API
 - Review `src/components/actions/shared/registerActions.ts` to see how actions are registered
-- Check `src/lib/trade-helpers/initialize.ts` to see how `registerActions()` is called during app initialization
+- Check `src/initialize.ts` to see how `registerActions()` is called during app initialization
 
 ## Important Notes
 
 1. **Reset Key**: The `resetKey` prop is automatically managed by the `DestinationActionSelector` component. It combines the parent's `resetKey` with an internal `panelResetKey` to trigger resets when needed.
 
-2. **Token Lists Format**: Token lists use lowercase addresses as keys:
-
-   ```typescript
-   tokenLists[chainId][address.toLowerCase()] = { symbol, decimals, address, chainId, logoURI }
-   ```
+2. **Token Lists Access**: Use the `useTokenLists()` hook to access token lists in your panel component. The hook returns `{ data, isLoading, error }` where `data` is a `Record<string, Record<string, RawCurrency>>` keyed by chainId and lowercase token address.
 
 3. **Action Registration**: All actions must be registered in `src/components/actions/shared/registerActions.ts` for them to be available in the app.
