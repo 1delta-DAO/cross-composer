@@ -1,21 +1,16 @@
-import { DestinationActionConfig, DestinationCall } from '../../../lib/types/destinationAction'
-import { RawCurrencyAmount } from '../../../types/currency'
+import { DeltaCall } from '@1delta/lib-utils'
+import type { RawCurrencyAmount } from '../../../types/currency'
 
-/** Parameterize this handler to configure a destination action */
-export type DestinationActionHandler = (
-  currencyAmount: RawCurrencyAmount | undefined,
-  receiverAddress: string | undefined,
-  destinationCalls: DestinationCall[],
-  actionLabel?: string,
-  actionId?: string,
-) => void
-
-export type PendingAction = {
-  id: string
-  config: DestinationActionConfig
-  selector: string
-  args: any[]
-  value?: string
+export type ActionCall = DeltaCall & {
+  gasLimit?: bigint
 }
 
-export type DestinationCallBuilder<TParams> = (params: TParams) => Promise<DestinationCall[]>
+export type ActionHandler = (
+  currencyAmount: RawCurrencyAmount | undefined,
+  receiverAddress: string | undefined,
+  destinationCalls: ActionCall[],
+  actionLabel?: string,
+  actionId?: string
+) => void
+
+export type ActionCallBuilder<TParams> = (params: TParams) => Promise<ActionCall[]>

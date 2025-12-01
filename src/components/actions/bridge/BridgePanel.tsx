@@ -1,22 +1,19 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { RawCurrency } from '../../../types/currency'
 import { CurrencyHandler } from '../../../sdk/types'
-import { DestinationActionHandler } from '../shared/types'
+import { ActionHandler } from '../shared/types'
 import { BridgeCard } from './BridgeCard'
 import { TokenSelectorModal } from '../../modals/TokenSelectorModal'
 import { parseUnits, zeroAddress } from 'viem'
 import type { Address } from 'viem'
-import { useTokenPrice } from '../../../hooks/prices/useTokenPrice'
 import { useDebounce } from '../../../hooks/useDebounce'
 import type { GenericTrade } from '@1delta/lib-utils'
-
-type TokenListsMeta = Record<string, Record<string, { symbol?: string; decimals: number; address: string; chainId: string }>>
+import { getTokenFromCache } from '../../../lib/data/tokenListsCache'
 
 interface BridgePanelProps {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
-  tokenLists?: TokenListsMeta
-  setDestinationInfo?: DestinationActionHandler
+  setDestinationInfo?: ActionHandler
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
   setSelectedQuoteIndex?: (index: number) => void
@@ -27,7 +24,6 @@ interface BridgePanelProps {
 export function BridgePanel({
   srcCurrency,
   dstCurrency: initialDstCurrency,
-  tokenLists,
   setDestinationInfo,
   quotes,
   selectedQuoteIndex = 0,
@@ -35,12 +31,17 @@ export function BridgePanel({
   slippage = 0.5,
   resetKey,
 }: BridgePanelProps) {
-  const [selectedDstCurrency, setSelectedDstCurrency] = useState<RawCurrency | undefined>(initialDstCurrency)
+  const [selectedDstCurrency, setSelectedDstCurrency] = useState<RawCurrency | undefined>(
+    initialDstCurrency
+  )
   const [outputAmount, setOutputAmount] = useState('')
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
   const [tokenModalQuery, setTokenModalQuery] = useState('')
 
-  const dstCurrency = useMemo(() => selectedDstCurrency || initialDstCurrency, [selectedDstCurrency, initialDstCurrency])
+  const dstCurrency = useMemo(
+    () => selectedDstCurrency || initialDstCurrency,
+    [selectedDstCurrency, initialDstCurrency]
+  )
   const debouncedOutputAmount = useDebounce(outputAmount, 1000)
 
   useEffect(() => {
@@ -55,7 +56,11 @@ export function BridgePanel({
       return
     }
 
-    const dstTokenMeta = tokenLists?.[dstCurrency.chainId]?.[dstCurrency.address.toLowerCase()]
+    if (!dstCurrency.chainId || !dstCurrency.address) {
+      return
+    }
+
+    const dstTokenMeta = getTokenFromCache(String(dstCurrency.chainId), dstCurrency.address)
     if (!dstTokenMeta) {
       return
     }
@@ -64,7 +69,7 @@ export function BridgePanel({
     const currencyAmount = CurrencyHandler.fromRawAmount(dstTokenMeta, outputAmountWei.toString())
 
     setDestinationInfo(currencyAmount, undefined, [])
-  }, [srcCurrency, dstCurrency, debouncedOutputAmount, setDestinationInfo, tokenLists])
+  }, [srcCurrency, dstCurrency, debouncedOutputAmount, setDestinationInfo])
 
   const handleOutputAmountChange = (value: string) => {
     setOutputAmount(value)
@@ -82,11 +87,16 @@ export function BridgePanel({
   }, [])
 
   const handleQuoteSelect = (index: number) => {
-    if (!srcCurrency || !dstCurrency || !setDestinationInfo || !quotes || !setSelectedQuoteIndex) return
+    if (!srcCurrency || !dstCurrency || !setDestinationInfo || !quotes || !setSelectedQuoteIndex)
+      return
 
     setSelectedQuoteIndex(index)
 
-    const dstTokenMeta = tokenLists?.[dstCurrency.chainId]?.[dstCurrency.address.toLowerCase()]
+    if (!dstCurrency.chainId || !dstCurrency.address) {
+      return
+    }
+
+    const dstTokenMeta = getTokenFromCache(String(dstCurrency.chainId), dstCurrency.address)
 
     if (dstTokenMeta && outputAmount) {
       const outputAmountWei = parseUnits(outputAmount, dstCurrency.decimals)
@@ -119,8 +129,16 @@ export function BridgePanel({
             onChange={(e) => handleOutputAmountChange(e.target.value)}
             inputMode="decimal"
           />
-          <button className="btn btn-outline" onClick={() => setTokenModalOpen(true)} disabled={!srcCurrency}>
-            {dstCurrency ? <span>{dstCurrency.symbol || 'Select token'}</span> : <span>Select token</span>}
+          <button
+            className="btn btn-outline"
+            onClick={() => setTokenModalOpen(true)}
+            disabled={!srcCurrency}
+          >
+            {dstCurrency ? (
+              <span>{dstCurrency.symbol || 'Select token'}</span>
+            ) : (
+              <span>Select token</span>
+            )}
           </button>
         </div>
 
@@ -149,7 +167,11 @@ export function BridgePanel({
         query={tokenModalQuery}
         onQueryChange={setTokenModalQuery}
         showChainSelector={true}
-        excludeAddresses={srcCurrency && dstCurrency && srcCurrency.chainId === dstCurrency.chainId ? [srcCurrency.address as Address] : undefined}
+        excludeAddresses={
+          srcCurrency && dstCurrency && srcCurrency.chainId === dstCurrency.chainId
+            ? [srcCurrency.address as Address]
+            : undefined
+        }
       />
     </div>
   )

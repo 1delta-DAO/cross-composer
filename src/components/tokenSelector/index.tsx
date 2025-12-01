@@ -6,7 +6,6 @@ import { useEvmBalances } from '../../hooks/balances/useEvmBalances'
 import { usePriceQuery } from '../../hooks/prices/usePriceQuery'
 import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
 import { CurrencyHandler, SupportedChainId } from '../../sdk/types'
-import { getTokenFromCache } from '../../lib/data/tokenListsCache'
 import { getCurrency } from '../../lib/trade-helpers/utils'
 import type { RawCurrency } from '../../types/currency'
 import { TokenSelectorDropdownMode } from './Dropdown'
@@ -14,7 +13,7 @@ import { TokenSelectorListMode } from './ListMode'
 import type { TokenRowData } from './types'
 import { useConnection } from 'wagmi'
 
-type Props = {
+type TokenSelectorProps = {
   chainId: string
   value?: Address
   onChange: (address: Address) => void
@@ -25,15 +24,6 @@ type Props = {
   listMode?: boolean // When true, shows only the list without dropdown button
 }
 
-// Stablecoin symbols (common stablecoins)
-const STABLECOIN_SYMBOLS = new Set(['USDC', 'USDT', 'DAI', 'BUSD', 'FRAX', 'USDD', 'USDE', 'TUSD', 'LUSD', 'SUSD', 'GUSD', 'MIM', 'DOLA'])
-
-// LST (Liquid Staking Token) patterns - common LST symbols
-const LST_SYMBOLS = new Set(['STETH', 'RETH', 'CBETH', 'SFRXETH', 'WBETH', 'STSOL', 'MSOL', 'JITOSOL'])
-
-// Bitcoin tokens
-const BITCOIN_SYMBOLS = new Set(['WBTC', 'BTCB', 'HBTC', 'RENBTC', 'TBTC'])
-
 export function TokenSelector({
   chainId,
   value,
@@ -43,8 +33,8 @@ export function TokenSelector({
   onQueryChange,
   showSearch = true,
   listMode = false,
-}: Props) {
-  const { address } = useConnection()
+}: TokenSelectorProps) {
+  const { address: userAddress } = useConnection()
   const { data: lists, isLoading: listsLoading } = useTokenLists()
   const { data: chains } = useChainsRegistry()
   const [open, setOpen] = useState(false)
@@ -77,7 +67,7 @@ export function TokenSelector({
 
   // Include zero address for native token balance
   const addressesWithNative = useMemo(() => {
-    const addrs = [...allAddrs.slice(0, 300)]
+    const addrs = [...allAddrs]
     if (!addrs.includes(zeroAddress as Address)) {
       addrs.unshift(zeroAddress as Address)
     }
@@ -86,8 +76,8 @@ export function TokenSelector({
 
   const { data: balances, isLoading: balancesLoading } = useEvmBalances({
     chainId,
-    userAddress: address,
-    tokenAddresses: address ? addressesWithNative : [],
+    userAddress,
+    tokenAddresses: userAddress ? addressesWithNative : [],
   })
 
   const relevant = useMemo(() => {
@@ -98,7 +88,10 @@ export function TokenSelector({
       return relevantTokens.some((a) => a.toLowerCase() === addrLower)
     }
 
-    const addTokenIfNotIncluded = (candidates: [string, any][], selector: (candidates: [string, any][]) => [string, any] | undefined) => {
+    const addTokenIfNotIncluded = (
+      candidates: [string, any][],
+      selector: (candidates: [string, any][]) => [string, any] | undefined
+    ) => {
       if (candidates.length === 0) return
       const selected = selector(candidates)
       if (selected && !isAlreadyIncluded(selected[0])) {
@@ -131,7 +124,9 @@ export function TokenSelector({
     }
 
     // USDC selection logic
-    const usdcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === 'USDC')
+    const usdcCandidates = Object.entries(tokensMap).filter(
+      ([, t]: [string, any]) => t?.assetGroup === 'USDC'
+    )
     addTokenIfNotIncluded(usdcCandidates, (candidates) => {
       const isMoonbeam = chainId === SupportedChainId.MOONBEAM
       if (isMoonbeam) {
@@ -142,11 +137,16 @@ export function TokenSelector({
         })
         if (xcUsdc) return xcUsdc
       }
-      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'USDC') || candidates[0]
+      return (
+        candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'USDC') ||
+        candidates[0]
+      )
     })
 
     // USDT selection logic
-    const usdtCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => t?.assetGroup === 'USDT')
+    const usdtCandidates = Object.entries(tokensMap).filter(
+      ([, t]: [string, any]) => t?.assetGroup === 'USDT'
+    )
     addTokenIfNotIncluded(usdtCandidates, (candidates) => {
       const isMoonbeam = chainId === SupportedChainId.MOONBEAM
       if (isMoonbeam) {
@@ -157,39 +157,32 @@ export function TokenSelector({
         })
         if (xcUsdt) return xcUsdt
       }
-      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'USDT') || candidates[0]
+      return (
+        candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'USDT') ||
+        candidates[0]
+      )
     })
 
     // WBTC selection logic
     const wbtcCandidates = Object.entries(tokensMap).filter(([, t]: [string, any]) => {
-      const symbolUpper = t?.symbol?.toUpperCase() || ''
       const assetGroupUpper = t?.assetGroup?.toUpperCase() || ''
-      return (
-        symbolUpper.includes('WBTC') || assetGroupUpper.includes('WBTC') || (assetGroupUpper.includes('BTC') && !assetGroupUpper.includes('INTER'))
-      )
+      return assetGroupUpper === 'WBTC'
     })
     addTokenIfNotIncluded(wbtcCandidates, (candidates) => {
-      return candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'WBTC') || candidates[0]
+      return (
+        candidates.find(([, t]: [string, any]) => t?.symbol?.toUpperCase() === 'WBTC') ||
+        candidates[0]
+      )
     })
 
     return relevantTokens
   }, [tokensMap, chainId, nativeCurrencySymbol])
 
-  const getStablecoinFallbackPrice = useCallback((chainId: string, address: string): number | undefined => {
-    const token = getTokenFromCache(chainId, address)
-    if (!token) return undefined
-    const symbol = (token as any)?.symbol?.toUpperCase?.() || ''
-    const assetGroup = (token as any)?.assetGroup || ''
-    if (assetGroup === 'USDC') return 1
-    if (symbol === 'USDC' || symbol === 'USDT' || symbol === 'DAI' || symbol === 'USDBC' || symbol === 'XCUSDC' || symbol === 'XCUSDT') return 1
-    return undefined
-  }, [])
-
   const priceCurrencies = useMemo(() => {
     const currencies: RawCurrency[] = []
     const seenAddresses = new Set<string>()
 
-    if (balances?.[chainId] && address) {
+    if (balances?.[chainId] && userAddress) {
       for (const addr of addressesWithNative) {
         const bal = balances[chainId][addr.toLowerCase()]
         if (bal && Number(bal.value || 0) > 0) {
@@ -217,7 +210,7 @@ export function TokenSelector({
     }
 
     return currencies
-  }, [balances, chainId, addressesWithNative, address, relevant])
+  }, [balances, chainId, addressesWithNative, userAddress, relevant])
 
   const { data: prices, isLoading: pricesLoading } = usePriceQuery({
     currencies: priceCurrencies,
@@ -228,27 +221,16 @@ export function TokenSelector({
     (token: { symbol: string }): number => {
       const symbolUpper = token.symbol.toUpperCase()
       const isNative = symbolUpper === nativeCurrencySymbol
-      const isWrappedNative = symbolUpper === `W${nativeCurrencySymbol}` || symbolUpper.startsWith(`W${nativeCurrencySymbol}`)
+      const isWrappedNative =
+        symbolUpper === `W${nativeCurrencySymbol}` ||
+        symbolUpper.startsWith(`W${nativeCurrencySymbol}`)
 
       if (isNative || isWrappedNative) {
         return 1
       }
-
-      if (LST_SYMBOLS.has(symbolUpper) || symbolUpper.includes('ST') || (symbolUpper.includes('ETH') && symbolUpper.includes('S'))) {
-        return 2
-      }
-
-      if (STABLECOIN_SYMBOLS.has(symbolUpper)) {
-        return 3
-      }
-
-      if (BITCOIN_SYMBOLS.has(symbolUpper) || symbolUpper.includes('BTC')) {
-        return 4
-      }
-
-      return 5
+      return 2
     },
-    [nativeCurrencySymbol],
+    [nativeCurrencySymbol]
   )
 
   const rows: TokenRowData[] = useMemo(() => {
@@ -262,21 +244,29 @@ export function TokenSelector({
         const priceData = prices?.[chainId]?.[addr.toLowerCase()]
         const price = priceData?.usd
 
-        // Get fallback price for stablecoins if no price from API
-        const fallbackPrice = price || getStablecoinFallbackPrice(chainId, addr) || 0
-        const finalPrice = price || fallbackPrice
+        const finalPrice = price || 0
 
         // Calculate USD value: balance * price, or use price for sorting if no balance
         const balanceAmount = bal ? Number(bal.value || 0) : 0
         const usdValue = balanceAmount * finalPrice
 
         const isRelevant = relevantSet.has(addr.toLowerCase())
-        return { addr, token, usdValue, price: finalPrice, balanceAmount, category: getTokenCategory(token), isRelevant }
+        return {
+          addr,
+          token,
+          usdValue,
+          price: finalPrice,
+          balanceAmount,
+          category: getTokenCategory(token),
+          isRelevant,
+        }
       })
-      .filter(({ addr }) => !excludeAddresses || !excludeAddresses.map((a) => a.toLowerCase()).includes(addr.toLowerCase()))
-      .filter(({ addr, token, isRelevant }) => {
-        // Always include relevant tokens in the list, regardless of search query
-        if (isRelevant) return true
+      .filter(
+        ({ addr }) =>
+          !excludeAddresses ||
+          !excludeAddresses.map((a) => a.toLowerCase()).includes(addr.toLowerCase())
+      )
+      .filter(({ addr, token }) => {
         if (!q) return true
         const addrLower = addr.toLowerCase()
         const symbolLower = token.symbol.toLowerCase()
@@ -309,7 +299,17 @@ export function TokenSelector({
       // Quaternary: Alphabetically by symbol
       return a.token.symbol.localeCompare(b.token.symbol)
     })
-  }, [allAddrs, tokensMap, searchQuery, balances, prices, chainId, excludeAddresses, getTokenCategory, relevant, getStablecoinFallbackPrice])
+  }, [
+    allAddrs,
+    tokensMap,
+    searchQuery,
+    balances,
+    prices,
+    chainId,
+    excludeAddresses,
+    getTokenCategory,
+    relevant,
+  ])
 
   const selected = value ? tokensMap[value.toLowerCase()] : undefined
 
@@ -326,7 +326,7 @@ export function TokenSelector({
         prices={prices}
         balancesLoading={balancesLoading}
         pricesLoading={pricesLoading}
-        userAddress={address}
+        userAddress={userAddress}
         onChange={onChange}
       />
     )

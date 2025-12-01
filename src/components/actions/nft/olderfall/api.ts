@@ -1,4 +1,8 @@
-import { OLDERFALL_COLLECTIONS, SEQUENCE_MARKETPLACE_API_URL, SEQUENCE_PROJECT_ACCESS_KEY } from './constants'
+import {
+  OLDERFALL_COLLECTIONS,
+  SEQUENCE_MARKETPLACE_API_URL,
+  SEQUENCE_PROJECT_ACCESS_KEY,
+} from './constants'
 
 export type OlderfallListing = {
   orderId: string
@@ -11,9 +15,18 @@ export type OlderfallListing = {
   isERC1155: boolean
   name?: string
   image?: string
+  metadata?: {
+    description?: string
+    attributes?: Array<{ trait_type?: string; value?: string | number; [key: string]: any }>
+    external_url?: string
+    [key: string]: any
+  }
 }
 
-export async function fetchOlderfallListings(chainId?: string, signal?: AbortSignal): Promise<OlderfallListing[]> {
+export async function fetchOlderfallListings(
+  chainId?: string,
+  signal?: AbortSignal
+): Promise<OlderfallListing[]> {
   if (!SEQUENCE_MARKETPLACE_API_URL || !SEQUENCE_PROJECT_ACCESS_KEY) {
     return []
   }
@@ -72,17 +85,27 @@ export async function fetchOlderfallListings(chainId?: string, signal?: AbortSig
 
         const tokenId = String(o.tokenId ?? o.token_id ?? meta.tokenId ?? listing.tokenId ?? '')
 
-        const tokenContract = String(o.contractAddress ?? o.tokenContract ?? listing.collectionContractAddress ?? collectionAddress)
+        const tokenContract = String(
+          o.contractAddress ??
+            o.tokenContract ??
+            listing.collectionContractAddress ??
+            collectionAddress
+        )
 
         const orderId = String(listing.orderId ?? '')
 
-        const currency = String(listing.priceCurrencyAddress ?? listing.currency ?? listing.currencyAddress ?? '')
+        const currency = String(
+          listing.priceCurrencyAddress ?? listing.currency ?? listing.currencyAddress ?? ''
+        )
 
-        const pricePerToken = String(listing.priceAmountNet ?? listing.priceAmount ?? listing.price ?? '')
+        const pricePerToken = String(
+          listing.priceAmountNet ?? listing.priceAmount ?? listing.price ?? ''
+        )
         const priceDecimals = typeof listing.priceDecimals === 'number' ? listing.priceDecimals : 18
 
         const name = meta.name ?? o.name
-        const image = meta.image || o.image || (meta.properties && meta.properties.image) || undefined
+        const image =
+          meta.image || o.image || (meta.properties && meta.properties.image) || undefined
 
         if (!tokenId || !orderId) {
           continue
@@ -99,6 +122,7 @@ export async function fetchOlderfallListings(chainId?: string, signal?: AbortSig
           isERC1155: false,
           name,
           image,
+          metadata: meta,
         })
       }
 

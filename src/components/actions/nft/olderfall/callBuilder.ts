@@ -1,18 +1,24 @@
 import { encodeFunctionData, type Address } from 'viem'
-import type { DestinationCall } from '../../../../lib/types/destinationAction'
+import type { ActionCall } from '../../shared/types'
 import { SEQUENCE_MARKET_ADDRESS } from './constants'
 import { generateOlderfallBuySteps, type OlderfallListing } from './api'
-import { ERC20_ABI } from '../../../../lib/abi'
-import { DeltaCallType } from '@1delta/trade-sdk/dist/types'
-import type { DestinationCallBuilder } from '../../shared/types'
+import { erc20Abi } from 'viem'
+import { DeltaCallType } from '@1delta/lib-utils'
+import type { ActionCallBuilder } from '../../shared/types'
 
 export type OlderfallCallBuilderParams = {
   chainId: string
   buyer: Address
+  userAddress: Address
   listing: OlderfallListing
 }
 
-export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = async ({ chainId, buyer, listing }) => {
+export const buildCalls: ActionCallBuilder<OlderfallCallBuilderParams> = async ({
+  chainId,
+  buyer,
+  userAddress,
+  listing,
+}) => {
   const orderId = String(listing.orderId || '')
   const tokenId = String(listing.tokenId || '')
   const currency = String(listing.currency || '')
@@ -26,14 +32,15 @@ export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = as
   const priceAmount = BigInt(priceRaw)
 
   const approveCalldata = encodeFunctionData({
-    abi: ERC20_ABI,
+    abi: erc20Abi,
     functionName: 'approve',
     args: [SEQUENCE_MARKET_ADDRESS, priceAmount],
   })
 
-  const approveCall: DestinationCall = {
+  const approveCall: ActionCall = {
+    callType: DeltaCallType.DEFAULT,
     target: currency as Address,
-    calldata: approveCalldata,
+    callData: approveCalldata,
     value: 0n,
   }
 
@@ -46,27 +53,28 @@ export const buildCalls: DestinationCallBuilder<OlderfallCallBuilderParams> = as
     collectionAddress,
   })
 
-  const sequenceCalls: DestinationCall[] = steps.map((step) => {
+  const sequenceCalls: ActionCall[] = steps.map((step) => {
     const rawValue = step.value || ''
     const v = rawValue && rawValue !== '0' ? BigInt(rawValue) : 0n
     return {
+      callType: DeltaCallType.DEFAULT,
       target: step.to as Address,
-      calldata: step.data as `0x${string}`,
+      callData: step.data as `0x${string}`,
       value: v,
     }
   })
 
   const sweepCalldata = encodeFunctionData({
-    abi: ERC20_ABI,
+    abi: erc20Abi,
     functionName: 'transfer',
-    args: [buyer, 0n],
+    args: [userAddress, 0n],
   })
 
-  const sweepCall: DestinationCall = {
-    target: currency as Address,
-    calldata: sweepCalldata,
-    value: 0n,
+  const sweepCall: ActionCall = {
     callType: DeltaCallType.FULL_TOKEN_BALANCE,
+    target: currency as Address,
+    callData: sweepCalldata,
+    value: 0n,
     tokenAddress: currency as Address,
     balanceOfInjectIndex: 1,
     gasLimit: 600000n,

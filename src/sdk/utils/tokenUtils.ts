@@ -1,5 +1,5 @@
 import { checksumAddress, type Address } from 'viem'
-import { ERC20_ABI } from '../../lib/abi'
+import { erc20Abi } from 'viem'
 import { getTokenFromCache } from '../../lib/data/tokenListsCache'
 import { getRpcSelectorEvmClient } from '@1delta/lib-utils'
 
@@ -22,7 +22,7 @@ export async function fetchDecimals(
   decimalsCache: Record<Address, number>,
   loadingDecimals: Set<Address>,
   setDecimalsCache: (updater: (prev: Record<Address, number>) => Record<Address, number>) => void,
-  setLoadingDecimals: (updater: (prev: Set<Address>) => Set<Address>) => void,
+  setLoadingDecimals: (updater: (prev: Set<Address>) => Set<Address>) => void
 ): Promise<number | null> {
   // Check cache first
   if (decimalsCache[tokenAddress]) {
@@ -41,7 +41,8 @@ export async function fetchDecimals(
     // Try both checksummed and lowercase addresses as the list might use either format
     const checksummedAddr = checksumAddress(tokenAddress)
     const lowercaseAddr = tokenAddress.toLowerCase()
-    const tokenFromList = getTokenFromCache(chainId, checksummedAddr) || getTokenFromCache(chainId, lowercaseAddr)
+    const tokenFromList =
+      getTokenFromCache(chainId, checksummedAddr) || getTokenFromCache(chainId, lowercaseAddr)
     if (tokenFromList && tokenFromList.decimals !== undefined) {
       const decimalsNumber = tokenFromList.decimals
       setDecimalsCache((prev) => ({
@@ -65,7 +66,7 @@ export async function fetchDecimals(
     }
     const decimals = await publicClient.readContract({
       address: checksumAddress(tokenAddress),
-      abi: ERC20_ABI,
+      abi: erc20Abi,
       functionName: 'decimals',
     })
 

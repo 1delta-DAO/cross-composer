@@ -42,11 +42,19 @@ export function TokenRow({
   const balanceText = bal?.value ? Number(bal.value).toFixed(4) : undefined
 
   return (
-    <button style={style} className="w-full py-2 px-2 hover:bg-base-200 rounded flex items-center gap-3" onClick={onClick}>
+    <button
+      style={style}
+      className="w-full py-2 px-2 hover:bg-base-200 rounded flex items-center gap-3"
+      onClick={onClick}
+    >
       <div className="relative w-6 h-6">
         <Logo src={token.logoURI} alt={token.symbol || ''} fallbackText={token.symbol || ''} />
         {chains?.[chainId]?.data?.icon && (
-          <img src={chains[chainId].data.icon} alt="chain" className="w-3 h-3 rounded-full absolute -right-1 -bottom-1 border border-base-100" />
+          <img
+            src={chains[chainId].data.icon}
+            alt="chain"
+            className="w-3 h-3 rounded-full absolute -right-1 -bottom-1 border border-base-100"
+          />
         )}
       </div>
       <div className="flex-1 text-left">
@@ -54,16 +62,18 @@ export function TokenRow({
         <div className="text-xs opacity-70">{token.symbol}</div>
       </div>
       <div className="text-right min-w-24">
-        {showBalanceLoading ? (
+        {showBalanceLoading || showPriceLoading ? (
           <span className="loading loading-spinner loading-xs" />
-        ) : balanceText ? (
-          <div className="font-mono text-sm opacity-80">{balanceText}</div>
-        ) : null}
-        {showPriceLoading ? (
-          <span className="loading loading-spinner loading-xs ml-2" />
-        ) : usd !== undefined && isFinite(usd) ? (
-          <div className="text-xs opacity-60">${usd.toFixed(2)}</div>
-        ) : null}
+        ) : (
+          <>
+            {!showBalanceLoading && balanceText && (
+              <div className="font-mono text-sm opacity-80">{balanceText}</div>
+            )}
+            {!showPriceLoading && usd !== undefined && isFinite(usd) && (
+              <div className="text-xs opacity-60">${usd.toFixed(2)}</div>
+            )}
+          </>
+        )}
       </div>
     </button>
   )

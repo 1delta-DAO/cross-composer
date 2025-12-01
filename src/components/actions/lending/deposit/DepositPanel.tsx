@@ -1,43 +1,29 @@
 import { useState, useEffect, useMemo } from 'react'
-import {
-  getCachedMarkets,
-  isMarketsReady,
-  isMarketsLoading,
-  subscribeToCacheChanges,
-  type MoonwellMarket,
-} from '../../../../lib/moonwell/marketCache'
+import { type MoonwellMarket } from './marketCache'
 import { DepositActionModal } from './DepositModal'
 import { DepositCard } from './DepositCard'
-import { DestinationActionHandler } from '../../shared/types'
+import { ActionHandler } from '../../shared/types'
 import { useConnection } from 'wagmi'
 import { useTokenLists } from '../../../../hooks/useTokenLists'
+import type { RawCurrencyAmount } from '../../../../types/currency'
 
 type DepositPanelProps = {
   chainId?: string
-  setDestinationInfo?: DestinationActionHandler
+  setDestinationInfo?: ActionHandler
   resetKey?: number
+  destinationInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string }
+  markets?: MoonwellMarket[]
 }
 
-export function DepositPanel({ chainId, setDestinationInfo, resetKey }: DepositPanelProps) {
+export function DepositPanel({
+  chainId,
+  setDestinationInfo,
+  resetKey,
+  destinationInfo,
+  markets = [],
+}: DepositPanelProps) {
   const { address } = useConnection()
   const [isExpanded, setIsExpanded] = useState(false)
-  const [marketsReady, setMarketsReady] = useState(isMarketsReady())
-  const [marketsLoading, setMarketsLoading] = useState(isMarketsLoading())
-
-  // Subscribe to market cache changes
-  useEffect(() => {
-    setMarketsReady(isMarketsReady())
-    setMarketsLoading(isMarketsLoading())
-
-    const unsubscribe = subscribeToCacheChanges(() => {
-      setMarketsReady(isMarketsReady())
-      setMarketsLoading(isMarketsLoading())
-    })
-
-    return unsubscribe
-  }, [])
-
-  const markets = useMemo(() => getCachedMarkets() || [], [marketsReady])
 
   // Only listed markets can be used for deposits
   const depositMarkets = useMemo(() => {
@@ -45,28 +31,45 @@ export function DepositPanel({ chainId, setDestinationInfo, resetKey }: DepositP
   }, [markets])
 
   const [selectedMarket, setSelectedMarket] = useState<undefined | MoonwellMarket>(undefined)
+  const [marketAmounts, setMarketAmounts] = useState<Map<string, string>>(new Map())
+  const [lastSelectedMarketAddress, setLastSelectedMarketAddress] = useState<string | undefined>(
+    undefined
+  )
 
   useEffect(() => {
     if (resetKey !== undefined && resetKey > 0) {
       setSelectedMarket(undefined)
       setIsExpanded(false)
+      setMarketAmounts(new Map())
+      setLastSelectedMarketAddress(undefined)
       setDestinationInfo?.(undefined, undefined, [])
     }
   }, [resetKey])
 
   const { data: list } = useTokenLists()
 
-  // Loading / empty states
-  if (marketsLoading && !marketsReady) {
-    return (
-      <div className="alert alert-info">
-        <span className="loading loading-spinner loading-sm"></span>
-        <span>Loading markets...</span>
-      </div>
-    )
+  const handleAmountChange = (marketAddress: string, amount: string) => {
+    setMarketAmounts((prev) => {
+      const next = new Map(prev)
+      if (amount && amount.trim() !== '') {
+        next.set(marketAddress, amount)
+        setLastSelectedMarketAddress(marketAddress)
+      } else {
+        next.delete(marketAddress)
+        if (lastSelectedMarketAddress === marketAddress) {
+          setLastSelectedMarketAddress(undefined)
+        }
+      }
+      return next
+    })
   }
 
-  if (!marketsReady || markets.length === 0) {
+  const handleMarketClick = (market: MoonwellMarket) => {
+    setSelectedMarket(market)
+    setLastSelectedMarketAddress(market.mTokenCurrency.address)
+  }
+
+  if (markets.length === 0) {
     return (
       <div className="alert alert-warning">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,31 +87,36 @@ export function DepositPanel({ chainId, setDestinationInfo, resetKey }: DepositP
 
   return (
     <>
-      <div className="card bg-base-200 shadow-sm border border-base-200">
-        <div className="card-body p-4">
-          <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-            <div className="font-medium">Lending Deposits</div>
-            <button className="btn btn-sm btn-ghost">{isExpanded ? '▼' : '▶'}</button>
-          </div>
-
-          {isExpanded && (
-            <div className="mt-4 max-w-[600px]">
-              <div className="text-sm font-semibold mb-2 opacity-70">Deposit</div>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {depositMarkets.length === 0 ? (
-                  <div className="text-sm opacity-50 text-center py-4">No markets available</div>
-                ) : (
-                  depositMarkets.map((market) => (
-                    <DepositCard
-                      key={market.mTokenCurrency.address}
-                      market={market}
-                      onActionClick={() => setSelectedMarket(market)}
-                      currencyFromList={list[market.mTokenCurrency.chainId]?.[market.underlyingCurrency.address.toLowerCase()]}
-                    />
-                  ))
-                )}
-              </div>
+      <div className="card-body p-4">
+        <div className="grid grid-cols-2 min-[600px]:grid-cols-3 min-[800px]:grid-cols-4 min-[1000px]:grid-cols-5 gap-3 max-h-[400px] overflow-y-auto">
+          {depositMarkets.length === 0 ? (
+            <div className="col-span-full text-sm opacity-50 text-center py-4">
+              No markets available
             </div>
+          ) : (
+            depositMarkets.map((market) => {
+              const marketKey = market.mTokenCurrency.address
+              const enteredAmount = marketAmounts.get(marketKey)
+              const isSelected =
+                lastSelectedMarketAddress === marketKey &&
+                enteredAmount !== undefined &&
+                enteredAmount.trim() !== '' &&
+                Number(enteredAmount) > 0
+              return (
+                <DepositCard
+                  key={marketKey}
+                  market={market}
+                  onActionClick={() => handleMarketClick(market)}
+                  currencyFromList={
+                    list[market.mTokenCurrency.chainId]?.[
+                      market.underlyingCurrency.address.toLowerCase()
+                    ]
+                  }
+                  underlyingCurrency={market.underlyingCurrency}
+                  enteredAmount={isSelected ? enteredAmount : undefined}
+                />
+              )
+            })
           )}
         </div>
       </div>
@@ -117,11 +125,19 @@ export function DepositPanel({ chainId, setDestinationInfo, resetKey }: DepositP
         <DepositActionModal
           open={!!selectedMarket}
           market={selectedMarket}
-          selectedCurrency={list[selectedMarket.mTokenCurrency.chainId]?.[selectedMarket.underlyingCurrency.address.toLowerCase()]}
+          selectedCurrency={
+            list[selectedMarket.mTokenCurrency.chainId]?.[
+              selectedMarket.underlyingCurrency.address.toLowerCase()
+            ]
+          }
           onClose={() => setSelectedMarket(undefined)}
           userAddress={address as any}
           chainId={chainId}
           setDestinationInfo={setDestinationInfo}
+          amount={marketAmounts.get(selectedMarket.mTokenCurrency.address) || ''}
+          onAmountChange={(amount) =>
+            handleAmountChange(selectedMarket.mTokenCurrency.address, amount)
+          }
         />
       )}
     </>

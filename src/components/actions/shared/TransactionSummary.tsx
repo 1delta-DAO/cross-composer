@@ -1,10 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { RawCurrency, RawCurrencyAmount } from '../../../types/currency'
-import { formatDisplayAmount } from '../../swap/swapUtils'
+import { formatDisplayAmount } from '../../actionsTab/swapUtils'
 import { CurrencyHandler } from '../../../sdk/types'
-import type { Address } from 'viem'
-import { useTokenPrice } from '../../../hooks/prices/useTokenPrice'
-import { zeroAddress } from 'viem'
+import { usePriceQuery } from '../../../hooks/prices/usePriceQuery'
 
 interface TransactionSummaryProps {
   srcCurrency?: RawCurrency
@@ -13,7 +11,6 @@ interface TransactionSummaryProps {
   outputAmount?: string
   currencyAmount?: RawCurrencyAmount
   destinationActionLabel?: string
-  isRequoting?: boolean
   route?: string
   chains?: Record<string, { data?: { name?: string } }>
 }
@@ -25,7 +22,6 @@ export function TransactionSummary({
   outputAmount: outputAmountProp,
   currencyAmount,
   destinationActionLabel,
-  isRequoting,
   route,
   chains,
 }: TransactionSummaryProps) {
@@ -39,36 +35,49 @@ export function TransactionSummary({
   }, [outputAmountProp, currencyAmount])
 
   const shouldShow = useMemo(() => {
-    return srcCurrency && dstCurrency && inputAmount && Number(inputAmount) > 0 && outputAmount && Number(outputAmount) > 0
-  }, [srcCurrency, dstCurrency, inputAmount, outputAmount])
+    return srcCurrency && dstCurrency && outputAmount && Number(outputAmount) > 0
+  }, [srcCurrency, dstCurrency, outputAmount])
 
-  const srcTokenPriceAddr = useMemo(() => {
-    if (!srcCurrency) return undefined
-    if (srcCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(srcCurrency.chainId, zeroAddress) as Address | undefined
-    }
-    return srcCurrency.address as Address
-  }, [srcCurrency])
+  const currenciesForPrice = useMemo(() => {
+    const currencies: RawCurrency[] = []
+    if (srcCurrency) currencies.push(srcCurrency)
+    if (dstCurrency) currencies.push(dstCurrency)
+    return currencies
+  }, [srcCurrency, dstCurrency])
 
-  const { price: srcPrice } = useTokenPrice({
-    chainId: srcCurrency?.chainId || '',
-    tokenAddress: srcTokenPriceAddr,
-    enabled: Boolean(srcCurrency),
+  const { data: pricesData } = usePriceQuery({
+    currencies: currenciesForPrice,
+    enabled: currenciesForPrice.length > 0,
   })
 
-  const dstTokenPriceAddr = useMemo(() => {
-    if (!dstCurrency) return undefined
-    if (dstCurrency.address.toLowerCase() === zeroAddress.toLowerCase()) {
-      return CurrencyHandler.wrappedAddressFromAddress(dstCurrency.chainId, zeroAddress) as Address | undefined
-    }
-    return dstCurrency.address as Address
-  }, [dstCurrency])
+  const srcPrice = useMemo(() => {
+    if (!pricesData || !srcCurrency) return undefined
+    const chainId = srcCurrency.chainId
+    const addressKey = srcCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
+  }, [pricesData, srcCurrency])
 
-  const { price: dstPrice } = useTokenPrice({
-    chainId: dstCurrency?.chainId || '',
-    tokenAddress: dstTokenPriceAddr,
-    enabled: Boolean(dstCurrency),
-  })
+  const dstPrice = useMemo(() => {
+    if (!pricesData || !dstCurrency) return undefined
+    const chainId = dstCurrency.chainId
+    const addressKey = dstCurrency.address?.toLowerCase()
+    if (!chainId || !addressKey) return undefined
+    return pricesData[chainId]?.[addressKey]?.usd
+  }, [pricesData, dstCurrency])
+
+  const [showCalculatingTimeout, setShowCalculatingTimeout] = useState(false)
+
+  useEffect(() => {
+    if (!inputAmount || !srcPrice) {
+      const timer = setTimeout(() => {
+        setShowCalculatingTimeout(true)
+      }, 5000)
+      return () => clearTimeout(timer)
+    } else {
+      setShowCalculatingTimeout(false)
+    }
+  }, [inputAmount, srcPrice])
 
   const inputUsd = useMemo(() => {
     if (!inputAmount || !srcPrice) return undefined
@@ -92,7 +101,12 @@ export function TransactionSummary({
 
   if (!shouldShow) return null
 
-  const formattedInput = formatDisplayAmount(inputAmount || '0')
+  const hasInputAmount = inputAmount && Number(inputAmount) > 0
+  const formattedInput = hasInputAmount
+    ? formatDisplayAmount(inputAmount)
+    : showCalculatingTimeout
+      ? 'Price unavailable'
+      : 'Calculating...'
   const formattedOutput = formatDisplayAmount(outputAmount || '0')
 
   return (
@@ -104,7 +118,13 @@ export function TransactionSummary({
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm opacity-70">You'll pay:</span>
               <span className="font-medium">
-                {formattedInput} {srcCurrency?.symbol}
+                {hasInputAmount ? (
+                  <>
+                    {formattedInput} {srcCurrency?.symbol}
+                  </>
+                ) : (
+                  <span className="opacity-60">{formattedInput}</span>
+                )}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -121,7 +141,9 @@ export function TransactionSummary({
               <span className="text-sm opacity-70">You'll receive:</span>
               <span className="font-medium">
                 {formattedOutput} {dstCurrency?.symbol}
-                {destinationActionLabel && <span className="ml-1 opacity-80">→ {destinationActionLabel}</span>}
+                {destinationActionLabel && (
+                  <span className="ml-1 opacity-80">→ {destinationActionLabel}</span>
+                )}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -132,13 +154,6 @@ export function TransactionSummary({
               </div>
             </div>
           </div>
-
-          {isRequoting && (
-            <div className="flex items-center gap-2 text-xs text-info pt-2 border-t border-base-300">
-              <span className="loading loading-spinner loading-xs"></span>
-              <span>Re-quoting to ensure sufficient amount...</span>
-            </div>
-          )}
 
           {route && (
             <div className="pt-2 border-t border-base-300">

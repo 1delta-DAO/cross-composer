@@ -3,8 +3,13 @@ import { getTokenFromCache } from '../data/tokenListsCache'
 import type { RawCurrency } from '../../types/currency'
 import { chains } from '@1delta/data-sdk'
 import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
+import type { ActionCall } from '../../components/actions/shared/types'
+import type { DeltaCall } from '@1delta/lib-utils'
 
-export function getCurrency(chainId: string, tokenAddress: Address | undefined): RawCurrency | undefined {
+export function getCurrency(
+  chainId: string,
+  tokenAddress: Address | undefined
+): RawCurrency | undefined {
   if (!tokenAddress || !chainId) {
     return undefined
   }
@@ -31,4 +36,11 @@ export function convertAmountToWei(amount: string, decimals: number): string {
   } catch {
     return '0'
   }
+}
+
+export function convertActionCallsToDeltaCalls(calls: ActionCall[]): DeltaCall[] {
+  return calls.map((c) => {
+    const { gasLimit, ...deltaCall } = c
+    return deltaCall
+  })
 }

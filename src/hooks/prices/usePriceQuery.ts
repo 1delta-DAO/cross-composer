@@ -1,14 +1,60 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
-import { setPricesFromDexscreener } from '../../lib/trade-helpers/prices'
 import type { RawCurrency } from '../../types/currency'
 import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
 
 export type PricesRecord = Record<string, Record<string, { usd: number }>>
 
-const DEXSCREENER_TOKEN_URL = (chainId: string, tokenAddress: string) => `https://api.dexscreener.com/token-pairs/v1/${chainId}/${tokenAddress}`
+const DEXSCREENER_TOKENS_URL = (chainId: string, addresses: string[]) =>
+  `https://api.dexscreener.com/tokens/v1/${chainId}/${addresses.join(',')}`
+
+const MAIN_PRICES_ENDPOINT = 'https://margin-data.staging.1delta.io/prices/live'
+const MAIN_PRICES_CACHE_DURATION = 10 * 60 * 1000
+
+let mainPricesCache: { [key: string]: number } | null = null
+let mainPricesCacheTimestamp: number = 0
+let mainPricesFetchPromise: Promise<{ [key: string]: number }> | null = null
+
+export async function fetchMainPrices(): Promise<{ [key: string]: number }> {
+  const now = Date.now()
+
+  if (mainPricesCache && now - mainPricesCacheTimestamp < MAIN_PRICES_CACHE_DURATION) {
+    return mainPricesCache
+  }
+
+  if (mainPricesFetchPromise) {
+    return mainPricesFetchPromise
+  }
+
+  mainPricesFetchPromise = (async (): Promise<{ [key: string]: number }> => {
+    try {
+      const response = await fetch(MAIN_PRICES_ENDPOINT)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const priceDataRaw = await response.json()
+      const data = priceDataRaw.prices || priceDataRaw
+
+      mainPricesCache = data
+      mainPricesCacheTimestamp = now
+
+      return data
+    } catch (error) {
+      console.warn('Error fetching main prices from fallback API:', error)
+      return {}
+    } finally {
+      mainPricesFetchPromise = null
+    }
+  })()
+
+  return mainPricesFetchPromise
+}
+
+export function getMainPricesCache(): { [key: string]: number } | null {
+  return mainPricesCache
+}
 
 const CHAIN_ID_MAP: Record<string, string> = {
   '1': 'ethereum',
@@ -54,27 +100,33 @@ type DexscreenerResponse = Array<{
   }
 }>
 
-async function fetchTokenPrice(chainId: string, tokenAddress: string): Promise<number | undefined> {
+async function fetchDexscreenerPrices(
+  chainId: string,
+  addresses: string[]
+): Promise<Record<string, { usd: number }>> {
+  const result: Record<string, { usd: number }> = {}
+
+  if (addresses.length === 0) return result
+
   const dexscreenerChainId = getDexscreenerChainId(chainId)
-  const url = DEXSCREENER_TOKEN_URL(dexscreenerChainId, tokenAddress.toLowerCase())
+  const uniqueAddresses = Array.from(new Set(addresses.map((a) => a.toLowerCase())))
+  const url = DEXSCREENER_TOKENS_URL(dexscreenerChainId, uniqueAddresses)
 
   try {
     const res = await fetch(url)
-    if (!res.ok) return undefined
+    if (!res.ok) return result
 
     const json = (await res.json()) as DexscreenerResponse
 
-    if (!json || json.length === 0) return undefined
+    if (!json || json.length === 0) return result
 
-    let bestPrice: number | undefined
-    let bestLiquidity = 0
-    let bestVolume = 0
+    const pricesByAddress: Record<string, { price: number; liquidity: number; volume: number }> = {}
 
     for (const pair of json) {
       if (!pair.priceUsd || !pair.baseToken?.address) continue
 
       const addr = pair.baseToken.address.toLowerCase()
-      if (addr !== tokenAddress.toLowerCase()) continue
+      if (!uniqueAddresses.includes(addr)) continue
 
       const price = Number(pair.priceUsd)
       if (!isFinite(price) || price <= 0) continue
@@ -82,45 +134,33 @@ async function fetchTokenPrice(chainId: string, tokenAddress: string): Promise<n
       const liquidity = pair.liquidity?.usd ? Number(pair.liquidity.usd) : 0
       const volume = pair.volume?.h24 ? Number(pair.volume.h24) : 0
 
-      if (!bestPrice || liquidity > bestLiquidity || (liquidity === bestLiquidity && volume > bestVolume)) {
-        bestPrice = price
-        bestLiquidity = liquidity
-        bestVolume = volume
+      const existing = pricesByAddress[addr]
+      if (
+        !existing ||
+        liquidity > existing.liquidity ||
+        (liquidity === existing.liquidity && volume > existing.volume)
+      ) {
+        pricesByAddress[addr] = { price, liquidity, volume }
       }
     }
 
-    return bestPrice
-  } catch {
-    return undefined
-  }
-}
-
-async function fetchPricesForChain(chainId: string, addresses: Address[]): Promise<Record<string, { usd: number }>> {
-  const out: Record<string, { usd: number }> = {}
-  if (addresses.length === 0) return out
-
-  const uniq = Array.from(new Set(addresses.map((a) => a.toLowerCase())))
-
-  const pricePromises = uniq.map(async (addr) => {
-    const price = await fetchTokenPrice(chainId, addr)
-    return { addr, price }
-  })
-
-  const results = await Promise.all(pricePromises)
-
-  for (const { addr, price } of results) {
-    if (price !== undefined && price > 0) {
-      out[addr] = { usd: price }
+    for (const [addr, { price }] of Object.entries(pricesByAddress)) {
+      result[addr] = { usd: price }
     }
-  }
 
-  return out
+    return result
+  } catch {
+    return result
+  }
 }
 
 export async function fetchPrices(currencies: RawCurrency[]): Promise<PricesRecord> {
   if (currencies.length === 0) return {}
 
-  const currenciesByChain: Record<string, Array<{ currency: RawCurrency; priceAddress: Address }>> = {}
+  const mainPrices = await fetchMainPrices()
+
+  const currenciesWithMainPrice: Array<{ currency: RawCurrency; price: { usd: number } }> = []
+  const currenciesNeedingDexscreener: Array<{ currency: RawCurrency; priceAddress: Address }> = []
 
   for (const currency of currencies) {
     if (!currency?.chainId || !currency?.address) continue
@@ -130,28 +170,52 @@ export async function fetchPrices(currencies: RawCurrency[]): Promise<PricesReco
 
     const priceAddress =
       addr === zeroAddress.toLowerCase()
-        ? (CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress) as Address | undefined) || (zeroAddress as Address)
+        ? (CurrencyHandler.wrappedAddressFromAddress(chainId, zeroAddress) as
+            | Address
+            | undefined) || (zeroAddress as Address)
         : (currency.address as Address)
 
+    const assetGroup = currency?.assetGroup as string | undefined
+
+    if (assetGroup) {
+      const assetGroupPrice = mainPrices[assetGroup]
+      if (assetGroupPrice !== undefined) {
+        currenciesWithMainPrice.push({ currency, price: { usd: assetGroupPrice } })
+        continue
+      }
+    }
+
+    currenciesNeedingDexscreener.push({ currency, priceAddress })
+  }
+
+  const currenciesByChain: Record<
+    string,
+    Array<{ currency: RawCurrency; priceAddress: Address }>
+  > = {}
+
+  for (const { currency, priceAddress } of currenciesNeedingDexscreener) {
+    const chainId = currency.chainId
     if (!currenciesByChain[chainId]) {
       currenciesByChain[chainId] = []
     }
-
     currenciesByChain[chainId].push({ currency, priceAddress })
   }
 
   const chainPromises = Object.entries(currenciesByChain).map(async ([chainId, items]) => {
-    const uniqueAddresses = Array.from(new Set(items.map((item) => item.priceAddress.toLowerCase()))) as Address[]
+    const uniqueAddresses = Array.from(
+      new Set(items.map((item) => item.priceAddress.toLowerCase()))
+    ) as Address[]
 
-    const prices = await fetchPricesForChain(chainId, uniqueAddresses)
+    const dexscreenerPrices = await fetchDexscreenerPrices(chainId, uniqueAddresses)
 
     const result: Record<string, { usd: number }> = {}
     for (const { currency, priceAddress } of items) {
       const priceKey = priceAddress.toLowerCase()
-      const price = prices[priceKey]
-      if (price) {
+      const dexscreenerPrice = dexscreenerPrices[priceKey]
+
+      if (dexscreenerPrice) {
         const currencyKey = currency.address.toLowerCase()
-        result[currencyKey] = price
+        result[currencyKey] = dexscreenerPrice
       }
     }
 
@@ -161,8 +225,21 @@ export async function fetchPrices(currencies: RawCurrency[]): Promise<PricesReco
   const results = await Promise.all(chainPromises)
 
   const output: PricesRecord = {}
+
+  for (const { currency, price } of currenciesWithMainPrice) {
+    const chainId = currency.chainId
+    if (!output[chainId]) {
+      output[chainId] = {}
+    }
+    const currencyKey = currency.address.toLowerCase()
+    output[chainId][currencyKey] = price
+  }
+
   for (const { chainId, prices } of results) {
-    output[chainId] = prices
+    if (!output[chainId]) {
+      output[chainId] = {}
+    }
+    Object.assign(output[chainId], prices)
   }
 
   return output
@@ -171,30 +248,25 @@ export async function fetchPrices(currencies: RawCurrency[]): Promise<PricesReco
 export function usePriceQuery(params: { currencies: RawCurrency[]; enabled?: boolean }) {
   const { currencies, enabled = true } = params
 
-  const queryKey = useMemo(
-    () => [
-      'prices',
-      currencies
-        .map((c) => `${c.chainId}:${c.address.toLowerCase()}`)
-        .sort()
-        .join(','),
-    ],
-    [currencies],
-  )
+  const queryKey = useMemo(() => {
+    const keys: Set<string> = new Set()
+    for (const currency of currencies) {
+      if (currency.assetGroup) {
+        keys.add(currency.assetGroup)
+      } else {
+        keys.add(currency.address.toLowerCase())
+      }
+    }
+    return ['prices', ...Array.from(keys).sort().join(',')]
+  }, [currencies])
 
   const query = useQuery({
     queryKey,
     enabled: enabled && Boolean(currencies && currencies.length > 0),
     queryFn: () => fetchPrices(currencies),
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   })
-
-  useEffect(() => {
-    if (query.data) {
-      setPricesFromDexscreener(query.data)
-    }
-  }, [query.data])
 
   return query
 }
