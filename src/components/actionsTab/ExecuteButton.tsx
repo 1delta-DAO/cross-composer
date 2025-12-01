@@ -202,10 +202,10 @@ export default function ExecuteButton({
     query: {
       enabled: Boolean(
         srcToken &&
-          address &&
-          spender &&
-          srcToken.toLowerCase() !== zeroAddress.toLowerCase() &&
-          !skipApprove
+        address &&
+        spender &&
+        srcToken.toLowerCase() !== zeroAddress.toLowerCase() &&
+        !skipApprove
       ),
     },
   })
