@@ -34,9 +34,15 @@ export function TransactionSummary({
     return undefined
   }, [outputAmountProp, currencyAmount])
 
+  const isAmountsReady = useMemo(() => {
+    const hasOutputAmount = outputAmount && Number(outputAmount) > 0
+    const hasInputAmount = inputAmount && Number(inputAmount) > 0
+    return hasOutputAmount && hasInputAmount
+  }, [outputAmount, inputAmount])
+
   const shouldShow = useMemo(() => {
-    return srcCurrency && dstCurrency && outputAmount && Number(outputAmount) > 0
-  }, [srcCurrency, dstCurrency, outputAmount])
+    return srcCurrency && dstCurrency && outputAmount && Number(outputAmount) > 0 && isAmountsReady
+  }, [srcCurrency, dstCurrency, outputAmount, isAmountsReady])
 
   const currenciesForPrice = useMemo(() => {
     const currencies: RawCurrency[] = []
@@ -45,7 +51,11 @@ export function TransactionSummary({
     return currencies
   }, [srcCurrency, dstCurrency])
 
-  const { data: pricesData } = usePriceQuery({
+  const {
+    data: pricesData,
+    isLoading: isLoadingPrices,
+    isFetching: isFetchingPrices,
+  } = usePriceQuery({
     currencies: currenciesForPrice,
     enabled: currenciesForPrice.length > 0,
   })
@@ -68,8 +78,33 @@ export function TransactionSummary({
 
   const [showCalculatingTimeout, setShowCalculatingTimeout] = useState(false)
 
+  const isPricesLoading = isLoadingPrices || isFetchingPrices
+
   useEffect(() => {
-    if (!inputAmount || !srcPrice) {
+    setShowCalculatingTimeout(false)
+  }, [currenciesForPrice])
+
+  useEffect(() => {
+    if (isPricesLoading) {
+      setShowCalculatingTimeout(false)
+      return
+    }
+
+    const hasCurrencyAmount = currencyAmount !== undefined
+    const hasInputAmount = inputAmount && Number(inputAmount) > 0
+    const hasPrices = srcPrice !== undefined && dstPrice !== undefined
+
+    if (hasInputAmount && hasPrices) {
+      setShowCalculatingTimeout(false)
+      return
+    }
+
+    if (hasCurrencyAmount && !hasInputAmount) {
+      setShowCalculatingTimeout(false)
+      return
+    }
+
+    if (!hasInputAmount && !hasPrices) {
       const timer = setTimeout(() => {
         setShowCalculatingTimeout(true)
       }, 5000)
@@ -77,7 +112,7 @@ export function TransactionSummary({
     } else {
       setShowCalculatingTimeout(false)
     }
-  }, [inputAmount, srcPrice])
+  }, [inputAmount, srcPrice, dstPrice, isPricesLoading, currencyAmount])
 
   const inputUsd = useMemo(() => {
     if (!inputAmount || !srcPrice) return undefined
