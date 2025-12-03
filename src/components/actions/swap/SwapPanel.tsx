@@ -36,8 +36,15 @@ export function SwapPanel({
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
   const [tokenModalQuery, setTokenModalQuery] = useState('')
   const lastDestinationKeyRef = useRef<string | null>(null)
+  const lastResetKeyRef = useRef<number>(0)
 
   const dstCurrency = selectedDstCurrency || initialDstCurrency
+
+  useEffect(() => {
+    if (initialDstCurrency && !selectedDstCurrency) {
+      setSelectedDstCurrency(initialDstCurrency)
+    }
+  }, [initialDstCurrency, selectedDstCurrency])
 
   const dstTokenInfo = useMemo(() => {
     if (!dstCurrency?.chainId || !dstCurrency?.address) return undefined
@@ -146,7 +153,8 @@ export function SwapPanel({
   }
 
   useEffect(() => {
-    if (resetKey !== undefined && resetKey > 0) {
+    if (resetKey !== undefined && resetKey > 0 && resetKey !== lastResetKeyRef.current) {
+      lastResetKeyRef.current = resetKey
       setOutputAmount('')
       setSelectedDstCurrency(initialDstCurrency)
       lastDestinationKeyRef.current = null
