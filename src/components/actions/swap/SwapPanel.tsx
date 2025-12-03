@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { RawCurrency } from '../../../types/currency'
 import { CurrencyHandler } from '../../../sdk/types'
 import { ActionHandler } from '../shared/types'
@@ -35,6 +35,7 @@ export function SwapPanel({
   const [outputAmount, setOutputAmount] = useState('')
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
   const [tokenModalQuery, setTokenModalQuery] = useState('')
+  const lastDestinationKeyRef = useRef<string | null>(null)
 
   const dstCurrency = selectedDstCurrency || initialDstCurrency
 
@@ -58,13 +59,19 @@ export function SwapPanel({
 
   useEffect(() => {
     if (!srcCurrency || !dstCurrency || !setDestinationInfo || !outputAmount) {
-      setDestinationInfo?.(undefined, undefined, [])
+      if (lastDestinationKeyRef.current !== null) {
+        lastDestinationKeyRef.current = null
+        setDestinationInfo?.(undefined, undefined, [])
+      }
       return
     }
 
     const amount = Number(outputAmount)
     if (!amount || amount <= 0) {
-      setDestinationInfo?.(undefined, undefined, [])
+      if (lastDestinationKeyRef.current !== null) {
+        lastDestinationKeyRef.current = null
+        setDestinationInfo?.(undefined, undefined, [])
+      }
       return
     }
 
@@ -75,16 +82,27 @@ export function SwapPanel({
 
     const currency = tokenMeta || dstCurrency
     if (!currency) {
-      setDestinationInfo?.(undefined, undefined, [])
+      if (lastDestinationKeyRef.current !== null) {
+        lastDestinationKeyRef.current = null
+        setDestinationInfo?.(undefined, undefined, [])
+      }
       return
     }
 
     try {
       const outputAmountWei = parseUnits(outputAmount, currency.decimals)
       const currencyAmount = CurrencyHandler.fromRawAmount(currency, outputAmountWei.toString())
-      setDestinationInfo(currencyAmount, undefined, [])
+      const destinationKey = `${currency.chainId}-${currency.address}-${currencyAmount.amount.toString()}`
+      
+      if (lastDestinationKeyRef.current !== destinationKey) {
+        lastDestinationKeyRef.current = destinationKey
+        setDestinationInfo(currencyAmount, undefined, [])
+      }
     } catch {
-      setDestinationInfo?.(undefined, undefined, [])
+      if (lastDestinationKeyRef.current !== null) {
+        lastDestinationKeyRef.current = null
+        setDestinationInfo?.(undefined, undefined, [])
+      }
     }
   }, [srcCurrency, dstCurrency, outputAmount, setDestinationInfo])
 
@@ -131,9 +149,10 @@ export function SwapPanel({
     if (resetKey !== undefined && resetKey > 0) {
       setOutputAmount('')
       setSelectedDstCurrency(initialDstCurrency)
+      lastDestinationKeyRef.current = null
       setDestinationInfo?.(undefined, undefined, [])
     }
-  }, [resetKey])
+  }, [resetKey, initialDstCurrency, setDestinationInfo])
 
   if (!srcCurrency) {
     return null

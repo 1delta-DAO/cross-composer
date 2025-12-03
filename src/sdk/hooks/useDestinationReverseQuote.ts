@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { reverseQuote } from '../../lib/reverseQuote'
 import { useQuoteTrace } from '../../contexts/QuoteTraceContext'
@@ -27,12 +27,19 @@ export function useDestinationReverseQuote({
   const [calculatedInputAmount, setCalculatedInputAmount] = useState<string>('')
   const [state, setState] = useState<ReverseQuoteState>('idle')
   const lastCalculatedPricesRef = useRef<{ priceIn: number; priceOut: number } | null>(null)
+  const lastDestinationAmountRef = useRef<string | null>(null)
+  const onInputAmountChangeRef = useRef(onInputAmountChange)
   const quoteTrace = useQuoteTrace()
+
+  useEffect(() => {
+    onInputAmountChangeRef.current = onInputAmountChange
+  }, [onInputAmountChange])
 
   useEffect(() => {
     if (!destinationAmount) {
       setCalculatedInputAmount('')
       lastCalculatedPricesRef.current = null
+      lastDestinationAmountRef.current = null
       setState('idle')
       return
     }
@@ -48,6 +55,9 @@ export function useDestinationReverseQuote({
       return
     }
 
+    const destinationAmountKey = `${destinationAmount.currency.chainId}-${destinationAmount.currency.address}-${destinationAmount.amount.toString()}`
+    const destinationAmountChanged = lastDestinationAmountRef.current !== destinationAmountKey
+
     const priceIn = inputPrice ?? 0
     const priceOut = actionTokenPrice ?? 0
 
@@ -57,7 +67,7 @@ export function useDestinationReverseQuote({
         !lastPrices || lastPrices.priceIn !== priceIn || lastPrices.priceOut !== priceOut
 
       const needsRecalculation =
-        pricesChanged || !calculatedInputAmount || calculatedInputAmount === ''
+        pricesChanged || destinationAmountChanged || !calculatedInputAmount || calculatedInputAmount === ''
 
       if (needsRecalculation) {
         const decimalsOut = destinationAmount.currency.decimals
@@ -86,13 +96,15 @@ export function useDestinationReverseQuote({
           )
 
           setCalculatedInputAmount(amountIn)
-          onInputAmountChange(amountIn)
+          onInputAmountChangeRef.current(amountIn)
           lastCalculatedPricesRef.current = { priceIn, priceOut }
+          lastDestinationAmountRef.current = destinationAmountKey
           setState('ready')
         } catch (error) {
           console.error('Error calculating reverse quote:', error)
           setCalculatedInputAmount('')
           lastCalculatedPricesRef.current = null
+          lastDestinationAmountRef.current = null
           setState('price_unavailable')
 
           quoteTrace.addTrace({
@@ -117,6 +129,7 @@ export function useDestinationReverseQuote({
     } else {
       setCalculatedInputAmount('')
       lastCalculatedPricesRef.current = null
+      lastDestinationAmountRef.current = null
       setState('price_unavailable')
     }
   }, [
@@ -126,8 +139,7 @@ export function useDestinationReverseQuote({
     actionTokenPrice,
     slippage,
     isLoadingPrices,
-    calculatedInputAmount,
-    onInputAmountChange,
+    quoteTrace,
   ])
 
   return {
