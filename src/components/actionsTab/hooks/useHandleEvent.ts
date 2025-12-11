@@ -55,7 +55,7 @@ export function useHandleEvent(params: HandleEventParams) {
 
       switch (evt.type) {
         case 'tx:sent': {
-          const txHash = (evt as any).txHash
+          const txHash = evt.src
 
           setExecState((s) => ({
             ...s,
@@ -85,7 +85,7 @@ export function useHandleEvent(params: HandleEventParams) {
         }
 
         case 'tx:confirmed': {
-          const hash = (evt as any).txHash
+          const hash = evt.src
 
           setExecState((s) => ({ ...s, confirmed: true }))
 
@@ -100,7 +100,7 @@ export function useHandleEvent(params: HandleEventParams) {
         }
 
         case 'bridge:update': {
-          const { dstHash: dh, completed } = evt as any
+          const { dst: dh, completed } = evt
 
           setExecState((s) => ({
             ...s,
@@ -111,7 +111,7 @@ export function useHandleEvent(params: HandleEventParams) {
         }
 
         case 'done': {
-          const { srcHash: sh, dstHash: dh, completed } = evt as any
+          const { src: sh, dst: dh, completed } = evt
 
           setExecState((s) => ({
             ...s,

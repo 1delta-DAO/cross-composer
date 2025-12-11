@@ -1,5 +1,7 @@
 export interface ExecutionEvent {
   type: string
+  src?: string
+  dst?: string
   [key: string]: any
 }
 

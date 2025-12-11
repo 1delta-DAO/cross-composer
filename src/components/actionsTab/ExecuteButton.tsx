@@ -206,7 +206,7 @@ export default function ExecuteButton(props: ExecuteButtonProps) {
               className="btn btn-warning w-full"
               onClick={() => syncChain(Number(srcChainId))}
             >
-              Switch to {srcChainId}
+              Switch Wallet Chain
             </button>
           ) : quoting ? (
             <button className="btn btn-primary w-full" disabled>
