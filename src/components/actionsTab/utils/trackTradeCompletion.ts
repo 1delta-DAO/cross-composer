@@ -1,15 +1,15 @@
 import { GenericTrade } from '@1delta/lib-utils'
 import { getStatusFromTrade } from './getStatusFromTrade'
-import { ExecutionEvent } from './types'
+import { ExecutionEvent, ExecutionEventType } from './types'
 
 export async function trackTradeCompletion(
   srcHash: string,
   trade: GenericTrade,
   emit: (event: ExecutionEvent) => void
-): Promise<{ src?: string; dst?: string; completed?: boolean }> {
+): Promise<{ src?: string; dst?: string; completed?: boolean; type: ExecutionEventType }> {
   if (!trade) {
     emit({ type: 'done', src: srcHash })
-    return { src: srcHash, completed: true }
+    return { type: 'done', src: srcHash, completed: true }
   }
 
   try {
@@ -22,16 +22,18 @@ export async function trackTradeCompletion(
         const statusInfo = status?.statusInfo
         const actionStatus = statusInfo?.status
 
+        const dst = status?.toHash
         // Emit raw status every iteration for UI debugging or display
         emit({
           type: 'update',
           status: actionStatus ?? 'UNKNOWN',
+          src: srcHash,
+          dst,
           raw: status,
         })
 
         // --- COMPLETED / DONE ---
         if (actionStatus === 'DONE') {
-          const dst = status?.toHash
           emit({
             type: 'done',
             src: srcHash,
@@ -39,6 +41,7 @@ export async function trackTradeCompletion(
           })
 
           return {
+            type: 'done',
             src: srcHash,
             dst,
             completed: true,
@@ -59,7 +62,7 @@ export async function trackTradeCompletion(
             reason: `Bridge failed: ${actionStatus} – ${errorMessage}`,
           })
 
-          return { src: srcHash, completed: false }
+          return { type: 'error', src: srcHash, dst, completed: false }
         }
       } catch (err) {
         emit({
@@ -78,7 +81,7 @@ export async function trackTradeCompletion(
       src: srcHash,
     })
 
-    return { src: srcHash, completed: false }
+    return { type: 'timeout', src: srcHash, completed: false }
   } catch (err) {
     emit({
       type: 'error',
@@ -86,6 +89,6 @@ export async function trackTradeCompletion(
       error: err instanceof Error ? err : new Error(String(err)),
     })
 
-    return { src: srcHash, completed: false }
+    return { type: 'error', src: srcHash, completed: false }
   }
 }

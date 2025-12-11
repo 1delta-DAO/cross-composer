@@ -86,7 +86,7 @@ export default function ExecuteButton(props: ExecuteButtonProps) {
   // Unified execution state (Option 2)
   const [execState, setExecState] = useState<TradeState>(initialState)
 
-  const { lastEventType, srcHash, confirmed, isExecuting } = execState
+  const { lastEventType, srcHash, dstHash, confirmed, isExecuting } = execState
 
   // Utility derived values
   const srcChainId = srcCurrency?.chainId
@@ -195,38 +195,33 @@ export default function ExecuteButton(props: ExecuteButtonProps) {
 
   return (
     <div className="space-y-3">
-      {(step === 'idle' || step === 'error') && (
-        <>
-          {!isConnected ? (
-            <div className="w-full flex justify-center">
-              <WalletConnect />
-            </div>
-          ) : currentChainId !== Number(srcChainId) ? (
-            <button
-              className="btn btn-warning w-full"
-              onClick={() => syncChain(Number(srcChainId))}
-            >
-              Switch Wallet Chain
-            </button>
-          ) : quoting ? (
-            <button className="btn btn-primary w-full" disabled>
-              <span className="loading loading-spinner loading-sm"></span>
-              {isBridge ? 'Loading bridge quote...' : 'Loading swap quote...'}
-            </button>
-          ) : !trade ? (
-            <button className="btn btn-primary w-full" disabled>
-              {isBridge ? 'Bridge' : 'Swap'}
-            </button>
-          ) : (
-            <button className="btn btn-primary w-full" onClick={execute} disabled={isExecuting}>
-              {isBridge ? 'Bridge' : 'Swap'}
-            </button>
-          )}
-        </>
-      )}
+      <>
+        {!isConnected ? (
+          <div className="w-full flex justify-center">
+            <WalletConnect />
+          </div>
+        ) : currentChainId !== Number(srcChainId) ? (
+          <button className="btn btn-warning w-full" onClick={() => syncChain(Number(srcChainId))}>
+            Switch Wallet Chain
+          </button>
+        ) : quoting ? (
+          <button className="btn btn-primary w-full" disabled>
+            <span className="loading loading-spinner loading-sm"></span>
+            {isBridge ? 'Loading bridge quote...' : 'Loading swap quote...'}
+          </button>
+        ) : !trade ? (
+          <button className="btn btn-primary w-full" disabled>
+            {isBridge ? 'Bridge' : 'Swap'}
+          </button>
+        ) : (
+          <button className="btn btn-primary w-full" onClick={execute} disabled={isExecuting}>
+            {isExecuting ? 'Executing...' : isBridge ? 'Bridge' : 'Swap'}
+          </button>
+        )}
+      </>
 
       {/* Step indicators */}
-      {step !== 'idle' && !srcHash && (
+      {step !== 'idle' && isExecuting && (
         <div className="space-y-3">
           <div className="flex items-center gap-4">
             {needsApproval && shouldShow('approving') && (

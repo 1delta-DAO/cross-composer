@@ -66,11 +66,11 @@ export function executeTrade(args: {
 
       const txHash = await args.walletClient.sendTransaction(txData as any)
 
-      emit({ type: 'tx:sent', txHash })
+      emit({ type: 'tx:sent', src: txHash })
 
       await args.publicClient.waitForTransactionReceipt({ hash: txHash })
 
-      emit({ type: 'tx:confirmed', txHash })
+      emit({ type: 'tx:confirmed', src: txHash })
 
       // -----------------------------------------------------
       // 3. BRIDGE TRACKING
@@ -78,15 +78,17 @@ export function executeTrade(args: {
       if (isBridge(args.trade)) {
         emit({ type: 'tracking', srcHash: txHash })
 
-        await trackTradeCompletion(txHash, args.trade, emit)
+        const eventSummary = await trackTradeCompletion(txHash, args.trade, emit)
 
-        return { srcHash: txHash, completed: true }
+        emit(eventSummary)
+
+        return { srcHash: txHash, dstHash: eventSummary.dst, completed: true }
       }
 
       // -----------------------------------------------------
       // 4. NO BRIDGE → DONE
       // -----------------------------------------------------
-      emit({ type: 'done', srcHash: txHash })
+      emit({ type: 'done', src: txHash })
       return { srcHash: txHash, completed: true }
     } catch (error: any) {
       emit({ type: 'error', error })

@@ -51,7 +51,9 @@ export function useHandleEvent(params: HandleEventParams) {
   // Main event handler
   const handleEvent = useCallback(
     (evt: ExecutionEvent) => {
+      // update last event
       setExecState((s) => ({ ...s, lastEventType: evt.type, lastEvent: evt }))
+
       switch (evt.type) {
         case 'tx:sent': {
           const txHash = evt.src
@@ -86,14 +88,15 @@ export function useHandleEvent(params: HandleEventParams) {
         case 'tx:confirmed': {
           const hash = evt.src
 
-          setExecState((s) => ({ ...s, confirmed: true }))
-
           if (!isBridge) {
             if (historyIdRef.current) {
               updateEntry(historyIdRef.current, { status: 'completed' })
             }
             onTransactionEnd?.()
+            setExecState((s) => ({ ...s, srcHash: hash, confirmed: true }))
             onDone({ src: hash })
+          } else {
+            setExecState((s) => ({ ...s, srcHash: hash }))
           }
           break
         }
@@ -159,7 +162,7 @@ export function useHandleEvent(params: HandleEventParams) {
       toast,
     ]
   )
-
+  const confirmFlag = Boolean(execState.confirmed)
   // Notify parent about reset availability
   useEffect(() => {
     const resetCallback = () => {
@@ -173,9 +176,9 @@ export function useHandleEvent(params: HandleEventParams) {
       })
       onReset?.()
     }
-    const showReset = Boolean(execState.confirmed && execState.srcHash)
+    const showReset = Boolean(confirmFlag && execState.srcHash)
     onResetStateChange?.(showReset, showReset ? resetCallback : undefined)
-  }, [execState.confirmed, execState.srcHash, onResetStateChange, onReset])
+  }, [confirmFlag, onResetStateChange, onReset])
 
   return handleEvent
 }
