@@ -1,5 +1,20 @@
+export type ExecutionEventType =
+  | 'approval:start'
+  | 'approval:sent'
+  | 'approval:confirmed'
+  | 'tx:signing'
+  | 'tx:sent'
+  | 'tx:confirmed'
+  | 'bridge:tracking'
+  | 'bridge:update'
+  | 'bridge:completed'
+  | 'done'
+  | 'error'
+  | 'bridge:error'
+  | 'timeout'
+
 export interface ExecutionEvent {
-  type: string
+  type: ExecutionEventType
   src?: string
   dst?: string
   [key: string]: any

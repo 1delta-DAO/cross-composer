@@ -127,6 +127,7 @@ export function useHandleEvent(params: HandleEventParams) {
             })
           }
 
+          toast.showSuccess('Transaction success')
           onTransactionEnd?.()
           onDone({ src: sh, dst: dh, completed: Boolean(dh || completed) })
 

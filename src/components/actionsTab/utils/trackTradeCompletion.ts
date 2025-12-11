@@ -1,6 +1,7 @@
 import { GenericTrade } from '@1delta/lib-utils'
 import { getStatusFromTrade } from './getStatusFromTrade'
 import { ExecutionEvent } from './types'
+import { BridgeStatus } from '@1delta/trade-sdk'
 
 export async function trackTradeCompletion(
   srcHash: string,
@@ -17,13 +18,11 @@ export async function trackTradeCompletion(
     const delayMs = 5000
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      emit({ type: 'bridge:attempt', attempt })
-
       try {
         const status = await getStatusFromTrade(srcHash, trade)
         const statusAny = status as any
         const statusInfo = statusAny?.statusInfo
-        const bridgeStatus = (statusInfo?.status || statusAny?.status) as string | undefined
+        const bridgeStatus = (statusInfo?.status || statusAny?.status) as BridgeStatus | undefined
 
         // Emit raw status every iteration for UI debugging or display
         emit({
@@ -48,7 +47,7 @@ export async function trackTradeCompletion(
         }
 
         // --- COMPLETED / DONE ---
-        if (bridgeStatus === 'DONE' || bridgeStatus === 'COMPLETED') {
+        if (bridgeStatus === 'DONE') {
           emit({
             type: 'bridge:completed',
             src: srcHash,
@@ -61,13 +60,13 @@ export async function trackTradeCompletion(
         }
 
         // --- ERROR CODES (bridges return code/message) ---
-        if (status?.code) {
+        if (status?.message) {
           const errorMessage = status?.message || 'Bridge transaction failed'
 
           emit({
-            type: 'bridge:failed',
+            type: 'error',
             src: srcHash,
-            reason: `Bridge failed: ${status.code} – ${errorMessage}`,
+            reason: `Bridge failed: ${errorMessage}`,
           })
 
           return { src: srcHash, completed: false }
@@ -77,8 +76,7 @@ export async function trackTradeCompletion(
         if (
           bridgeStatus === 'FAILED' ||
           bridgeStatus === 'TRANSFER_REFUNDED' ||
-          bridgeStatus === 'INVALID' ||
-          bridgeStatus === 'REVERTED'
+          bridgeStatus === 'INVALID'
         ) {
           const errorMessage =
             statusInfo?.message ||
@@ -87,7 +85,7 @@ export async function trackTradeCompletion(
             'Bridge transaction failed'
 
           emit({
-            type: 'bridge:failed',
+            type: 'bridge:error',
             src: srcHash,
             reason: `Bridge failed: ${bridgeStatus} – ${errorMessage}`,
           })
@@ -107,7 +105,7 @@ export async function trackTradeCompletion(
 
     // Timeout after max attempts
     emit({
-      type: 'bridge:timeout',
+      type: 'timeout',
       src: srcHash,
     })
 
