@@ -142,7 +142,14 @@ export default function ExecuteButton(props: ExecuteButtonProps) {
 
     onTransactionStart?.()
 
-    setExecState((s) => ({ ...s, isExecuting: true }))
+    setExecState({
+      lastEventType: null,
+      lastEvent: null,
+      srcHash: undefined,
+      dstHash: undefined,
+      confirmed: false,
+      isExecuting: true,
+    })
     try {
       const tracker = executeTrade({
         trade: trade as GenericTrade,
