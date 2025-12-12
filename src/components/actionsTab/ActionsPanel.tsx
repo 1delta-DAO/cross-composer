@@ -2,7 +2,7 @@ import ActionSelector from '../ActionSelector'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { ActionHandler } from '../actions/shared/types'
 import type { GenericTrade } from '@1delta/lib-utils'
-import { TransactionSummary } from '../actions/shared/TransactionSummary'
+import { TransactionSummary } from '../transactionSummary/TransactionSummary'
 import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
 import type { PricesRecord } from '../../hooks/prices/usePriceQuery'
 

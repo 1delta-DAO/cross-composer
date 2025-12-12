@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from 'react'
-import type { RawCurrency, RawCurrencyAmount } from '../../../types/currency'
-import { formatDisplayAmount } from '../../actionsTab/swapUtils'
-import { CurrencyHandler } from '../../../sdk/types'
-import type { PricesRecord } from '../../../hooks/prices/usePriceQuery'
+import { SummaryRow } from './SummaryRow'
+import { RouteSection } from './RouteSection'
+import { CurrencyHandler, RawCurrency, RawCurrencyAmount } from '@1delta/lib-utils'
+import { PricesRecord } from '../../hooks/prices/usePriceQuery'
+import { formatDisplayAmount } from '../actionsTab/swapUtils'
 
 interface TransactionSummaryProps {
   srcCurrency?: RawCurrency
@@ -48,12 +49,12 @@ export function TransactionSummary({
   const pricesData = pricesDataProp
   const isLoadingPrices = isLoadingPricesProp ?? false
   const isFetchingPrices = isFetchingPricesProp ?? false
+  const isPricesLoading = isLoadingPrices || isFetchingPrices
 
   const srcPrice = useMemo(() => {
     if (!pricesData || !srcCurrency) return undefined
     const chainId = srcCurrency.chainId
     const addressKey = srcCurrency.address?.toLowerCase()
-    if (!chainId || !addressKey) return undefined
     return pricesData[chainId]?.[addressKey]?.usd
   }, [pricesData, srcCurrency])
 
@@ -61,13 +62,10 @@ export function TransactionSummary({
     if (!pricesData || !dstCurrency) return undefined
     const chainId = dstCurrency.chainId
     const addressKey = dstCurrency.address?.toLowerCase()
-    if (!chainId || !addressKey) return undefined
     return pricesData[chainId]?.[addressKey]?.usd
   }, [pricesData, dstCurrency])
 
   const [showCalculatingTimeout, setShowCalculatingTimeout] = useState(false)
-
-  const isPricesLoading = isLoadingPrices || isFetchingPrices
 
   useEffect(() => {
     setShowCalculatingTimeout(false)
@@ -121,67 +119,43 @@ export function TransactionSummary({
     return chains[dstCurrency.chainId]?.data?.name || dstCurrency.chainId
   }, [dstCurrency?.chainId, chains])
 
-  if (!shouldShow) return null
-
   const hasInputAmount = inputAmount && Number(inputAmount) > 0
   const formattedInput = hasInputAmount
     ? formatDisplayAmount(inputAmount)
     : showCalculatingTimeout
       ? 'Price unavailable'
       : 'Calculating...'
+
   const formattedOutput = formatDisplayAmount(outputAmount || '0')
 
+  if (!shouldShow) return null
   return (
     <div className="card bg-base-200 shadow-sm border border-base-300 mt-4">
       <div className="card-body p-4">
         <div className="text-sm font-semibold mb-3">Transaction Details</div>
+
         <div className="space-y-3">
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm opacity-70">You'll pay:</span>
-              <span className="font-medium">
-                {hasInputAmount ? (
-                  <>
-                    {formattedInput} {srcCurrency?.symbol}
-                  </>
-                ) : (
-                  <span className="opacity-60">{formattedInput}</span>
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs opacity-50"></span>
-              <div className="text-xs opacity-60">
-                {inputUsd !== undefined && isFinite(inputUsd) ? `$${inputUsd.toFixed(2)}` : ''}
-                {srcChainName && <span className="ml-2">({srcChainName})</span>}
-              </div>
-            </div>
-          </div>
+          {/* You’ll Pay */}
+          <SummaryRow
+            label="You'll pay:"
+            amount={formattedInput}
+            currencySymbol={srcCurrency?.symbol}
+            chainName={srcChainName}
+            amountUsd={inputUsd}
+            showFadedAmount={!hasInputAmount}
+          />
 
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm opacity-70">You'll receive:</span>
-              <span className="font-medium">
-                {formattedOutput} {dstCurrency?.symbol}
-                {destinationActionLabel && (
-                  <span className="ml-1 opacity-80">→ {destinationActionLabel}</span>
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs opacity-50"></span>
-              <div className="text-xs opacity-60">
-                {outputUsd !== undefined && isFinite(outputUsd) ? `$${outputUsd.toFixed(2)}` : ''}
-                {dstChainName && <span className="ml-2">({dstChainName})</span>}
-              </div>
-            </div>
-          </div>
+          {/* You’ll Receive */}
+          <SummaryRow
+            label="You'll receive:"
+            amount={formattedOutput}
+            currencySymbol={dstCurrency?.symbol}
+            chainName={dstChainName}
+            amountUsd={outputUsd}
+            destinationActionLabel={destinationActionLabel}
+          />
 
-          {route && (
-            <div className="pt-2 border-t border-base-300">
-              <div className="text-xs opacity-60">Route: {route}</div>
-            </div>
-          )}
+          {route && <RouteSection route={route} />}
         </div>
       </div>
     </div>
