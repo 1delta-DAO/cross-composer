@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback, Dispatch, SetStateAction } from 'react'
 import type { RawCurrency, RawCurrencyAmount } from '../types/currency'
 import { ActionIconGrid } from './actions/shared/ActionIconGrid'
 import { SelectedActionHeader } from './actions/shared/SelectedActionHeader'
@@ -14,7 +14,29 @@ import { type GenericTrade } from '@1delta/lib-utils'
 import BalanceDisplay from './balance/balanceDisplay'
 import { PricesRecord } from '../hooks/prices/usePriceQuery'
 
+export const initialState: UnifiedState = {
+  selectedAction: null,
+  selectedCategory: 'all',
+  isExpanded: true,
+  isPanelExpanded: true,
+  actionData: {},
+  actionDataLoading: {},
+  panelResetKey: 0,
+}
+
+export interface UnifiedState {
+  selectedAction: ActionType | null
+  selectedCategory: ActionCategory
+  isExpanded: boolean
+  isPanelExpanded: boolean
+  actionData: Record<string, any>
+  actionDataLoading: Record<string, boolean>
+  panelResetKey: number
+}
+
 interface ActionSelectorProps {
+  state: UnifiedState
+  setState: Dispatch<SetStateAction<UnifiedState>>
   pricesData?: PricesRecord
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
@@ -26,30 +48,6 @@ interface ActionSelectorProps {
   resetKey?: number
   onSrcCurrencyChange?: (currency: RawCurrency) => void
   destinationInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string }
-}
-
-/* -------------------------------------------------------------------------- */
-/*                            UNIFIED STATE SHAPE                             */
-/* -------------------------------------------------------------------------- */
-
-interface UnifiedState {
-  selectedAction: ActionType | null
-  selectedCategory: ActionCategory
-  isExpanded: boolean
-  isPanelExpanded: boolean
-  actionData: Record<string, any>
-  actionDataLoading: Record<string, boolean>
-  panelResetKey: number
-}
-
-const initialState: UnifiedState = {
-  selectedAction: null,
-  selectedCategory: 'all',
-  isExpanded: true,
-  isPanelExpanded: true,
-  actionData: {},
-  actionDataLoading: {},
-  panelResetKey: 0,
 }
 
 /* -------------------------------------------------------------------------- */
@@ -69,9 +67,9 @@ export default function ActionSelector(props: ActionSelectorProps) {
     onSrcCurrencyChange,
     destinationInfo,
     pricesData,
+    state,
+    setState,
   } = props
-
-  const [state, setState] = useState<UnifiedState>(initialState)
 
   const {
     selectedAction,

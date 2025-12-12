@@ -4,6 +4,9 @@ import { RouteSection } from './RouteSection'
 import { CurrencyHandler, RawCurrency, RawCurrencyAmount } from '@1delta/lib-utils'
 import { PricesRecord } from '../../hooks/prices/usePriceQuery'
 import { formatDisplayAmount } from '../actionsTab/swapUtils'
+import { UnifiedState } from '../ActionSelector'
+import { getRegisteredActions } from '../actions/shared/actionDefinitions'
+import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
 
 interface TransactionSummaryProps {
   srcCurrency?: RawCurrency
@@ -13,10 +16,10 @@ interface TransactionSummaryProps {
   currencyAmount?: RawCurrencyAmount
   destinationActionLabel?: string
   route?: string
-  chains?: Record<string, { data?: { name?: string } }>
   pricesData?: PricesRecord
   isLoadingPrices?: boolean
   isFetchingPrices?: boolean
+  state: UnifiedState
 }
 
 export function TransactionSummary({
@@ -27,11 +30,13 @@ export function TransactionSummary({
   currencyAmount,
   destinationActionLabel,
   route,
-  chains,
   pricesData: pricesDataProp,
   isLoadingPrices: isLoadingPricesProp,
   isFetchingPrices: isFetchingPricesProp,
+  state,
 }: TransactionSummaryProps) {
+  const { data: chains } = useChainsRegistry()
+
   const outputAmount = useMemo(() => {
     if (outputAmountProp) return outputAmountProp
     if (currencyAmount) {
@@ -129,13 +134,52 @@ export function TransactionSummary({
   const formattedOutput = formatDisplayAmount(outputAmount || '0')
 
   if (!shouldShow) return null
+
+  /* -------------------------------------------------------------------------- */
+  /*                    Checkout Summary Renderer                               */
+  /* -------------------------------------------------------------------------- */
+
+  const renderSummary = () => {
+    if (!state.selectedAction) return null
+
+    const def = getRegisteredActions().find((a) => a.id === state.selectedAction)
+    if (!def) return null
+
+    // either pick costom summary if any
+    if (!def.customSummary)
+      return (
+        <SummaryRow
+          label="You'll receive:"
+          amount={formattedOutput}
+          currencySymbol={dstCurrency?.symbol}
+          chainName={dstChainName}
+          amountUsd={outputUsd}
+          destinationActionLabel={destinationActionLabel}
+        />
+      )
+
+    // or the default
+    return (
+      <def.customSummary
+        actionData={state.actionData}
+        common={{
+          formattedOutput,
+          dstCurrency,
+          dstChainName,
+          outputUsd,
+          destinationActionLabel,
+        }}
+      />
+    )
+  }
+
   return (
     <div className="card bg-base-200 shadow-sm border border-base-300 mt-4">
       <div className="card-body p-4">
         <div className="text-sm font-semibold mb-3">Transaction Details</div>
 
         <div className="space-y-3">
-          {/* You’ll Pay */}
+          {/* Pay info */}
           <SummaryRow
             label="You'll pay:"
             amount={formattedInput}
@@ -145,15 +189,8 @@ export function TransactionSummary({
             showFadedAmount={!hasInputAmount}
           />
 
-          {/* You’ll Receive */}
-          <SummaryRow
-            label="You'll receive:"
-            amount={formattedOutput}
-            currencySymbol={dstCurrency?.symbol}
-            chainName={dstChainName}
-            amountUsd={outputUsd}
-            destinationActionLabel={destinationActionLabel}
-          />
+          {/* Checkout info */}
+          {renderSummary()}
 
           {route && <RouteSection route={route} />}
         </div>
