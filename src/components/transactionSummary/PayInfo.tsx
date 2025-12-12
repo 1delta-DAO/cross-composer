@@ -1,6 +1,7 @@
 import React from 'react'
 import { Logo } from '../common/Logo'
 import { getChainLogo, RawCurrency } from '@1delta/lib-utils'
+import { trimDecimals } from '../../lib/trimDecimal'
 
 interface PayInfoProps {
   label?: string
@@ -43,7 +44,7 @@ export function PayInfo({
 
           {/* Amount + symbol */}
           <span className={`text-lg font-medium ${showFadedAmount ? 'opacity-50' : ''}`}>
-            {amount} {currency?.symbol}
+            {trimDecimals(amount ?? '0', currency?.decimals ?? 18)} {currency?.symbol}
           </span>
           {/* Chain info row */}
           {chainName && (
@@ -62,7 +63,7 @@ export function PayInfo({
         </div>
 
         {/* USD value */}
-        {formattedUsd && <span className="text-xs opacity-60 ml-8">{formattedUsd}</span>}
+        {formattedUsd && <div className="text-xs opacity-70">≈ {formattedUsd} USD</div>}
       </div>
     </div>
   )
