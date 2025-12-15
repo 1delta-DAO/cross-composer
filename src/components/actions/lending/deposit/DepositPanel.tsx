@@ -9,17 +9,17 @@ import type { RawCurrencyAmount } from '../../../../types/currency'
 
 type DepositPanelProps = {
   chainId?: string
-  setDestinationInfo?: ActionHandler
+  setActionInfo?: ActionHandler
   resetKey?: number
-  destinationInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string }
+  actionInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string }
   markets?: MoonwellMarket[]
 }
 
 export function DepositPanel({
   chainId,
-  setDestinationInfo,
+  setActionInfo,
   resetKey,
-  destinationInfo,
+  actionInfo,
   markets = [],
 }: DepositPanelProps) {
   const { address } = useConnection()
@@ -42,7 +42,7 @@ export function DepositPanel({
       setIsExpanded(false)
       setMarketAmounts(new Map())
       setLastSelectedMarketAddress(undefined)
-      setDestinationInfo?.(undefined, undefined, [])
+      setActionInfo?.(undefined, undefined, [])
     }
   }, [resetKey])
 
@@ -133,7 +133,7 @@ export function DepositPanel({
           onClose={() => setSelectedMarket(undefined)}
           userAddress={address as any}
           chainId={chainId}
-          setDestinationInfo={setDestinationInfo}
+          setActionInfo={setActionInfo}
           amount={marketAmounts.get(selectedMarket.mTokenCurrency.address) || ''}
           onAmountChange={(amount) =>
             handleAmountChange(selectedMarket.mTokenCurrency.address, amount)

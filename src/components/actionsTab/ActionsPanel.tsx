@@ -14,14 +14,14 @@ type ActionsPanelProps = {
   srcCurrency?: RawCurrency
   dstCurrency?: RawCurrency
   currentChainId: number
-  setDestinationInfo?: ActionHandler
+  setActionInfo?: ActionHandler
   quotes?: Array<{ label: string; trade: GenericTrade }>
   selectedQuoteIndex?: number
   setSelectedQuoteIndex?: (index: number) => void
   slippage?: number
   onSrcCurrencyChange: (currency: RawCurrency) => void
   calculatedInputAmount?: string
-  destinationInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string }
+  actionInfo?: { currencyAmount?: RawCurrencyAmount; actionLabel?: string }
   resetKey?: number
   pricesData?: PricesRecord
   isLoadingPrices?: boolean
@@ -31,14 +31,14 @@ type ActionsPanelProps = {
 export function ActionsPanel({
   srcCurrency,
   dstCurrency,
-  setDestinationInfo,
+  setActionInfo,
   quotes,
   selectedQuoteIndex,
   setSelectedQuoteIndex,
   slippage,
   onSrcCurrencyChange,
   calculatedInputAmount,
-  destinationInfo,
+  actionInfo,
   resetKey,
   pricesData,
   isLoadingPrices,
@@ -56,21 +56,21 @@ export function ActionsPanel({
         resetKey={resetKey}
         srcCurrency={srcCurrency}
         dstCurrency={dstCurrency}
-        setDestinationInfo={setDestinationInfo}
+        setActionInfo={setActionInfo}
         quotes={quotes}
         selectedQuoteIndex={selectedQuoteIndex}
         setSelectedQuoteIndex={setSelectedQuoteIndex}
         slippage={slippage}
         onSrcCurrencyChange={onSrcCurrencyChange}
-        destinationInfo={destinationInfo}
+        actionInfo={actionInfo}
       />
 
       <TransactionSummary
         srcCurrency={srcCurrency}
         dstCurrency={dstCurrency}
         inputAmount={calculatedInputAmount}
-        currencyAmount={destinationInfo?.currencyAmount}
-        destinationActionLabel={destinationInfo?.actionLabel}
+        currencyAmount={actionInfo?.currencyAmount}
+        destinationActionLabel={actionInfo?.actionLabel}
         pricesData={pricesData}
         isLoadingPrices={isLoadingPrices}
         isFetchingPrices={isFetchingPrices}

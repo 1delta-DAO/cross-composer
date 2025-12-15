@@ -17,7 +17,7 @@ type DepositActionModalProps = {
   selectedCurrency: RawCurrency
   userAddress?: Address
   chainId?: string
-  setDestinationInfo?: ActionHandler
+  setActionInfo?: ActionHandler
   amount?: string
   onAmountChange?: (amount: string) => void
 }
@@ -27,7 +27,7 @@ export function DepositActionModal({
   onClose,
   market,
   selectedCurrency,
-  setDestinationInfo,
+  setActionInfo,
   amount: externalAmount,
   onAmountChange,
 }: DepositActionModalProps) {
@@ -68,7 +68,7 @@ export function DepositActionModal({
     })
 
     const parsedAmount = parseUnits(amount, underlying.decimals)
-    setDestinationInfo?.(
+    setActionInfo?.(
       CurrencyHandler.fromRawAmount(underlying, parsedAmount),
       undefined,
       destinationCalls,
@@ -99,7 +99,7 @@ export function DepositActionModal({
           <button
             className="btn btn-sm btn-ghost btn-circle"
             onClick={() => {
-              setDestinationInfo?.(undefined, undefined, [])
+              setActionInfo?.(undefined, undefined, [])
               onClose()
             }}
           >
@@ -163,7 +163,7 @@ export function DepositActionModal({
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
-                  setDestinationInfo?.(undefined, undefined, [])
+                  setActionInfo?.(undefined, undefined, [])
                   onClose()
                 }}
               >

@@ -478,14 +478,14 @@ export function ActionsTab({ onResetStateChange }: Props) {
         srcCurrency={inputCurrency}
         dstCurrency={actionCurrency}
         currentChainId={currentChainId}
-        setDestinationInfo={setDestinationInfo}
+        setActionInfo={setDestinationInfo}
         quotes={quotes}
         selectedQuoteIndex={selectedQuoteIndex}
         setSelectedQuoteIndex={wrappedSetSelectedQuoteIndex}
         slippage={slippage}
         onSrcCurrencyChange={setInputCurrency}
         calculatedInputAmount={calculatedInputAmount}
-        destinationInfo={destinationInfo}
+        actionInfo={destinationInfo}
         pricesData={pricesData}
         isLoadingPrices={isLoadingPrices}
         isFetchingPrices={isFetchingPrices}
