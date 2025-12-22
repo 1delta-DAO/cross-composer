@@ -8,6 +8,7 @@ import { registerActions } from './components/actions/shared/registerActions'
 import { fetchMainPrices } from './hooks/prices/usePriceQuery'
 import { loadTokenLists } from './lib/data/tokenListsCache'
 import { initializeMoonwellMarkets } from './components/actions/lending/deposit/marketCache'
+import { currencyGetter, priceGetter } from './utils/initUtils'
 
 let isInitialized = false
 
@@ -29,6 +30,8 @@ export async function initAll() {
 
     await initTradeSdk({
       isProductionEnv: isProd,
+      priceGetter,
+      currencyGetter,
       loadChainData: true,
       loadSquidData: true,
       load1deltaConfigs: true,
