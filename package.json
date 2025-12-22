@@ -18,9 +18,9 @@
     "@1delta/calldatalib": "0.0.46",
     "@1delta/chain-registry": "^0.0.4",
     "@1delta/data-sdk": "^0.0.11",
-    "@1delta/lib-utils": "^0.1.8",
+    "@1delta/lib-utils": "file:./temp/1delta-lib-utils-0.1.9.tgz",
     "@1delta/providers": "^0.0.42",
-    "@1delta/trade-sdk": "^0.1.7",
+    "@1delta/trade-sdk": "file:./temp/1delta-trade-sdk-0.1.8.tgz",
     "@rainbow-me/rainbowkit": "^2.2.10",
     "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/react-query": "^5.90.12",
@@ -31,7 +31,7 @@
     "react-dom": "^19.2.3",
     "react-window": "2.2.3",
     "tailwindcss": "^4.1.18",
-    "viem": "^2.43.1",
+    "viem": "^2.43.3",
     "vite": "^7.3.0",
     "wagmi": "^3.1.0"
   },
@@ -47,7 +47,8 @@
   "pnpm": {
     "overrides": {
       "@1delta/providers": "^0.0.42",
-      "@1delta/bridge-configs": "^0.1.8"
+      "@1delta/bridge-configs": "^0.1.8",
+      "@1delta/lib-utils": "file:./temp/1delta-lib-utils-0.1.9.tgz"
     }
   }
 }
