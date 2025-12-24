@@ -10,6 +10,10 @@ import { ReverseActionsPanel } from './ReverseActionsPanel'
 import type { ActionCall } from '../actions/shared/types'
 import { ActionHandler } from '../actions/shared/types'
 import { useQuoteTrace } from '../../contexts/QuoteTraceContext'
+import { useTradeQuotes } from '../../sdk/hooks/useTradeQuotes'
+import type { Quote } from '../../sdk/hooks/useQuoteFetcher'
+import ExecuteButton from './ExecuteButton'
+import { useQueryClient } from '@tanstack/react-query'
 
 type Props = {
   onResetStateChange?: (showReset: boolean, resetCallback?: () => void) => void
@@ -30,24 +34,12 @@ export function ReverseActionsTab({ onResetStateChange }: Props) {
     { currencyAmount?: RawCurrencyAmount; actionLabel?: string; actionId?: string } | undefined
   >(undefined)
   const [actionResetKey, setActionResetKey] = useState(0)
+  const [selectedQuoteIndex, setSelectedQuoteIndex] = useState(0)
+  const [txInProgress, setTxInProgress] = useState(false)
+  const isUserSelectionRef = useRef<boolean>(false)
 
   const destinationChainId = destinationCurrency?.chainId ?? DEFAULT_DESTINATION_CHAIN_ID
   const inputActionChainId = inputActionCurrency?.chainId
-
-  useEffect(() => {
-    if (destinationCurrency || !lists || !chains) return
-    const native = chains?.[DEFAULT_DESTINATION_CHAIN_ID]?.data?.nativeCurrency?.symbol
-    const force = DEFAULT_DESTINATION_CHAIN_ID === SupportedChainId.BASE ? 'USDC' : undefined
-    const tokensMap = lists[DEFAULT_DESTINATION_CHAIN_ID] || {}
-    const pick = Object.keys(tokensMap).find((addr) => {
-      const token = tokensMap[addr.toLowerCase()]
-      return token?.symbol === (force || native)
-    })
-    if (!pick) return
-    const meta = tokensMap[pick.toLowerCase()]
-    if (!meta) return
-    setDestinationCurrency(meta)
-  }, [destinationCurrency, lists, chains])
 
   const allCurrenciesForPrice = useMemo(() => {
     const currencies: RawCurrency[] = []
@@ -93,6 +85,85 @@ export function ReverseActionsTab({ onResetStateChange }: Props) {
 
   const { slippage } = useSlippage()
   const quoteTrace = useQuoteTrace()
+  const queryClient = useQueryClient()
+
+  const srcAmount = useMemo(() => inputInfo?.currencyAmount, [inputInfo])
+
+  const shouldFetchQuotes = useMemo(() => {
+    return !txInProgress && Boolean(srcAmount && destinationCurrency)
+  }, [txInProgress, srcAmount, destinationCurrency])
+
+  const handleQuotesChange = useCallback(
+    (newQuotes: Quote[]) => {
+      if (txInProgress) {
+        return
+      }
+
+      if (newQuotes.length === 0) {
+        setSelectedQuoteIndex(0)
+        isUserSelectionRef.current = false
+        return
+      }
+
+      setSelectedQuoteIndex((prevIndex) => {
+        const isValidIndex = prevIndex >= 0 && prevIndex < newQuotes.length
+        const shouldPreserve = isValidIndex && isUserSelectionRef.current
+        return shouldPreserve ? prevIndex : 0
+      })
+
+      if (!isUserSelectionRef.current) {
+        isUserSelectionRef.current = false
+      }
+    },
+    [txInProgress]
+  )
+
+  const actionInfo = useMemo(() => {
+    if (!inputActionCurrency || !destinationCurrency) return undefined
+
+    const isSameChain = inputActionCurrency.chainId === destinationCurrency.chainId
+
+    if (inputCalls && inputCalls.length > 0) {
+      return {
+        actionType: inputInfo?.actionId || 'action',
+        actionLabel: inputInfo?.actionLabel,
+        actionId: inputInfo?.actionId,
+      }
+    }
+
+    if (isSameChain) {
+      return {
+        actionType: 'swap',
+        actionLabel: 'Swap',
+        actionId: 'swap',
+      }
+    }
+
+    return {
+      actionType: 'bridge',
+      actionLabel: 'Bridge',
+      actionId: 'bridge',
+    }
+  }, [inputActionCurrency, destinationCurrency, inputCalls, inputInfo])
+
+  const { quotes, quoting, amountWei, clearQuotes, abortQuotes } = useTradeQuotes({
+    srcAmount,
+    dstCurrency: destinationCurrency,
+    slippage,
+    inputCalls,
+    onQuotesChange: handleQuotesChange,
+    shouldFetch: shouldFetchQuotes,
+    actionInfo,
+  })
+
+  const wrappedSetSelectedQuoteIndex = useCallback((index: number) => {
+    isUserSelectionRef.current = true
+    setSelectedQuoteIndex(index)
+  }, [])
+
+  const selectedTrade = quotes[selectedQuoteIndex]?.trade
+  const [preservedTrade, setPreservedTrade] = useState<typeof selectedTrade | undefined>(undefined)
+  const tradeToUse = preservedTrade || selectedTrade
 
   const setInputInfo = useCallback<ActionHandler>(
     (
@@ -147,6 +218,45 @@ export function ReverseActionsTab({ onResetStateChange }: Props) {
     [destinationCurrency, slippage, quoteTrace, inputActionCurrency]
   )
 
+  const handleTransactionDone = useCallback(
+    (hashes: { src?: string; dst?: string; completed?: boolean }) => {
+      if (hashes.src) {
+        abortQuotes()
+        if (inputActionCurrency?.chainId && address) {
+          queryClient.invalidateQueries({
+            queryKey: ['balances', address],
+          })
+        }
+        if (destinationCurrency?.chainId && address) {
+          queryClient.invalidateQueries({
+            queryKey: ['balances', address],
+          })
+        }
+        setInputInfo(undefined, undefined, [])
+        setActionResetKey((prev) => prev + 1)
+        setPreservedTrade(undefined)
+      }
+    },
+    [abortQuotes, inputActionCurrency, destinationCurrency, address, queryClient, setInputInfo]
+  )
+
+  const handleTransactionStart = useCallback(() => {
+    if (selectedTrade) {
+      setPreservedTrade(selectedTrade)
+    }
+    setTxInProgress(true)
+  }, [selectedTrade])
+
+  const handleTransactionEnd = useCallback(() => {
+    setTxInProgress(false)
+    setPreservedTrade(undefined)
+  }, [])
+
+  const handleReset = useCallback(() => {
+    setTxInProgress(false)
+    setPreservedTrade(undefined)
+  }, [])
+
   return (
     <div>
       <ReverseActionsPanel
@@ -155,9 +265,9 @@ export function ReverseActionsTab({ onResetStateChange }: Props) {
         dstCurrency={destinationCurrency}
         currentChainId={currentChainId}
         setActionInfo={setInputInfo}
-        quotes={[]}
-        selectedQuoteIndex={0}
-        setSelectedQuoteIndex={() => {}}
+        quotes={quotes}
+        selectedQuoteIndex={selectedQuoteIndex}
+        setSelectedQuoteIndex={wrappedSetSelectedQuoteIndex}
         slippage={slippage}
         onDstCurrencyChange={setDestinationCurrency}
         calculatedInputAmount={undefined}
@@ -167,16 +277,23 @@ export function ReverseActionsTab({ onResetStateChange }: Props) {
         isFetchingPrices={isFetchingPrices}
       />
 
-      {inputInfo && inputActionCurrency && destinationCurrency && (
+      {((tradeToUse && inputActionCurrency) ||
+        (inputInfo && inputActionCurrency && destinationCurrency)) && (
         <div className="mt-4 space-y-3">
-          <div className="rounded-lg bg-info/10 border border-info p-3">
-            <div className="flex items-start gap-2">
-              <span className="text-info text-lg">ℹ️</span>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-info">Quote Not Available</div>
-              </div>
-            </div>
-          </div>
+          <ExecuteButton
+            trade={tradeToUse}
+            srcCurrency={inputActionCurrency}
+            dstCurrency={destinationCurrency}
+            amountWei={amountWei}
+            hasActionCalls={inputCalls?.length > 0}
+            inputCalls={inputCalls}
+            chains={chains}
+            quoting={quoting}
+            onDone={handleTransactionDone}
+            onTransactionStart={handleTransactionStart}
+            onTransactionEnd={handleTransactionEnd}
+            onReset={handleReset}
+          />
         </div>
       )}
     </div>
