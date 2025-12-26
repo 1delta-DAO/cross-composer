@@ -161,15 +161,15 @@ export function WithdrawActionModal({
                 Amount {symbol && `(${symbol})`}
               </span>
             </label>
-            <div className="input-group">
+            <div className="flex items-center gap-2">
               <input
-                className="input input-bordered w-full"
+                className="input input-bordered flex-1"
                 inputMode="decimal"
                 placeholder="0.0"
                 value={amount}
                 onChange={(e) => handleAmountChange(e.target.value)}
               />
-              <button className="btn btn-outline" onClick={handleMax}>
+              <button className="btn btn-sm btn-ghost shrink-0" onClick={handleMax}>
                 Max
               </button>
             </div>
