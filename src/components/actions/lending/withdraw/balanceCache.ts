@@ -1,6 +1,6 @@
 import { type Address } from 'viem'
 import { erc20Abi } from 'viem'
-import { getRpcSelectorEvmClient } from '@1delta/lib-utils'
+import { getBestRpcsForChain } from '@1delta/lib-utils'
 import type { MoonwellMarket } from '../shared/marketCache'
 import { multicallRetryUniversal } from '@1delta/providers'
 
@@ -99,16 +99,17 @@ export async function initializeUserLendingBalances(
   notifyListeners()
 
   try {
-    const client = await getRpcSelectorEvmClient(chainId)
-    if (!client) {
-      throw new Error('No client for chain')
-    }
-
     const balanceCalls = markets.map((market) => ({
       address: market.mTokenCurrency.address as Address,
       name: 'balanceOf' as const,
       params: [userAddress],
     }))
+
+    const rpcFromRpcSelector = await getBestRpcsForChain(chainId)
+    const overrides =
+      rpcFromRpcSelector && rpcFromRpcSelector.length > 0
+        ? { [chainId]: rpcFromRpcSelector }
+        : undefined
 
     const balanceResults = await multicallRetryUniversal({
       chain: chainId,
@@ -116,6 +117,7 @@ export async function initializeUserLendingBalances(
       abi: erc20Abi,
       maxRetries: 3,
       providerId: 0,
+      ...(overrides && { overrdies: overrides }),
     })
 
     const balanceMap: Record<string, bigint> = {}
@@ -123,7 +125,7 @@ export async function initializeUserLendingBalances(
       const market = markets[i]
       const mTokenKey = market.mTokenCurrency.address.toLowerCase()
       const result = balanceResults[i]
-      const balance = result?.status === 'success' ? (result.result as bigint) : 0n
+      const balance = result ? (result as bigint) : 0n
       cachedBalances[chainKey][userKey][mTokenKey] = balance
       balanceMap[mTokenKey] = balance
     }
