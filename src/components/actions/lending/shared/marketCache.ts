@@ -1,12 +1,12 @@
 import { type Address, zeroAddress } from 'viem'
 import { erc20Abi } from 'viem'
-import { getRpcSelectorEvmClient, SupportedChainId } from '@1delta/lib-utils'
+import { getBestRpcsForChain, SupportedChainId } from '@1delta/lib-utils'
 import { MOONWELL_LENS, MOONWELL_UNDERLYING_TO_MTOKEN } from '../deposit/consts'
 import type { RawCurrency } from '../../../../types/currency'
 import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
 import { VenusLensAbi } from '../../../../lib/abi/compV2'
-import { setCachedBalances } from '../withdraw/balanceCache'
 import { multicallRetryUniversal } from '@1delta/providers'
+import { getTokenFromCache } from '../../../../lib/data/tokenListsCache'
 
 export type MoonwellMarket = {
   mTokenCurrency: RawCurrency
@@ -70,9 +70,8 @@ export function getMarketByUnderlying(underlying: Address): MoonwellMarket | und
 }
 
 export async function initializeMoonwellMarkets(
-  chainId: string = SupportedChainId.MOONBEAM,
-  userAddress?: Address
-): Promise<{ markets: MoonwellMarket[]; balances?: Record<string, bigint> }> {
+  chainId: string = SupportedChainId.MOONBEAM
+): Promise<{ markets: MoonwellMarket[] }> {
   if (isInitialized && cachedMarkets !== undefined) {
     return { markets: cachedMarkets }
   }
@@ -92,14 +91,8 @@ export async function initializeMoonwellMarkets(
   notifyListeners()
 
   try {
-    const client = await getRpcSelectorEvmClient(chainId)
-    if (!client) {
-      throw new Error('No client for chain')
-    }
-
     const mTokenEntries = Object.entries(MOONWELL_UNDERLYING_TO_MTOKEN)
     const results: MoonwellMarket[] = []
-    const balanceMap: Record<string, bigint> = {}
 
     const marketInfoCalls = mTokenEntries.map(([, mToken]) => ({
       address: MOONWELL_LENS as Address,
@@ -107,27 +100,29 @@ export async function initializeMoonwellMarkets(
       params: [mToken as Address],
     }))
 
+    const rpcFromRpcSelector = await getBestRpcsForChain(chainId)
+    const overrides =
+      rpcFromRpcSelector && rpcFromRpcSelector.length > 0
+        ? { [chainId]: rpcFromRpcSelector }
+        : undefined
+
     const marketInfosResults = await multicallRetryUniversal({
       chain: chainId,
       calls: marketInfoCalls,
       abi: VenusLensAbi,
       maxRetries: 3,
       providerId: 0,
+      ...(overrides && { overrdies: overrides }),
     })
 
-    const marketInfos = marketInfosResults.map((r) => (r.status === 'success' ? r.result : null))
-
     const underlyingAddresses: Address[] = []
-    const underlyingSymbolCalls: any[] = []
-    const underlyingDecimalsCalls: any[] = []
     const mTokenSymbolCalls: any[] = []
     const mTokenDecimalsCalls: any[] = []
-    const balanceCalls: any[] = []
 
     for (let i = 0; i < mTokenEntries.length; i++) {
       const [underlyingRaw, mToken] = mTokenEntries[i]
       const underlying = underlyingRaw as Address
-      const info = marketInfos[i] as any
+      const info = marketInfosResults[i] as any
 
       const underlyingFromLens = (info?.[18]?.token ||
         info?.underlying ||
@@ -139,100 +134,57 @@ export async function initializeMoonwellMarkets(
 
       underlyingAddresses.push(resolvedUnderlying)
 
-      if (resolvedUnderlying && resolvedUnderlying.toLowerCase() !== zeroAddress.toLowerCase()) {
-        underlyingSymbolCalls.push({
-          address: resolvedUnderlying,
-          abi: erc20Abi,
-          functionName: 'symbol' as const,
-        })
-        underlyingDecimalsCalls.push({
-          address: resolvedUnderlying,
-          abi: erc20Abi,
-          functionName: 'decimals' as const,
-        })
-      }
-
       mTokenSymbolCalls.push({
         address: mToken as Address,
-        abi: erc20Abi,
-        functionName: 'symbol' as const,
+        name: 'symbol' as const,
+        params: [],
       })
       mTokenDecimalsCalls.push({
         address: mToken as Address,
-        abi: erc20Abi,
-        functionName: 'decimals' as const,
+        name: 'decimals' as const,
+        params: [],
       })
-
-      if (userAddress) {
-        balanceCalls.push({
-          address: mToken as Address,
-          abi: erc20Abi,
-          functionName: 'balanceOf' as const,
-          args: [userAddress],
-        })
-      }
     }
 
-    const allCalls = [
-      ...underlyingSymbolCalls,
-      ...underlyingDecimalsCalls,
-      ...mTokenSymbolCalls,
-      ...mTokenDecimalsCalls,
-      ...balanceCalls,
-    ]
+    const allCalls = [...mTokenSymbolCalls, ...mTokenDecimalsCalls]
 
-    const allResultsRaw = await client.multicall({
-      contracts: allCalls,
+    const allResults = await multicallRetryUniversal({
+      chain: chainId,
+      calls: allCalls,
+      abi: erc20Abi,
+      maxRetries: 3,
+      providerId: 0,
+      ...(overrides && { overrdies: overrides }),
     })
 
-    const allResults = allResultsRaw.map((r) => (r.status === 'success' ? r.result : null))
-
-    let resultIndex = 0
-    const underlyingSymbols: (string | undefined)[] = []
-    const underlyingDecimals: (number | undefined)[] = []
     const mTokenSymbols: (string | undefined)[] = []
     const mTokenDecimals: (number | undefined)[] = []
-    const balances: (bigint | undefined)[] = []
 
     for (let i = 0; i < mTokenEntries.length; i++) {
-      const resolvedUnderlying = underlyingAddresses[i]
-
-      if (resolvedUnderlying && resolvedUnderlying.toLowerCase() !== zeroAddress.toLowerCase()) {
-        const symbolResult = allResults[resultIndex++]
-        underlyingSymbols.push(symbolResult ? (symbolResult as string) : undefined)
-        const decimalsResult = allResults[resultIndex++]
-        underlyingDecimals.push(decimalsResult ? (decimalsResult as number) : undefined)
-      } else {
-        underlyingSymbols.push(undefined)
-        underlyingDecimals.push(undefined)
-      }
-
-      const mTokenSymbolResult = allResults[resultIndex++]
+      const mTokenSymbolResult = allResults[i]
       mTokenSymbols.push(mTokenSymbolResult ? (mTokenSymbolResult as string) : undefined)
-      const mTokenDecimalsResult = allResults[resultIndex++]
-      mTokenDecimals.push(mTokenDecimalsResult ? (mTokenDecimalsResult as number) : undefined)
+    }
 
-      if (userAddress) {
-        const balanceResult = allResults[resultIndex++]
-        balances.push(balanceResult ? (balanceResult as bigint) : 0n)
-      }
+    for (let i = 0; i < mTokenEntries.length; i++) {
+      const mTokenDecimalsResult = allResults[mTokenEntries.length + i]
+      mTokenDecimals.push(mTokenDecimalsResult ? (mTokenDecimalsResult as number) : undefined)
     }
 
     for (let i = 0; i < mTokenEntries.length; i++) {
       const [underlyingRaw, mToken] = mTokenEntries[i]
       const underlying = underlyingRaw as Address
-      const info = marketInfos[i] as any
+      const info = marketInfosResults[i] as any
       const resolvedUnderlying = underlyingAddresses[i]
 
-      const symbol = underlyingSymbols[i] || mTokenSymbols[i]
-      const decimals = underlyingDecimals[i] ?? 18
+      const underlyingToken =
+        resolvedUnderlying && resolvedUnderlying.toLowerCase() !== zeroAddress.toLowerCase()
+          ? getTokenFromCache(chainId, resolvedUnderlying)
+          : undefined
+
+      const symbol = underlyingToken?.symbol || mTokenSymbols[i]
+      const decimals = underlyingToken?.decimals ?? 18
       const mTokenSymbol = mTokenSymbols[i]
       const mTokenDecimalsValue = mTokenDecimals[i] ?? 18
-
-      if (userAddress && balances[i] !== undefined) {
-        const mTokenKey = (mToken as Address).toLowerCase()
-        balanceMap[mTokenKey] = balances[i] || 0n
-      }
 
       const mTokenCurrency = CurrencyHandler.Currency(
         chainId,
@@ -265,22 +217,7 @@ export async function initializeMoonwellMarkets(
     isInitialized = true
     error = undefined
 
-    if (userAddress && Object.keys(balanceMap).length > 0) {
-      setCachedBalances(chainId, userAddress, balanceMap)
-
-      console.log(
-        `[MarketCache] Fetched markets and balances for ${userAddress} on chain ${chainId}:`,
-        {
-          chainId,
-          userAddress,
-          marketsCount: results.length,
-          balances: balanceMap,
-          marketsWithBalance: Object.values(balanceMap).filter((b) => b > 0n).length,
-        }
-      )
-    }
-
-    return { markets: results, balances: userAddress ? balanceMap : undefined }
+    return { markets: results }
   } catch (e) {
     error = e instanceof Error ? e.message : 'Failed to fetch Moonwell markets'
     cachedMarkets = undefined
@@ -292,10 +229,9 @@ export async function initializeMoonwellMarkets(
 }
 
 export async function refreshMoonwellMarkets(
-  chainId: string = SupportedChainId.MOONBEAM,
-  userAddress?: Address
+  chainId: string = SupportedChainId.MOONBEAM
 ): Promise<void> {
   isInitialized = false
   cachedMarkets = undefined
-  await initializeMoonwellMarkets(chainId, userAddress)
+  await initializeMoonwellMarkets(chainId)
 }
