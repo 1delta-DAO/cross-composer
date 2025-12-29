@@ -13,6 +13,7 @@ import {
 import type { ActionCall } from '../../actions/shared/types'
 import { extractLendingApprovals } from '../utils/extractMTokenApprovals'
 import { MOONWELL_COMPTROLLER } from '../../actions/lending/deposit/consts'
+import { getMarketByMToken } from '../../actions/lending/shared/marketCache'
 
 export interface LendingApprovalInfo {
   lender: Lender
@@ -145,7 +146,29 @@ export function useLendingApprovals(
           )
         : false
 
-      const needsApproval = balance > 0n && !hasDelegation
+      let requiredAmount = balance
+
+      if (
+        approval.underlyingAmount &&
+        approval.underlyingAmount > 0n &&
+        approval.lender === Lender.MOONWELL
+      ) {
+        const market = getMarketByMToken(approval.token)
+        const underlyingAmount = approval.underlyingAmount
+
+        if (!market) {
+        } else if (!market.exchangeRate || market.exchangeRate === 0n) {
+        } else {
+          const exchangeRate = market.exchangeRate
+          const mTokenAmount = (underlyingAmount * 10n ** 18n) / exchangeRate
+
+          const finalRequiredAmount = mTokenAmount > balance ? balance : mTokenAmount
+
+          requiredAmount = finalRequiredAmount
+        }
+      }
+
+      const needsApproval = requiredAmount > 0n && !hasDelegation
 
       let approvalTransaction: ReturnType<typeof getLenderApproveTransaction> | undefined
 
@@ -160,7 +183,7 @@ export function useLendingApprovals(
             approval.token,
             composerAddress,
             LendingMode.NONE,
-            balance
+            requiredAmount
           )
         }
       }
