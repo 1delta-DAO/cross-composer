@@ -16,6 +16,7 @@ export type MoonwellMarket = {
   isListed: boolean
   mintPaused: boolean
   borrowPaused: boolean
+  exchangeRate?: bigint
 }
 
 let cachedMarkets: MoonwellMarket[] | undefined = undefined
@@ -115,6 +116,8 @@ export async function initializeMoonwellMarkets(
       ...(overrides && { overrdies: overrides }),
     })
 
+    console.log('marketInfosResults', marketInfosResults)
+
     const underlyingAddresses: Address[] = []
     const mTokenSymbolCalls: any[] = []
     const mTokenDecimalsCalls: any[] = []
@@ -202,6 +205,12 @@ export async function initializeMoonwellMarkets(
         symbol || 'Token'
       )
 
+      const exchangeRate = info?.exchangeRate
+        ? BigInt(info.exchangeRate)
+        : info?.[11]
+          ? BigInt(info[11])
+          : undefined
+
       results.push({
         mTokenCurrency,
         underlyingCurrency,
@@ -210,6 +219,7 @@ export async function initializeMoonwellMarkets(
         isListed: Boolean(info?.isListed),
         mintPaused: Boolean(info?.mintPaused),
         borrowPaused: Boolean(info?.borrowPaused),
+        exchangeRate,
       })
     }
 
@@ -217,6 +227,7 @@ export async function initializeMoonwellMarkets(
     isInitialized = true
     error = undefined
 
+    console.log('results', results)
     return { markets: results }
   } catch (e) {
     error = e instanceof Error ? e.message : 'Failed to fetch Moonwell markets'
