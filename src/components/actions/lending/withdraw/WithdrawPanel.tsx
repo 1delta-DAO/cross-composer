@@ -7,6 +7,8 @@ import { useConnection } from 'wagmi'
 import { useTokenLists } from '../../../../hooks/useTokenLists'
 import type { RawCurrencyAmount } from '../../../../types/currency'
 import { waitForBalances, getCachedBalances, subscribeToBalanceChanges } from './balanceCache'
+import { DUMMY_ADDRESS } from '../../../../lib/consts'
+import { SupportedChainId } from '@1delta/lib-utils'
 
 type WithdrawPanelProps = {
   chainId?: string
@@ -25,49 +27,59 @@ export function WithdrawPanel({
 }: WithdrawPanelProps) {
   const { address } = useConnection()
   const [isExpanded, setIsExpanded] = useState(false)
-  const [showNoBalance, setShowNoBalance] = useState(false)
-  const userAddress = address
+  const [showNoBalance, setShowNoBalance] = useState(true)
+  const userAddress = address || DUMMY_ADDRESS
+  const effectiveChainId = chainId || SupportedChainId.MOONBEAM
 
   const [balanceUpdateKey, setBalanceUpdateKey] = useState(0)
+  const [balancesInitialized, setBalancesInitialized] = useState(false)
 
   useEffect(() => {
-    if (chainId && userAddress && markets.length > 0) {
-      waitForBalances(chainId, userAddress, markets).catch(console.error)
+    if (effectiveChainId && address && markets.length > 0 && !balancesInitialized) {
+      waitForBalances(effectiveChainId, address, markets)
+        .then(() => {
+          setBalancesInitialized(true)
+        })
+        .catch(console.error)
     }
-  }, [chainId, userAddress, markets])
+  }, [effectiveChainId, address, markets, balancesInitialized])
 
   useEffect(() => {
-    if (!chainId || !userAddress) return
+    if (!effectiveChainId || !address) return
 
     const unsubscribe = subscribeToBalanceChanges(() => {
       setBalanceUpdateKey((prev) => prev + 1)
     })
 
     return unsubscribe
-  }, [chainId, userAddress])
+  }, [effectiveChainId, address])
 
   const balances = useMemo(() => {
-    if (!chainId || !userAddress) return {}
-    return getCachedBalances(chainId, userAddress)
-  }, [chainId, userAddress, balanceUpdateKey])
+    if (!effectiveChainId || !address) return {}
+    return getCachedBalances(effectiveChainId, address)
+  }, [effectiveChainId, address, balanceUpdateKey])
 
   const withdrawMarkets = useMemo(() => {
     let filtered = markets.filter((m) => m.isListed && !m.borrowPaused)
 
-    if (chainId && userAddress) {
-      if (showNoBalance) {
-        return filtered
-      } else {
-        filtered = filtered.filter((market) => {
-          const mTokenKey = market.mTokenCurrency.address.toLowerCase()
-          const balance = balances[mTokenKey] || 0n
-          return balance > 0n
-        })
-      }
+    if (showNoBalance) {
+      return filtered
+    }
+
+    if (address && Object.keys(balances).length > 0) {
+      filtered = filtered.filter((market) => {
+        const mTokenKey = market.mTokenCurrency.address.toLowerCase()
+        const balance = balances[mTokenKey] || 0n
+        return balance > 0n
+      })
+    } else if (!address) {
+      return []
+    } else {
+      return []
     }
 
     return filtered
-  }, [markets, showNoBalance, balances, chainId, userAddress])
+  }, [markets, showNoBalance, balances, address])
 
   const [selectedMarket, setSelectedMarket] = useState<undefined | MoonwellMarket>(undefined)
   const [marketAmounts, setMarketAmounts] = useState<Map<string, string>>(new Map())
@@ -183,7 +195,7 @@ export function WithdrawPanel({
           }
           onClose={() => setSelectedMarket(undefined)}
           userAddress={address as any}
-          chainId={chainId}
+          chainId={effectiveChainId}
           setActionInfo={setActionInfo}
           amount={marketAmounts.get(selectedMarket.mTokenCurrency.address) || ''}
           onAmountChange={(amount) =>

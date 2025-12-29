@@ -2,6 +2,8 @@ import { RawCurrency } from '@1delta/lib-utils'
 import { Logo } from '../../../common/Logo'
 import { useActionData } from '../../../../contexts/DestinationInfoContext'
 import { getChainLogo } from '@1delta/lib-utils'
+import { getMarketByMToken } from '../shared/marketCache'
+import { useMemo } from 'react'
 
 const getLenderUri = (protocol: string) => {
   const lc = protocol.toLowerCase()
@@ -31,11 +33,21 @@ export function LendingCheckout({
 
   const chainLogo = getChainLogo(dstCurrency?.chainId)
 
+  const mTokenSymbol = useMemo(() => {
+    if (actionData?.mTokenAddress) {
+      const market = getMarketByMToken(actionData.mTokenAddress)
+      return market?.mTokenCurrency?.symbol || 'mToken'
+    }
+    return destinationActionLabel
+      ? destinationActionLabel.replace(/\s+withdraw$/i, '')
+      : 'mToken'
+  }, [actionData?.mTokenAddress, destinationActionLabel])
+
   return (
     <div className="flex flex-col gap-1 p-3 rounded-xl bg-base-100 border border-base-300">
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold opacity-70">Withdraw from</span>
+          <span className="text-sm font-semibold opacity-70">Withdraw {mTokenSymbol} from</span>
           <Logo
             src={getLenderUri(actionData.lender)}
             alt={actionData.lender}
