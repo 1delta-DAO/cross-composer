@@ -50,9 +50,11 @@ export interface ActionDefinition {
   /** optional checkout summary */
   customSummary?: ComponentType<{
     formattedOutput: string
-    dstCurrency?: RawCurrency
-    dstChainName?: string
+    currency?: RawCurrency
     outputUsd?: number
+    actionLabel?: string
+    actionDirection?: ActionDirection
+    dstCurrency?: RawCurrency
     destinationActionLabel?: string
   }>
 
