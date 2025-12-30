@@ -30,6 +30,10 @@ export interface ActionPanelContext {
 export type DataLoader = (context: ActionLoaderContext) => Promise<any>
 export type PanelPropsBuilder = (context: ActionPanelContext) => Record<string, any>
 
+export interface ActionParams {
+  lender?: string
+}
+
 export interface ActionDefinition {
   id: ActionType
   label: string
@@ -40,7 +44,6 @@ export interface ActionDefinition {
   actionType: ActionType
   actionDirection?: ActionDirection
   requiresSrcCurrency?: boolean
-  requiresMarkets?: boolean
   dataLoader?: DataLoader
   buildPanelProps?: PanelPropsBuilder
 
@@ -52,6 +55,8 @@ export interface ActionDefinition {
     outputUsd?: number
     destinationActionLabel?: string
   }>
+
+  params?: ActionParams
 }
 
 export { getRegisteredActions }
