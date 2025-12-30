@@ -49,6 +49,7 @@ export function registerWithdrawAction(): void {
       markets: context.actionData,
     }),
     customSummary: LendingCheckout,
+    params: { lender: 'MOONWELL' },
   }
 
   registerAction(withdrawAction)

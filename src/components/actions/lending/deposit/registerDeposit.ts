@@ -47,6 +47,7 @@ export function registerDepositAction(): void {
       markets: context.actionData,
     }),
     customSummary: LendingCheckout,
+    params: { lender: 'MOONWELL' },
   }
 
   registerAction(depositAction)
