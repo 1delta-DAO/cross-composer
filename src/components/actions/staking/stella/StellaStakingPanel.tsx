@@ -2,11 +2,18 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { CurrencyHandler, SupportedChainId } from '../../../../sdk/types'
 import { ActionHandler } from '../../shared/types'
 import { buildCalls } from './callBuilder'
-import { STELLA_STDOT_ADDRESS, XCDOT_ADDRESS } from './consts'
-import { parseUnits } from 'viem'
+import { STELLA_STDOT_ADDRESS, STELLA_STGLMR_ADDRESS } from './consts'
+import { parseUnits, zeroAddress } from 'viem'
 import { useDebounce } from '../../../../hooks/useDebounce'
 import { useConnection } from 'wagmi'
-import { getTokenFromCache, isTokenListsReady } from '../../../../lib/data/tokenListsCache'
+import {
+  getTokenFromCache,
+  isTokenListsReady,
+  getTokenListsCache,
+} from '../../../../lib/data/tokenListsCache'
+import { getCurrency } from '../../../../lib/trade-helpers/utils'
+import { Logo } from '../../../../components/common/Logo'
+import { nativeOnChain } from '@1delta/lib-utils'
 
 interface StellaStakingPanelProps {
   setActionInfo?: ActionHandler
@@ -17,6 +24,7 @@ export function StellaStakingPanel({ setActionInfo, resetKey }: StellaStakingPan
   const { address } = useConnection()
 
   const [outputAmount, setOutputAmount] = useState('')
+  const [tokenType, setTokenType] = useState<'DOT' | 'GLMR'>('DOT')
   const lastDestinationKeyRef = useRef<string | null>(null)
   const setActionInfoRef = useRef(setActionInfo)
 
@@ -29,12 +37,23 @@ export function StellaStakingPanel({ setActionInfo, resetKey }: StellaStakingPan
 
   const xcDOTToken = useMemo(() => {
     if (!chainId || !isTokenListsReady()) return undefined
-    return getTokenFromCache(String(chainId), XCDOT_ADDRESS)
+    const tokensMap = getTokenListsCache()?.[String(chainId)]
+    if (!tokensMap) return undefined
+    const xcDOTToken = Object.values(tokensMap).find(
+      (token) => token.symbol?.toUpperCase() === 'XCDOT' || token.symbol?.toUpperCase() === 'DOT'
+    )
+    return xcDOTToken
+  }, [chainId])
+
+  const glmrToken = useMemo(() => {
+    if (!chainId) return undefined
+    return nativeOnChain(chainId)
   }, [chainId])
 
   useEffect(() => {
     const autoSelect = async () => {
-      if (!debouncedOutputAmount || !xcDOTToken || !address) {
+      const selectedToken = tokenType === 'DOT' ? xcDOTToken : glmrToken
+      if (!debouncedOutputAmount || !selectedToken || !address) {
         if (lastDestinationKeyRef.current !== null) {
           lastDestinationKeyRef.current = null
           setActionInfoRef.current?.(undefined, undefined, [])
@@ -53,30 +72,38 @@ export function StellaStakingPanel({ setActionInfo, resetKey }: StellaStakingPan
 
       const destinationCalls = await buildCalls({
         userAddress: address as any,
+        tokenType,
+        xcDOTAddress:
+          tokenType === 'DOT' && xcDOTToken ? (xcDOTToken.address as any) : (zeroAddress as any),
       })
 
-      const outputAmountWei = parseUnits(debouncedOutputAmount, xcDOTToken.decimals)
-      const currencyAmount = CurrencyHandler.fromRawAmount(xcDOTToken, outputAmountWei.toString())
-      const destinationKey = `${currencyAmount.currency.chainId}-${currencyAmount.currency.address}-${currencyAmount.amount.toString()}-${destinationCalls.length}`
+      const outputAmountWei = parseUnits(debouncedOutputAmount, selectedToken.decimals)
+      const currencyAmount = CurrencyHandler.fromRawAmount(
+        selectedToken,
+        outputAmountWei.toString()
+      )
+      const destinationKey = `${currencyAmount.currency.chainId}-${currencyAmount.currency.address}-${currencyAmount.amount.toString()}-${destinationCalls.length}-${tokenType}`
 
       if (lastDestinationKeyRef.current !== destinationKey) {
         lastDestinationKeyRef.current = destinationKey
+        const lstAddress = tokenType === 'DOT' ? STELLA_STDOT_ADDRESS : STELLA_STGLMR_ADDRESS
+        const lstToken = getTokenFromCache(String(chainId), lstAddress)
         setActionInfoRef.current?.(
           currencyAmount,
           undefined,
           destinationCalls,
-          'Staked DOT',
+          tokenType === 'DOT' ? 'Staked DOT' : 'Staked GLMR',
           undefined,
           {
-            stakingToken: xcDOTToken,
-            lst: getTokenFromCache(String(chainId), STELLA_STDOT_ADDRESS),
+            stakingToken: selectedToken,
+            lst: lstToken,
           }
         )
       }
     }
 
     autoSelect()
-  }, [debouncedOutputAmount, xcDOTToken, address])
+  }, [debouncedOutputAmount, xcDOTToken, glmrToken, address, tokenType, chainId])
 
   const handleAmountChange = (value: string) => {
     setOutputAmount(value)
@@ -89,6 +116,7 @@ export function StellaStakingPanel({ setActionInfo, resetKey }: StellaStakingPan
   useEffect(() => {
     if (resetKey !== undefined && resetKey > 0) {
       setOutputAmount('')
+      setTokenType('DOT')
       lastDestinationKeyRef.current = null
       setActionInfoRef.current?.(undefined, undefined, [])
     }
@@ -100,11 +128,42 @@ export function StellaStakingPanel({ setActionInfo, resetKey }: StellaStakingPan
         <div className="flex items-center gap-2">
           <input
             className="input input-bordered flex-1"
-            placeholder="DOT amount"
+            placeholder={`${tokenType} amount`}
             value={outputAmount}
             onChange={(e) => handleAmountChange(e.target.value)}
             inputMode="decimal"
           />
+          <select
+            defaultValue={tokenType}
+            className="select select-primary"
+            onChange={(e) => {
+              setTokenType(e.target.value as 'DOT' | 'GLMR')
+              setOutputAmount('')
+            }}
+          >
+            <option value="DOT">
+              <>
+                <Logo
+                  src={xcDOTToken?.logoURI}
+                  alt={xcDOTToken?.symbol || 'DOT'}
+                  fallbackText={xcDOTToken?.symbol?.[0] || 'DOT'}
+                  size={16}
+                />
+                <span>DOT</span>
+              </>
+            </option>
+            <option value="GLMR">
+              <>
+                <Logo
+                  src={glmrToken?.logoURI}
+                  alt={glmrToken?.symbol || 'GLMR'}
+                  fallbackText={glmrToken?.symbol?.[0] || 'GLMR'}
+                  size={16}
+                />
+                <span>GLMR</span>
+              </>
+            </option>
+          </select>
         </div>
       </div>
     </div>
