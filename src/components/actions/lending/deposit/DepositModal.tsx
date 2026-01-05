@@ -61,9 +61,14 @@ export function DepositActionModal({
   const handleConfirm = async () => {
     if (!amount || !underlying) return
 
+    const currencyForCall = selectedCurrency || market.underlyingCurrency
     const destinationCalls = await buildCalls({
       amountHuman: amount,
-      underlying: market.underlyingCurrency, // keep using market.underlyingCurrency for protocol calls
+      underlying: {
+        ...market.underlyingCurrency,
+        decimals: currencyForCall.decimals,
+        chainId: currencyForCall.chainId,
+      },
       userAddress: userAddress as any,
     })
 

@@ -5,7 +5,7 @@ import { chains } from '@1delta/data-sdk'
 import { CurrencyHandler } from '@1delta/lib-utils/dist/services/currency/currencyUtils'
 import type { ActionCall } from '../../components/actions/shared/types'
 import type { DeltaCall, PostDeltaCall, PreDeltaCall } from '@1delta/lib-utils'
-import { DeltaCallType } from '@1delta/lib-utils'
+import { DeltaCallType, LendingCall } from '@1delta/lib-utils'
 
 export function getCurrency(
   chainId: string,
@@ -48,7 +48,12 @@ export function convertActionCallsToDeltaCalls(calls: ActionCall[]): DeltaCall[]
 
 export function convertActionCallsToPreDeltaCalls(calls: ActionCall[]): PreDeltaCall[] {
   return calls
-    .filter((c) => c.callType === DeltaCallType.LENDING)
+    .filter(
+      (c) =>
+        c.callType === DeltaCallType.LENDING &&
+        ((c as any).lendingAction === LendingCall.DeltaCallLendingAction.WITHDRAW ||
+          (c as any).lendingAction === LendingCall.DeltaCallLendingAction.BORROW)
+    )
     .map((c) => {
       const { gasLimit, ...deltaCall } = c
       return deltaCall as PreDeltaCall
@@ -64,7 +69,14 @@ export function convertActionCallsToPostDeltaCalls(calls: ActionCall[]): PostDel
     DeltaCallType.APPROVE,
   ]
   return calls
-    .filter((c) => externalCallTypes.includes(c.callType as DeltaCallType))
+    .filter((c) => {
+      if (externalCallTypes.includes(c.callType as DeltaCallType)) return true
+      if (c.callType !== DeltaCallType.LENDING) return false
+      return (
+        (c as any).lendingAction === LendingCall.DeltaCallLendingAction.DEPOSIT ||
+        (c as any).lendingAction === LendingCall.DeltaCallLendingAction.REPAY
+      )
+    })
     .map((c) => {
       const { gasLimit, ...deltaCall } = c
       return deltaCall as PostDeltaCall
