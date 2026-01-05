@@ -11,9 +11,7 @@ import {
   isTokenListsReady,
   getTokenListsCache,
 } from '../../../../lib/data/tokenListsCache'
-import { getCurrency } from '../../../../lib/trade-helpers/utils'
 import { Logo } from '../../../../components/common/Logo'
-import { nativeOnChain } from '@1delta/lib-utils'
 
 interface StellaStakingPanelProps {
   setActionInfo?: ActionHandler
@@ -39,15 +37,14 @@ export function StellaStakingPanel({ setActionInfo, resetKey }: StellaStakingPan
     if (!chainId || !isTokenListsReady()) return undefined
     const tokensMap = getTokenListsCache()?.[String(chainId)]
     if (!tokensMap) return undefined
-    const xcDOTToken = Object.values(tokensMap).find(
-      (token) => token.symbol?.toUpperCase() === 'XCDOT' || token.symbol?.toUpperCase() === 'DOT'
-    )
-    return xcDOTToken
+    return tokensMap['0xffffffff1fcacbd218edc0eba20fc2308c778080']
   }, [chainId])
 
   const glmrToken = useMemo(() => {
-    if (!chainId) return undefined
-    return nativeOnChain(chainId)
+    if (!chainId || !isTokenListsReady()) return undefined
+    const tokensMap = getTokenListsCache()?.[String(chainId)]
+    if (!tokensMap) return undefined
+    return tokensMap[zeroAddress]
   }, [chainId])
 
   useEffect(() => {
