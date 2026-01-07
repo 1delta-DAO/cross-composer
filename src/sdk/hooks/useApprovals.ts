@@ -20,7 +20,7 @@ import {
   getUnderlyingTokenFromLendingToken,
   calculateRequiredLendingTokenAmount,
 } from '../../components/actionsTab/utils/lenderUtils'
-import type { ApprovalInfo } from '../services/executionPipeline'
+import type { ApprovalInfo } from '../types'
 
 export interface TokenApprovalParams {
   token: Address
@@ -423,10 +423,7 @@ function useLendingApprovalsInternal(
     })
   }, [lendingApprovals, lenderDebitData, chainId, account, balanceAndAllowanceResults])
 
-  const needsAnyApproval = useMemo(
-    () => approvals.some((info) => info.needsApproval),
-    [approvals]
-  )
+  const needsAnyApproval = useMemo(() => approvals.some((info) => info.needsApproval), [approvals])
 
   return {
     approvals,
@@ -434,4 +431,3 @@ function useLendingApprovalsInternal(
     lenderDebitData,
   }
 }
-

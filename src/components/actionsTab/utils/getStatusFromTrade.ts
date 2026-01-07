@@ -60,6 +60,22 @@ export async function getStatusFromTrade(
     }
   } else {
     // bridge case
+    const provider =
+      publicClient ?? (await getViemProvider({ chainId: trade.inputAmount.currency.chainId }))
+    const srcReceipt = await provider
+      ?.getTransactionReceipt({ hash: fromHash as any })
+      .catch(() => null)
+
+    if (srcReceipt && srcReceipt.status === 'reverted') {
+      return {
+        fromHash: fromHash,
+        statusInfo: {
+          message: 'Source chain transaction reverted.',
+          status: 'FAILED',
+        },
+      }
+    }
+
     return await getBridgeStatus(
       trade.aggregator as any,
       {
