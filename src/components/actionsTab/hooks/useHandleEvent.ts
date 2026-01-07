@@ -178,7 +178,7 @@ export function useHandleEvent(params: HandleEventParams) {
     }
     const showReset = Boolean(confirmFlag && execState.srcHash)
     onResetStateChange?.(showReset, showReset ? resetCallback : undefined)
-  }, [confirmFlag, onResetStateChange, onReset])
+  }, [confirmFlag, execState.srcHash, onResetStateChange, onReset, setExecState])
 
   return handleEvent
 }
