@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef } from 'react'
-import { ExecutionEvent } from '../utils/types'
+import { ExecutionEvent } from '@1delta/trade-sdk'
 import { useTxHistory } from '../../../contexts/TxHistoryContext'
 import { useToast } from '../../common/ToastHost'
 

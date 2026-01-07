@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
 import { chains as getChains } from '@1delta/data-sdk'
-import { getReadySnapshot, subscribeReady } from '@1delta/trade-sdk/dist/data/readinessStore'
 
 export type ExplorerInfo = {
   name?: string
@@ -33,15 +32,32 @@ export type ChainsRegistryRecord = Record<
   }
 >
 
+function checkChainsReady(): boolean {
+  try {
+    const chains = getChains()
+    return chains && Object.keys(chains).length > 0
+  } catch {
+    return false
+  }
+}
+
 export function useChainsRegistry() {
-  const [ready, setReady] = useState<boolean>(() => getReadySnapshot())
+  const [ready, setReady] = useState<boolean>(() => checkChainsReady())
   const [data, setData] = useState<ChainsRegistryRecord | undefined>(undefined)
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    const unsub = subscribeReady(() => setReady(true))
-    return unsub
-  }, [])
+    if (ready) return
+
+    const checkInterval = setInterval(() => {
+      if (checkChainsReady()) {
+        setReady(true)
+        clearInterval(checkInterval)
+      }
+    }, 100)
+
+    return () => clearInterval(checkInterval)
+  }, [ready])
 
   useEffect(() => {
     if (!ready) return

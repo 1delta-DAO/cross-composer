@@ -8,8 +8,7 @@ import { useChainsRegistry } from '../../sdk/hooks/useChainsRegistry'
 import { useToast } from '../common/ToastHost'
 import { WalletConnect } from '../connect'
 import type { RawCurrency } from '../../types/currency'
-import { ExecutionEvent } from './utils/types'
-import { executeTrade } from './utils/executeTrade'
+import { executeTrade, type ExecutionEvent } from '@1delta/trade-sdk'
 import { useUnifiedApprovals } from './hooks/useUnifiedApprovals'
 import { TradeState, useHandleEvent } from './hooks/useHandleEvent'
 import { useSyncChain } from './hooks/useSyncChain'
@@ -184,10 +183,11 @@ export default function ExecuteButton(props: ExecuteButtonProps) {
     try {
       const tracker = executeTrade({
         trade: trade as GenericTrade,
+        account: address,
         walletClient: walletClient as any,
         publicClient: publicClient as any,
         needsApproval,
-        mTokenApprovals: needsMTokenApproval ? mTokenApprovals : undefined,
+        approvals: needsMTokenApproval ? mTokenApprovals : undefined,
       })
 
       trackerRef.current = tracker
