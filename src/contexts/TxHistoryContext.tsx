@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { getViemProvider } from '@1delta/lib-utils'
 
 export type TxHistoryType = 'swap' | 'bridge' | 'bridge_with_actions'
 
@@ -79,6 +80,46 @@ export function TxHistoryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const isPolling = entries.some((e) => e.status === 'pending')
+
+  useEffect(() => {
+    const pendingEntries = entries.filter(
+      (e) => e.status === 'pending' && e.srcHash && e.srcChainId
+    )
+    if (pendingEntries.length === 0) return
+
+    const checkPendingTransactions = async () => {
+      for (const entry of pendingEntries) {
+        if (!entry.srcHash || !entry.srcChainId) continue
+
+        try {
+          const provider = await getViemProvider({ chainId: entry.srcChainId })
+          const receipt = await provider
+            ?.getTransactionReceipt({ hash: entry.srcHash as any })
+            .catch(() => null)
+
+          if (receipt) {
+            if (receipt.status === 'reverted') {
+              setEntries((prev) =>
+                prev.map((e) => (e.id === entry.id ? { ...e, status: 'failed' } : e))
+              )
+            } else if (receipt.status === 'success' && entry.type === 'swap') {
+              setEntries((prev) =>
+                prev.map((e) => (e.id === entry.id ? { ...e, status: 'completed' } : e))
+              )
+            }
+          }
+        } catch (error) {
+          console.debug('Error checking pending tx', error)
+        }
+      }
+    }
+
+    const intervalId = setInterval(checkPendingTransactions, 10000)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [entries])
 
   return (
     <TxHistoryContext.Provider value={{ entries, createEntry, updateEntry, clearAll, isPolling }}>

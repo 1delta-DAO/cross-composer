@@ -238,6 +238,10 @@ export function QuoteTracePanel() {
     return null
   }
 
+  return <QuoteTracePanelInner />
+}
+
+function QuoteTracePanelInner() {
   const { entries, clearAll } = useQuoteTrace()
   const [isMinimized, setIsMinimized] = useState(() => {
     try {

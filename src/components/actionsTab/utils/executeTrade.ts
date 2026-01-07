@@ -120,7 +120,16 @@ export function executeTrade(args: {
 
       emit({ type: 'tx:sent', src: txHash })
 
-      await args.publicClient.waitForTransactionReceipt({ hash: txHash })
+      const receipt = await args.publicClient.waitForTransactionReceipt({ hash: txHash })
+
+      if (receipt.status === 'reverted') {
+        emit({
+          type: 'error',
+          error: new Error('Source chain transaction failed (reverted)'),
+          src: txHash,
+        })
+        return { srcHash: txHash, completed: false }
+      }
 
       emit({ type: 'tx:confirmed', src: txHash })
 
