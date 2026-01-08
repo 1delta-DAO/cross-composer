@@ -15,4 +15,3 @@ export {
   type QuoteStateError,
   type QuoteAction,
 } from './quoteStore'
-

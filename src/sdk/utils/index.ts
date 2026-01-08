@@ -12,7 +12,10 @@ export {
 
 export { DeltaCallConverter } from './deltaCallConverter'
 
-export { fetchEvmUserTokenDataEnhanced, getAssetFromListsSync, parseBalanceData } from './fetchBalances'
+export {
+  fetchEvmUserTokenDataEnhanced,
+  getAssetFromListsSync,
+  parseBalanceData,
+} from './fetchBalances'
 
 export { fetchDecimals } from './tokenUtils'
-

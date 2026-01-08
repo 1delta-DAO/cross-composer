@@ -124,9 +124,7 @@ export function useHandleEvent(params: HandleEventParams) {
 
           if (historyIdRef.current) {
             const isSameChain = !isBridge
-            const shouldBeCompleted = isSameChain
-              ? true
-              : Boolean(dh || completed)
+            const shouldBeCompleted = isSameChain ? true : Boolean(dh || completed)
 
             updateEntry(historyIdRef.current, {
               dstHash: dh || undefined,

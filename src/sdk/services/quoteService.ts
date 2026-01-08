@@ -66,10 +66,7 @@ export function detectChainTransition(
   return previousIsSameChain !== null && previousIsSameChain !== currentIsSameChain
 }
 
-export async function fetchQuotes(
-  request: QuoteRequest,
-  signal?: AbortSignal
-): Promise<Quote[]> {
+export async function fetchQuotes(request: QuoteRequest, signal?: AbortSignal): Promise<Quote[]> {
   const { srcAmount, dstCurrency, slippage, receiverAddress, destinationCalls, inputCalls } =
     request
 
@@ -164,4 +161,3 @@ export function getBestQuote(quotes: Quote[]): Quote | undefined {
   if (quotes.length === 0) return undefined
   return sortQuotesByOutput(quotes)[0]
 }
-

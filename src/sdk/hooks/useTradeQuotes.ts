@@ -8,11 +8,7 @@ import { useConnection } from 'wagmi'
 import { fetchQuotes, type Quote } from './useQuoteFetcher'
 import { useQuoteValidation } from './useQuoteValidation'
 import { useQuoteRefreshHelpers, REFRESH_INTERVAL_MS } from './useQuoteRefresh'
-import {
-  hashActionCalls,
-  createQuoteKey,
-  areKeysEqual,
-} from '../utils/keyGenerator'
+import { hashActionCalls, createQuoteKey, areKeysEqual } from '../utils/keyGenerator'
 import { validateQuoteRequest } from '../services/quoteService'
 import { useQuoteTrace } from '../../contexts/QuoteTraceContext'
 
@@ -64,10 +60,7 @@ export function useTradeQuotes({
 
   const srcCurrency = useMemo(() => srcAmount?.currency, [srcAmount])
 
-  const destinationCallsKey = useMemo(
-    () => hashActionCalls(destinationCalls),
-    [destinationCalls]
-  )
+  const destinationCallsKey = useMemo(() => hashActionCalls(destinationCalls), [destinationCalls])
 
   const inputCallsKey = useMemo(() => hashActionCalls(inputCalls), [inputCalls])
 

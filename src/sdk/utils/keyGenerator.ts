@@ -55,7 +55,10 @@ export function createQuoteKey(params: QuoteKeyParams): string {
   return `${srcKey}|${dstKey}|${params.slippage}|${receiver}|${postCalls}|${preCalls}`
 }
 
-export function areKeysEqual(key1: string | null | undefined, key2: string | null | undefined): boolean {
+export function areKeysEqual(
+  key1: string | null | undefined,
+  key2: string | null | undefined
+): boolean {
   return key1 != null && key2 != null && key1 === key2
 }
 
@@ -76,10 +79,11 @@ export function createPriceQueryKey(currencies: RawCurrency[]): string[] {
   const perCurrencyKeys: string[] = []
   for (const currency of currencies) {
     if (!currency?.chainId || !currency?.address) continue
-    const baseKey = currency.assetGroup ? String(currency.assetGroup) : currency.address.toLowerCase()
+    const baseKey = currency.assetGroup
+      ? String(currency.assetGroup)
+      : currency.address.toLowerCase()
     perCurrencyKeys.push(`${currency.chainId}:${baseKey}`)
   }
   perCurrencyKeys.sort()
   return ['prices', ...perCurrencyKeys]
 }
-
