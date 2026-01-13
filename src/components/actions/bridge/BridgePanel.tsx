@@ -9,6 +9,7 @@ import type { Address } from 'viem'
 import { useDebounce } from '../../../hooks/useDebounce'
 import type { GenericTrade } from '@1delta/lib-utils'
 import { getTokenFromCache } from '../../../lib/data/tokenListsCache'
+import { validateNumericInput } from '../../../utils/validatorUtils'
 
 interface BridgePanelProps {
   srcCurrency?: RawCurrency
@@ -95,8 +96,9 @@ export function BridgePanel({
   }, [srcCurrency, dstCurrency, debouncedOutputAmount])
 
   const handleOutputAmountChange = (value: string) => {
-    setOutputAmount(value)
-    if (!value || Number(value) <= 0) {
+    const validated = validateNumericInput(value)
+    setOutputAmount(validated)
+    if (!validated || Number(validated) <= 0) {
       lastDestinationKeyRef.current = null
       setActionInfoRef.current?.(undefined, undefined, [])
     }

@@ -26,11 +26,7 @@ export interface QuoteStateError {
   error: string
 }
 
-export type QuoteState =
-  | QuoteStateIdle
-  | QuoteStateFetching
-  | QuoteStateSuccess
-  | QuoteStateError
+export type QuoteState = QuoteStateIdle | QuoteStateFetching | QuoteStateSuccess | QuoteStateError
 
 export type QuoteAction =
   | { type: 'FETCH_START'; key: string }
@@ -125,4 +121,3 @@ export function getError(state: QuoteState): string | undefined {
   if (state.status !== 'error') return undefined
   return state.error
 }
-

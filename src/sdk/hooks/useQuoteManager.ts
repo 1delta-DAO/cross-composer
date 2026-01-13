@@ -6,11 +6,7 @@ import { useToast } from '../../components/common/ToastHost'
 import type { ActionCall } from '../../components/actions/shared/types'
 import type { RawCurrency, RawCurrencyAmount } from '../../types/currency'
 import { createQuoteKey, areKeysEqual } from '../utils/keyGenerator'
-import {
-  fetchQuotes,
-  validateQuoteRequest,
-  type Quote,
-} from '../services/quoteService'
+import { fetchQuotes, validateQuoteRequest, type Quote } from '../services/quoteService'
 import {
   quoteReducer,
   initialQuoteState,
@@ -292,4 +288,3 @@ function useMemoState<T>(initialValue: T): [T, (value: T) => void] {
 }
 
 export { type Quote } from '../services/quoteService'
-

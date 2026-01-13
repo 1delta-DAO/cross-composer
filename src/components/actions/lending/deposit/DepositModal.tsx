@@ -9,6 +9,7 @@ import { useConnection } from 'wagmi'
 import { DUMMY_ADDRESS } from '../../../../lib/consts'
 import { RawCurrency } from '../../../../types/currency'
 import { Lender } from '@1delta/lib-utils'
+import { validateNumericInput } from '../../../../utils/validatorUtils'
 
 type DepositActionModalProps = {
   open: boolean
@@ -38,10 +39,11 @@ export function DepositActionModal({
   const amount = onAmountChange ? externalAmount || '' : internalAmount
 
   const handleAmountChange = (value: string) => {
+    const validated = validateNumericInput(value)
     if (onAmountChange) {
-      onAmountChange(value)
+      onAmountChange(validated)
     } else {
-      setInternalAmount(value)
+      setInternalAmount(validated)
     }
   }
 

@@ -9,6 +9,7 @@ import { Logo } from '../../common/Logo'
 import { getTokenFromCache } from '../../../lib/data/tokenListsCache'
 import type { GenericTrade } from '@1delta/lib-utils'
 import { SwapCard } from './SwapCard'
+import { validateNumericInput } from '../../../utils/validatorUtils'
 
 interface SwapPanelProps {
   srcCurrency?: RawCurrency
@@ -114,7 +115,8 @@ export function SwapPanel({
   }, [srcCurrency, dstCurrency, outputAmount, setActionInfo])
 
   const handleOutputAmountChange = (value: string) => {
-    setOutputAmount(value)
+    const validated = validateNumericInput(value)
+    setOutputAmount(validated)
   }
 
   const handleTokenSelect = (currency: RawCurrency | undefined, close: boolean = true) => {

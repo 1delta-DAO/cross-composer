@@ -6,6 +6,11 @@ import type { ActionCall } from '../../components/actions/shared/types'
 import type { DeltaCall, PostDeltaCall, PreDeltaCall } from '@1delta/lib-utils'
 import { DeltaCallType, LendingCall } from '@1delta/lib-utils'
 
+export function normalizeAddress(address: Address | string | undefined): string {
+  if (!address) return ''
+  return address.toLowerCase()
+}
+
 export function getCurrency(
   chainId: string,
   tokenAddress: Address | undefined
@@ -13,7 +18,8 @@ export function getCurrency(
   if (!tokenAddress || !chainId) {
     return undefined
   }
-  const token = getTokenFromCache(chainId, tokenAddress)
+  const normalizedAddr = normalizeAddress(tokenAddress)
+  const token = getTokenFromCache(chainId, normalizedAddr)
   return token
 }
 

@@ -12,6 +12,7 @@ import {
   getTokenListsCache,
 } from '../../../../lib/data/tokenListsCache'
 import { Logo } from '../../../../components/common/Logo'
+import { validateNumericInput } from '../../../../utils/validatorUtils'
 
 interface StellaStakingPanelProps {
   setActionInfo?: ActionHandler
@@ -103,8 +104,9 @@ export function StellaStakingPanel({ setActionInfo, resetKey }: StellaStakingPan
   }, [debouncedOutputAmount, xcDOTToken, glmrToken, address, tokenType, chainId])
 
   const handleAmountChange = (value: string) => {
-    setOutputAmount(value)
-    if (!value || Number(value) <= 0) {
+    const validated = validateNumericInput(value)
+    setOutputAmount(validated)
+    if (!validated || Number(validated) <= 0) {
       lastDestinationKeyRef.current = null
       setActionInfoRef.current?.(undefined, undefined, [])
     }

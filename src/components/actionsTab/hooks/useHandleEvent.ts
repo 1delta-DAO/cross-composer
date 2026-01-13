@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef } from 'react'
-import { ExecutionEvent } from '../utils/types'
+import { ExecutionEvent } from '@1delta/trade-sdk'
 import { useTxHistory } from '../../../contexts/TxHistoryContext'
 import { useToast } from '../../common/ToastHost'
 
@@ -123,9 +123,12 @@ export function useHandleEvent(params: HandleEventParams) {
           }))
 
           if (historyIdRef.current) {
+            const isSameChain = !isBridge
+            const shouldBeCompleted = isSameChain ? true : Boolean(dh || completed)
+
             updateEntry(historyIdRef.current, {
               dstHash: dh || undefined,
-              status: dh || completed ? 'completed' : 'failed',
+              status: shouldBeCompleted ? 'completed' : 'failed',
             })
           }
 

@@ -76,4 +76,3 @@ export const DeltaCallConverter = {
     return Boolean(calls && calls.some(isLendingCall))
   },
 }
-

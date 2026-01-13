@@ -1,28 +1,36 @@
-import { fetchBridgeTradeWithoutComposed } from '@1delta/trade-sdk'
+import { fetchBridgeTrade, type BridgeInput } from '@1delta/trade-sdk'
 import { Bridge, getBridges } from '@1delta/bridge-configs'
-import type { GenericTrade, PreDeltaCall, PostDeltaCall } from '@1delta/lib-utils'
 import type {
-  AcrossBaseInput,
-  AxelarBaseInput,
-  BaseBridgeInput,
-} from '@1delta/trade-sdk/dist/types'
-import { fetchAxelarTradeWithSwaps } from '@1delta/trade-sdk/dist/composedTrades/axelar/axelarWithSwaps'
-import { fetchAcrossTradeWithSwaps } from '@1delta/trade-sdk/dist/composedTrades/across/acrossWithSwaps'
+  GenericTrade,
+  PreDeltaCall,
+  PostDeltaCall,
+  RawCurrency,
+  TradeType,
+} from '@1delta/lib-utils'
 
-type ExtendedBridgeInput = BaseBridgeInput & {
+type BridgeInputParams = {
+  slippage: number
+  tradeType: TradeType
+  fromCurrency: RawCurrency | undefined
+  toCurrency: RawCurrency | undefined
+  swapAmount: string | undefined
+  caller: string
+  receiver: string
+  order: 'CHEAPEST' | 'FASTEST'
+  message?: string
+  usePermit?: boolean
+  destinationGasLimit?: bigint
   preCalls?: PreDeltaCall[]
   postCalls?: PostDeltaCall[]
-  destinationGasLimit?: bigint
 }
 
 export async function fetchAllActionTrades(
-  input: ExtendedBridgeInput,
+  input: BridgeInputParams,
   controller?: AbortController
 ): Promise<Array<{ action: string; trade: GenericTrade }>> {
   const availableBridges = getBridges()
   const hasPreCalls = Boolean(input.preCalls && input.preCalls.length > 0)
   const hasPostCalls = Boolean(input.postCalls && input.postCalls.length > 0)
-  const hasAdditionalCalls = hasPreCalls || hasPostCalls
 
   console.debug(
     'Fetching from actions:',
@@ -33,46 +41,109 @@ export async function fetchAllActionTrades(
   const results = await Promise.all(
     availableBridges.map(async (bridge: Bridge) => {
       try {
-        let trade: GenericTrade | undefined
+        if ((hasPreCalls || hasPostCalls) && bridge !== Bridge.ACROSS && bridge !== Bridge.AXELAR) {
+          return undefined
+        }
 
-        if (hasAdditionalCalls) {
-          if (bridge === Bridge.AXELAR) {
-            const { postCalls: _, preCalls: __, ...baseInput } = input
-            const composedInput: AxelarBaseInput = {
-              ...baseInput,
-              payFeeWithNative: true,
-              ...(hasPostCalls && input.postCalls
-                ? {
-                    postCalls: {
-                      calls: input.postCalls,
-                      gasLimit: input.destinationGasLimit,
-                    },
-                  }
-                : undefined),
-              ...(hasPreCalls && input.preCalls ? { preCalls: input.preCalls } : undefined),
+        let bridgeInput: BridgeInput
+
+        if (bridge === Bridge.ACROSS) {
+          const acrossInput: {
+            slippage: number
+            tradeType: TradeType
+            fromCurrency: RawCurrency | undefined
+            toCurrency: RawCurrency | undefined
+            swapAmount: string | undefined
+            caller: string
+            receiver: string
+            order: 'CHEAPEST' | 'FASTEST'
+            message?: string
+            usePermit?: boolean
+            destinationGasLimit?: bigint
+            preCalls?: PreDeltaCall[]
+            postCalls?: PostDeltaCall[]
+          } = {
+            slippage: input.slippage,
+            tradeType: input.tradeType,
+            fromCurrency: input.fromCurrency,
+            toCurrency: input.toCurrency,
+            swapAmount: input.swapAmount,
+            caller: input.caller,
+            receiver: input.receiver,
+            order: input.order,
+            message: input.message,
+            usePermit: input.usePermit,
+            destinationGasLimit: input.destinationGasLimit,
+          }
+          if (input.preCalls !== undefined) acrossInput.preCalls = input.preCalls
+          if (input.postCalls !== undefined) acrossInput.postCalls = input.postCalls
+
+          bridgeInput = {
+            bridge: Bridge.ACROSS,
+            input: acrossInput,
+          }
+        } else if (bridge === Bridge.AXELAR) {
+          const axelarInput: {
+            slippage: number
+            tradeType: TradeType
+            fromCurrency: RawCurrency | undefined
+            toCurrency: RawCurrency | undefined
+            swapAmount: string | undefined
+            caller: string
+            receiver: string
+            order: 'CHEAPEST' | 'FASTEST'
+            message?: string
+            usePermit?: boolean
+            destinationGasLimit?: bigint
+            payFeeWithNative?: boolean
+            preCalls?: PreDeltaCall[]
+            postCalls?: { calls: PostDeltaCall[]; gasLimit?: bigint }
+          } = {
+            slippage: input.slippage,
+            tradeType: input.tradeType,
+            fromCurrency: input.fromCurrency,
+            toCurrency: input.toCurrency,
+            swapAmount: input.swapAmount,
+            caller: input.caller,
+            receiver: input.receiver,
+            order: input.order,
+            message: input.message,
+            usePermit: input.usePermit,
+            destinationGasLimit: input.destinationGasLimit,
+            payFeeWithNative: true,
+          }
+          if (input.preCalls !== undefined) axelarInput.preCalls = input.preCalls
+          if (input.postCalls !== undefined) {
+            axelarInput.postCalls = {
+              calls: input.postCalls,
+              gasLimit: input.destinationGasLimit,
             }
-            trade = await fetchAxelarTradeWithSwaps(composedInput, controller)
-          } else if (bridge === Bridge.ACROSS) {
-            const composedInput: AcrossBaseInput = {
-              ...input,
-              ...(hasPostCalls ? { postCalls: input.postCalls || [] } : {}),
-              ...(hasPreCalls ? { preCalls: input.preCalls || [] } : {}),
-            }
-            trade = await fetchAcrossTradeWithSwaps(composedInput, controller)
-          } else {
-            return undefined
+          }
+
+          bridgeInput = {
+            bridge: Bridge.AXELAR,
+            input: axelarInput,
           }
         } else {
-          const baseInput: BaseBridgeInput = {
-            ...input,
-          }
-
-          trade = await fetchBridgeTradeWithoutComposed(
-            bridge,
-            baseInput,
-            controller || new AbortController()
-          )
+          bridgeInput = {
+            bridge: bridge as Exclude<Bridge, Bridge.AXELAR | Bridge.ACROSS | Bridge.Zenlink>,
+            input: {
+              slippage: input.slippage,
+              tradeType: input.tradeType,
+              fromCurrency: input.fromCurrency,
+              toCurrency: input.toCurrency,
+              swapAmount: input.swapAmount,
+              caller: input.caller,
+              receiver: input.receiver,
+              order: input.order,
+              message: input.message,
+              usePermit: input.usePermit,
+              destinationGasLimit: input.destinationGasLimit,
+            },
+          } as BridgeInput
         }
+
+        const trade = await fetchBridgeTrade(bridgeInput, controller || new AbortController())
 
         if (trade) return { action: bridge.toString(), trade }
       } catch (error) {
