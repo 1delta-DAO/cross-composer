@@ -7,4 +7,18 @@ export default defineConfig({
     port: 3000,
     open: false,
   },
+  resolve: {
+    alias: {
+      // Ensure proper resolution for wallet SDKs
+      '@metamask/sdk': '@metamask/sdk',
+    },
+  },
+  optimizeDeps: {
+    include: ['@metamask/sdk'],
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  },
 })
